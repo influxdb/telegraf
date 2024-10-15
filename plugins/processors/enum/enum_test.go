@@ -205,6 +205,18 @@ func TestDoNotWriteToDestinationWithoutDefaultOrDefinedMapping(t *testing.T) {
 	require.False(t, present, "value of field '"+field+"' was present")
 }
 
+func TestMultipleFields(t *testing.T) {
+	mapper := EnumMapper{Mappings: []Mapping{{
+		Fields:        []string{"string_value", "duplicate_string_value"},
+		ValueMappings: map[string]interface{}{"test": "multiple"},
+	}}}
+	require.NoError(t, mapper.Init())
+	fields := calculateProcessedValues(mapper, createTestMetric())
+
+	assertFieldValue(t, "multiple", "string_value", fields)
+	assertFieldValue(t, "multiple", "duplicate_string_value", fields)
+}
+
 func TestFieldGlobMatching(t *testing.T) {
 	mapper := EnumMapper{Mappings: []Mapping{{
 		Fields:        []string{"*"},
