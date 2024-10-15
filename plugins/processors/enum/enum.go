@@ -22,10 +22,12 @@ type EnumMapper struct {
 }
 
 type Mapping struct {
-	Tag           string
-	Field         string
-	Dest          string
-	Default       interface{}
+	Tag     string      `toml:"tag"`
+	Field   string      `toml:"field" deprecated:"1.33.0;1.40.0;use 'fields' instead"`
+	Fields  []string    `toml:"fields"`
+	Dest    string      `toml:"dest"`
+	Default interface{} `toml:"default"`
+
 	ValueMappings map[string]interface{}
 }
 
@@ -37,12 +39,16 @@ func (mapper *EnumMapper) Init() error {
 	mapper.FieldFilters = make(map[string]filter.Filter)
 	mapper.TagFilters = make(map[string]filter.Filter)
 	for _, mapping := range mapper.Mappings {
+		// Handle deprecated field option
 		if mapping.Field != "" {
-			fieldFilter, err := filter.NewIncludeExcludeFilter([]string{mapping.Field}, nil)
+			mapping.Fields = append(mapping.Fields, mapping.Field)
+		}
+		for _, field := range mapping.Fields {
+			fieldFilter, err := filter.NewIncludeExcludeFilter([]string{field}, nil)
 			if err != nil {
 				return fmt.Errorf("failed to create new field filter: %w", err)
 			}
-			mapper.FieldFilters[mapping.Field] = fieldFilter
+			mapper.FieldFilters[field] = fieldFilter
 		}
 		if mapping.Tag != "" {
 			tagFilter, err := filter.NewIncludeExcludeFilter([]string{mapping.Tag}, nil)
@@ -68,7 +74,7 @@ func (mapper *EnumMapper) applyMappings(metric telegraf.Metric) telegraf.Metric 
 	newTags := make(map[string]string)
 
 	for _, mapping := range mapper.Mappings {
-		if mapping.Field != "" {
+		if len(mapping.Fields) > 0 {
 			mapper.fieldMapping(metric, mapping, newFields)
 		}
 		if mapping.Tag != "" {
@@ -90,10 +96,12 @@ func (mapper *EnumMapper) applyMappings(metric telegraf.Metric) telegraf.Metric 
 func (mapper *EnumMapper) fieldMapping(metric telegraf.Metric, mapping Mapping, newFields map[string]interface{}) {
 	fields := metric.FieldList()
 	for _, f := range fields {
-		if mapper.FieldFilters[mapping.Field].Match(f.Key) {
-			if adjustedValue, isString := adjustValue(f.Value).(string); isString {
-				if mappedValue, isMappedValuePresent := mapping.mapValue(adjustedValue); isMappedValuePresent {
-					newFields[mapping.getDestination(f.Key)] = mappedValue
+		for _, mappingField := range mapping.Fields {
+			if mapper.FieldFilters[mappingField].Match(f.Key) {
+				if adjustedValue, isString := adjustValue(f.Value).(string); isString {
+					if mappedValue, isMappedValuePresent := mapping.mapValue(adjustedValue); isMappedValuePresent {
+						newFields[mapping.getDestination(f.Key)] = mappedValue
+					}
 				}
 			}
 		}
