@@ -3,6 +3,8 @@ package shim
 import (
 	"bufio"
 	"fmt"
+	"os"
+	"time"
 
 	"github.com/influxdata/telegraf"
 	"github.com/influxdata/telegraf/models"
@@ -36,19 +38,56 @@ func (s *Shim) RunOutput() error {
 	}
 	defer s.Output.Close()
 
-	var m telegraf.Metric
+	mCh := make(chan telegraf.Metric)
+	done := make(chan struct{})
+
+	go func() {
+		var batch []telegraf.Metric
+		timer := time.NewTimer(s.BatchTimeout)
+		defer timer.Stop()
+
+		for {
+			select {
+			case m := <-mCh:
+				batch = append(batch, m)
+				if len(batch) >= s.BatchSize {
+					if err = s.Output.Write(batch); err != nil {
+						fmt.Fprintf(os.Stderr, "Failed to write metrics: %s\n", err)
+					}
+					batch = batch[:0]
+					timer.Reset(s.BatchTimeout)
+				}
+			case <-timer.C:
+				if len(batch) > 0 {
+					if err = s.Output.Write(batch); err != nil {
+						fmt.Fprintf(os.Stderr, "Failed to write metrics: %s\n", err)
+					}
+					batch = batch[:0]
+				}
+				timer.Reset(s.BatchTimeout)
+			case <-done:
+				if len(batch) > 0 {
+					if err = s.Output.Write(batch); err != nil {
+						fmt.Fprintf(os.Stderr, "Failed to write remaining metrics: %s\n", err)
+					}
+				}
+				return
+			}
+		}
+	}()
 
 	scanner := bufio.NewScanner(s.stdin)
 	for scanner.Scan() {
-		m, err = parser.ParseLine(scanner.Text())
+		m, err := parser.ParseLine(scanner.Text())
 		if err != nil {
 			fmt.Fprintf(s.stderr, "Failed to parse metric: %s\n", err)
 			continue
 		}
-		if err = s.Output.Write([]telegraf.Metric{m}); err != nil {
-			fmt.Fprintf(s.stderr, "Failed to write metric: %s\n", err)
-		}
+
+		mCh <- m
 	}
+
+	close(done)
 
 	return nil
 }
