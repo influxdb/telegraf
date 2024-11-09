@@ -60,7 +60,7 @@ type Shim struct {
 func New() *Shim {
 	return &Shim{
 		BatchSize:    1,
-		BatchTimeout: 5 * time.Second,
+		BatchTimeout: 10 * time.Second,
 		metricCh:     make(chan telegraf.Metric, 1),
 		stdin:        os.Stdin,
 		stdout:       os.Stdout,
