@@ -17,8 +17,8 @@ var sampleConfig string
 type EnumMapper struct {
 	Mappings []Mapping `toml:"mapping"`
 
-	FieldFilters map[string]filter.Filter
-	TagFilters   map[string]filter.Filter
+	FieldFilter filter.Filter
+	TagFilter   filter.Filter
 }
 
 type Mapping struct {
@@ -36,26 +36,24 @@ func (*EnumMapper) SampleConfig() string {
 }
 
 func (mapper *EnumMapper) Init() error {
-	mapper.FieldFilters = make(map[string]filter.Filter)
-	mapper.TagFilters = make(map[string]filter.Filter)
 	for _, mapping := range mapper.Mappings {
 		// Handle deprecated field option
 		if mapping.Field != "" {
 			mapping.Fields = append(mapping.Fields, mapping.Field)
 		}
-		for _, field := range mapping.Fields {
-			fieldFilter, err := filter.NewIncludeExcludeFilter([]string{field}, nil)
+		if len(mapping.Fields) != 0 {
+			fieldFilter, err := filter.Compile(mapping.Fields)
 			if err != nil {
 				return fmt.Errorf("failed to create new field filter: %w", err)
 			}
-			mapper.FieldFilters[field] = fieldFilter
+			mapper.FieldFilter = fieldFilter
 		}
 		if mapping.Tag != "" {
-			tagFilter, err := filter.NewIncludeExcludeFilter([]string{mapping.Tag}, nil)
+			tagFilter, err := filter.Compile([]string{mapping.Tag})
 			if err != nil {
 				return fmt.Errorf("failed to create new tag filter: %w", err)
 			}
-			mapper.TagFilters[mapping.Tag] = tagFilter
+			mapper.TagFilter = tagFilter
 		}
 	}
 
@@ -96,13 +94,12 @@ func (mapper *EnumMapper) applyMappings(metric telegraf.Metric) telegraf.Metric 
 func (mapper *EnumMapper) fieldMapping(metric telegraf.Metric, mapping Mapping, newFields map[string]interface{}) {
 	fields := metric.FieldList()
 	for _, f := range fields {
-		for _, mappingField := range mapping.Fields {
-			if mapper.FieldFilters[mappingField].Match(f.Key) {
-				if adjustedValue, isString := adjustValue(f.Value).(string); isString {
-					if mappedValue, isMappedValuePresent := mapping.mapValue(adjustedValue); isMappedValuePresent {
-						newFields[mapping.getDestination(f.Key)] = mappedValue
-					}
-				}
+		if !mapper.FieldFilter.Match(f.Key) {
+			continue
+		}
+		if adjustedValue, isString := adjustValue(f.Value).(string); isString {
+			if mappedValue, isMappedValuePresent := mapping.mapValue(adjustedValue); isMappedValuePresent {
+				newFields[mapping.getDestination(f.Key)] = mappedValue
 			}
 		}
 	}
@@ -111,14 +108,15 @@ func (mapper *EnumMapper) fieldMapping(metric telegraf.Metric, mapping Mapping, 
 func (mapper *EnumMapper) tagMapping(metric telegraf.Metric, mapping Mapping, newTags map[string]string) {
 	tags := metric.TagList()
 	for _, t := range tags {
-		if mapper.TagFilters[mapping.Tag].Match(t.Key) {
-			if mappedValue, isMappedValuePresent := mapping.mapValue(t.Value); isMappedValuePresent {
-				switch val := mappedValue.(type) {
-				case string:
-					newTags[mapping.getDestination(t.Key)] = val
-				default:
-					newTags[mapping.getDestination(t.Key)] = fmt.Sprintf("%v", val)
-				}
+		if !mapper.TagFilter.Match(t.Key) {
+			continue
+		}
+		if mappedValue, isMappedValuePresent := mapping.mapValue(t.Value); isMappedValuePresent {
+			switch val := mappedValue.(type) {
+			case string:
+				newTags[mapping.getDestination(t.Key)] = val
+			default:
+				newTags[mapping.getDestination(t.Key)] = fmt.Sprintf("%v", val)
 			}
 		}
 	}
