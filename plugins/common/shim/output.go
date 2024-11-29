@@ -14,7 +14,8 @@ import (
 
 type batchMetrics struct {
 	metrics []telegraf.Metric
-	mu      sync.RWMutex
+	wg      *sync.WaitGroup
+	mu      *sync.RWMutex
 }
 
 func (bm *batchMetrics) add(metric telegraf.Metric) {
@@ -28,6 +29,7 @@ func (bm *batchMetrics) clear() {
 	bm.mu.Lock()
 	defer bm.mu.Unlock()
 
+	bm.wg.Add(-len(bm.metrics))
 	bm.metrics = bm.metrics[:0]
 }
 
@@ -67,7 +69,7 @@ func (s *Shim) RunOutput() error {
 
 	mCh := make(chan telegraf.Metric)
 	done := make(chan struct{})
-	batch := batchMetrics{}
+	batch := batchMetrics{wg: &sync.WaitGroup{}, mu: &sync.RWMutex{}}
 
 	go func() {
 		timer := time.NewTimer(s.BatchTimeout)
@@ -111,8 +113,11 @@ func (s *Shim) RunOutput() error {
 			continue
 		}
 
+		batch.wg.Add(1)
 		mCh <- m
 	}
+
+	batch.wg.Wait()
 
 	close(done)
 
