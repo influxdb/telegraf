@@ -4,12 +4,39 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"sync"
 	"time"
 
 	"github.com/influxdata/telegraf"
 	"github.com/influxdata/telegraf/models"
 	"github.com/influxdata/telegraf/plugins/parsers/influx"
 )
+
+type batchMetrics struct {
+	metrics []telegraf.Metric
+	mu      sync.RWMutex
+}
+
+func (bm *batchMetrics) add(metric telegraf.Metric) {
+	bm.mu.Lock()
+	defer bm.mu.Unlock()
+
+	bm.metrics = append(bm.metrics, metric)
+}
+
+func (bm *batchMetrics) clear() {
+	bm.mu.Lock()
+	defer bm.mu.Unlock()
+
+	bm.metrics = bm.metrics[:0]
+}
+
+func (bm *batchMetrics) len() int {
+	bm.mu.RLock()
+	defer bm.mu.RUnlock()
+
+	return len(bm.metrics)
+}
 
 // AddOutput adds the input to the shim. Later calls to Run() will run this.
 func (s *Shim) AddOutput(output telegraf.Output) error {
@@ -40,34 +67,34 @@ func (s *Shim) RunOutput() error {
 
 	mCh := make(chan telegraf.Metric)
 	done := make(chan struct{})
+	batch := batchMetrics{}
 
 	go func() {
-		var batch []telegraf.Metric
 		timer := time.NewTimer(s.BatchTimeout)
 		defer timer.Stop()
 
 		for {
 			select {
 			case m := <-mCh:
-				batch = append(batch, m)
-				if len(batch) >= s.BatchSize {
-					if err = s.Output.Write(batch); err != nil {
+				batch.add(m)
+				if batch.len() >= s.BatchSize {
+					if err = s.Output.Write(batch.metrics); err != nil {
 						fmt.Fprintf(os.Stderr, "Failed to write metrics: %s\n", err)
 					}
-					batch = batch[:0]
+					batch.clear()
 					timer.Reset(s.BatchTimeout)
 				}
 			case <-timer.C:
-				if len(batch) > 0 {
-					if err = s.Output.Write(batch); err != nil {
+				if batch.len() > 0 {
+					if err = s.Output.Write(batch.metrics); err != nil {
 						fmt.Fprintf(os.Stderr, "Failed to write metrics: %s\n", err)
 					}
-					batch = batch[:0]
+					batch.clear()
 				}
 				timer.Reset(s.BatchTimeout)
 			case <-done:
-				if len(batch) > 0 {
-					if err = s.Output.Write(batch); err != nil {
+				if batch.len() > 0 {
+					if err = s.Output.Write(batch.metrics); err != nil {
 						fmt.Fprintf(os.Stderr, "Failed to write remaining metrics: %s\n", err)
 					}
 				}
