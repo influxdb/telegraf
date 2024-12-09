@@ -1,6 +1,15 @@
 <!-- markdownlint-disable MD024 -->
 # Changelog
 
+## Unreleased
+
+### Important Changes
+
+- This release removes the experimental status for disk-backed metric buffers.
+  You can enable this feature using the `buffer_strategy` agent config option
+  (see PR [#15564](https://github.com/influxdata/telegraf/pull/15564)).
+  Please read the documentation if you intend to use this strategy!
+
 ## v1.32.3 [2024-11-18]
 
 ### Important Changes

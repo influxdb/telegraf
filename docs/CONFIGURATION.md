@@ -367,11 +367,53 @@ The agent table configures Telegraf and the defaults used across all plugins.
   `memory`, the default and original buffer type, and `disk`, an experimental
   disk-backed buffer which will serialize all metrics to disk as needed to
   improve data durability and reduce the chance for data loss. This is only
-  supported at the agent level.
+  supported at the agent level. Please also check the
+  [buffer-strategy section](#buffer-strategies)!
 
 - **buffer_directory**:
   The directory to use when in `disk` buffer mode. Each output plugin will make
   another subdirectory in this directory with the output plugin's ID.
+
+### Buffer strategies
+
+Telegraf supports different strategies for buffering metrics on the output side
+to mitigate the loss of metrics on outages of the receiving service. Each output
+instance uses its own, independent buffer but all share the same strategy. This
+section will detail on the different stategies and also mention potential
+caveats.
+
+#### Memory-based strategy
+
+The memory-based strategy stores metrics in the host's memory until they are
+successfully written to the output. To avoid filling-up the memory the number of
+buffered metrics can be set using the `metric_buffer_limit` option.
+
+On longer outages of the output service, the configured limit might be exceeded.
+In this case the buffer overflows and Telegraf will drop metrics starting from
+the oldest metric added and replacing them with recent metrics.
+
+> [!NOTE]
+> Oldest here means the first metric added to the buffer, *not* the metric with
+> the earliest timestamp!
+
+#### Disk-based strategy
+
+The disk-based strategy stores metrics in the host's disk until they are
+successfully written to the output. The location of the files can be set using
+the `buffer_directory` option. Disk-based buffering is only limited by the
+available disk-space, therefore, the `metric_buffer_limit` option is ignored.
+
+> [!IMPORTANT]
+> Telegraf will not limit the used disk-space and you might end-up filling the
+> complete disk!
+
+Using this strategy allows to bridge longer outages of the output service at the
+cost of produce disk I/O when adding, sending and removing metrics to or from
+the buffer
+
+> [!IMPORTANT]
+> This strategy might wear-out your SSD disks quicker as writes are performed
+> on metric addition and removal!
 
 ## Plugins
 
