@@ -10,12 +10,11 @@ import (
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
-	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/kinesis"
 	consumer "github.com/harlow/kinesis-consumer"
-	"github.com/harlow/kinesis-consumer/store/ddb"
 
 	"github.com/influxdata/telegraf"
+	"github.com/influxdata/telegraf/config"
 	"github.com/influxdata/telegraf/internal"
 	common_aws "github.com/influxdata/telegraf/plugins/common/aws"
 	"github.com/influxdata/telegraf/plugins/inputs"
@@ -41,27 +40,21 @@ type KinesisConsumer struct {
 	acc    telegraf.TrackingAccumulator
 	sem    chan struct{}
 
-	checkpoint    consumer.Store
-	checkpoints   map[string]checkpoint
-	records       map[telegraf.TrackingID]string
-	checkpointTex sync.Mutex
-	recordsTex    sync.Mutex
-	wg            sync.WaitGroup
+	iteratorStore *store
+
+	consumed    map[string]string
+	records     map[telegraf.TrackingID]iterator
+	consumedTex sync.Mutex
+
+	wg sync.WaitGroup
 
 	contentDecodingFunc decodingFunc
-
-	lastSeqNum    string
-	lastSeqNumTex sync.Mutex
 }
 
 type dynamoDB struct {
-	AppName   string `toml:"app_name"`
-	TableName string `toml:"table_name"`
-}
-
-type checkpoint struct {
-	streamName string
-	shardID    string
+	AppName   string          `toml:"app_name"`
+	TableName string          `toml:"table_name"`
+	Interval  config.Duration `toml:"interval"`
 }
 
 func (*KinesisConsumer) SampleConfig() string {
@@ -87,6 +80,14 @@ func (k *KinesisConsumer) Init() error {
 	}
 	k.contentDecodingFunc = f
 
+	if k.DynamoDB != nil {
+		k.iteratorStore = newStore(k.DynamoDB.AppName, k.DynamoDB.TableName, time.Duration(k.DynamoDB.Interval), k.Log)
+	}
+	k.consumed = make(map[string]string)
+
+	k.records = make(map[telegraf.TrackingID]iterator, k.MaxUndeliveredMessages)
+	k.sem = make(chan struct{}, k.MaxUndeliveredMessages)
+
 	return nil
 }
 
@@ -95,97 +96,71 @@ func (k *KinesisConsumer) SetParser(parser telegraf.Parser) {
 }
 
 func (k *KinesisConsumer) Start(acc telegraf.Accumulator) error {
-	return k.connect(acc)
+	k.acc = acc.WithTracking(k.MaxUndeliveredMessages)
+
+	return k.connect()
 }
 
-func (k *KinesisConsumer) Gather(acc telegraf.Accumulator) error {
+func (k *KinesisConsumer) Gather(telegraf.Accumulator) error {
 	if k.cons == nil {
-		return k.connect(acc)
+		return k.connect()
 	}
-	// Enforce writing of sequence number for the latest metric successfully
-	// delivered to the outputs. If no metric was delivered, skip that step.
-	k.lastSeqNumTex.Lock()
-	sequenceNum := k.lastSeqNum
-	k.lastSeqNumTex.Unlock()
-
-	if sequenceNum == "" {
-		return nil
-	}
-
-	// Store the sequence number at least once per gather cycle using the checkpoint
-	// storage (usually DynamoDB).
-	k.checkpointTex.Lock()
-	chk, ok := k.checkpoints[sequenceNum]
-	if !ok {
-		k.checkpointTex.Unlock()
-		return nil
-	}
-	delete(k.checkpoints, sequenceNum)
-	k.checkpointTex.Unlock()
-
-	k.Log.Tracef("persisting sequence number %q for stream %q and shard %q", sequenceNum, chk.streamName, chk.shardID)
-	if err := k.checkpoint.SetCheckpoint(chk.streamName, chk.shardID, sequenceNum); err != nil {
-		return fmt.Errorf("setting checkpoint failed: %w", err)
-	}
-	k.lastSeqNumTex.Lock()
-	k.lastSeqNum = ""
-	k.lastSeqNumTex.Unlock()
-
 	return nil
 }
 
 func (k *KinesisConsumer) Stop() {
 	k.cancel()
 	k.wg.Wait()
-}
 
-// GetCheckpoint wraps the checkpoint's GetCheckpoint function (called by consumer library)
-func (k *KinesisConsumer) GetCheckpoint(streamName, shardID string) (string, error) {
-	return k.checkpoint.GetCheckpoint(streamName, shardID)
-}
-
-// SetCheckpoint wraps the checkpoint's SetCheckpoint function (called by consumer library)
-func (k *KinesisConsumer) SetCheckpoint(streamName, shardID, sequenceNumber string) error {
-	if sequenceNumber == "" {
-		return errors.New("sequence number should not be empty")
+	if k.iteratorStore != nil {
+		k.iteratorStore.stop()
 	}
+}
 
-	k.checkpointTex.Lock()
-	k.checkpoints[sequenceNumber] = checkpoint{streamName: streamName, shardID: shardID}
-	k.checkpointTex.Unlock()
-
+// Interface for the (to be replaced) kinesis-consumer library
+func (*KinesisConsumer) SetCheckpoint(_, _, _ string) error {
 	return nil
 }
 
-func (k *KinesisConsumer) connect(acc telegraf.Accumulator) error {
+func (k *KinesisConsumer) GetCheckpoint(stream, shard string) (string, error) {
+	k.consumedTex.Lock()
+	defer k.consumedTex.Unlock()
+
+	seqnr, found := k.consumed[stream+"/"+shard]
+	if !found && k.iteratorStore != nil {
+		v, err := k.iteratorStore.get(context.Background(), stream, shard)
+		if err != nil && !errors.Is(err, errNotFound) {
+			return "", err
+		}
+		seqnr = v
+	}
+
+	return seqnr, nil
+}
+
+// Internal functions
+func (k *KinesisConsumer) connect() error {
+	// Start the store if necessary
+	if k.iteratorStore != nil {
+		if err := k.iteratorStore.run(context.Background()); err != nil {
+			return fmt.Errorf("starting DynamoDB store failed: %w", err)
+		}
+	}
+
+	// Setup the client to connect to the Kinesis service
 	cfg, err := k.CredentialConfig.Credentials()
 	if err != nil {
 		return err
 	}
-
 	if k.EndpointURL != "" {
 		cfg.BaseEndpoint = &k.EndpointURL
 	}
-
 	logWrapper := &telegrafLoggerWrapper{k.Log}
 	cfg.Logger = logWrapper
 	cfg.ClientLogMode = aws.LogRetries
 	client := kinesis.NewFromConfig(cfg)
 
-	k.checkpoint = &noopStore{}
-	if k.DynamoDB != nil {
-		var err error
-		k.checkpoint, err = ddb.New(
-			k.DynamoDB.AppName,
-			k.DynamoDB.TableName,
-			ddb.WithDynamoClient(dynamodb.NewFromConfig(cfg)),
-			ddb.WithMaxInterval(time.Second*10),
-		)
-		if err != nil {
-			return err
-		}
-	}
-
+	// Setup the consumer
 	cons, err := consumer.New(
 		k.StreamName,
 		consumer.WithClient(client),
@@ -196,23 +171,19 @@ func (k *KinesisConsumer) connect(acc telegraf.Accumulator) error {
 	if err != nil {
 		return err
 	}
-
 	k.cons = cons
-
-	k.acc = acc.WithTracking(k.MaxUndeliveredMessages)
-	k.records = make(map[telegraf.TrackingID]string, k.MaxUndeliveredMessages)
-	k.checkpoints = make(map[string]checkpoint, k.MaxUndeliveredMessages)
-	k.sem = make(chan struct{}, k.MaxUndeliveredMessages)
 
 	ctx := context.Background()
 	ctx, k.cancel = context.WithCancel(ctx)
 
+	// Start the go-routine handling metrics delivered to the output
 	k.wg.Add(1)
 	go func() {
 		defer k.wg.Done()
 		k.onDelivery(ctx)
 	}()
 
+	// Start the go-routine handling message consumption
 	k.wg.Add(1)
 	go func() {
 		defer k.wg.Done()
@@ -257,10 +228,12 @@ func (k *KinesisConsumer) onMessage(acc telegraf.TrackingAccumulator, r *consume
 		})
 	}
 
-	k.recordsTex.Lock()
+	k.consumedTex.Lock()
+	seqnr := *r.SequenceNumber
 	id := acc.AddTrackingMetricGroup(metrics)
-	k.records[id] = *r.SequenceNumber
-	k.recordsTex.Unlock()
+	k.records[id] = iterator{shard: r.ShardID, seqnr: seqnr}
+	k.consumed[r.ShardID] = seqnr
+	k.consumedTex.Unlock()
 
 	return nil
 }
@@ -272,26 +245,33 @@ func (k *KinesisConsumer) onDelivery(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case info := <-k.acc.Delivered():
-			k.recordsTex.Lock()
-			sequenceNum, ok := k.records[info.ID()]
-			if !ok {
-				k.recordsTex.Unlock()
-				continue
+			// Store the metric iterator in DynamoDB if configured
+			if k.iteratorStore != nil {
+				k.storeDelivered(info.ID())
 			}
+
+			// Reduce the number of undelivered messages by reading from the channel
 			<-k.sem
-			delete(k.records, info.ID())
-			k.recordsTex.Unlock()
-
-			if !info.Delivered() {
-				k.Log.Debug("Metric group failed to process")
-				continue
-			}
-
-			k.lastSeqNumTex.Lock()
-			k.lastSeqNum = sequenceNum
-			k.lastSeqNumTex.Unlock()
 		}
 	}
+}
+
+func (k *KinesisConsumer) storeDelivered(id telegraf.TrackingID) {
+	k.consumedTex.Lock()
+	defer k.consumedTex.Unlock()
+
+	// Find the iterator belonging to the delivered message
+	iter, ok := k.records[id]
+	if !ok {
+		k.Log.Debugf("No iterator found for delivered metric %v!", id)
+		return
+	}
+
+	// Remove metric
+	delete(k.records, id)
+
+	// Store the iterator in the database
+	k.iteratorStore.set(k.StreamName, iter.shard, iter.seqnr)
 }
 
 func init() {

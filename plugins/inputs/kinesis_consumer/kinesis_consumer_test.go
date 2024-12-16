@@ -62,7 +62,6 @@ func TestOnMessage(t *testing.T) {
 	tests := []struct {
 		name            string
 		encoding        string
-		records         map[telegraf.TrackingID]string
 		args            *consumer.Record
 		expectedNumber  int
 		expectedContent string
@@ -70,7 +69,6 @@ func TestOnMessage(t *testing.T) {
 		{
 			name:     "test no compression",
 			encoding: "none",
-			records:  make(map[telegraf.TrackingID]string),
 			args: &consumer.Record{
 				Record: types.Record{
 					Data:           notZippedBytes,
@@ -81,8 +79,7 @@ func TestOnMessage(t *testing.T) {
 			expectedContent: "bob",
 		},
 		{
-			name:    "test no compression via empty string for ContentEncoding",
-			records: make(map[telegraf.TrackingID]string),
+			name: "test no compression via empty string for ContentEncoding",
 			args: &consumer.Record{
 				Record: types.Record{
 					Data:           notZippedBytes,
@@ -95,7 +92,6 @@ func TestOnMessage(t *testing.T) {
 		{
 			name:     "test no compression via identity ContentEncoding",
 			encoding: "identity",
-			records:  make(map[telegraf.TrackingID]string),
 			args: &consumer.Record{
 				Record: types.Record{
 					Data:           notZippedBytes,
@@ -106,8 +102,7 @@ func TestOnMessage(t *testing.T) {
 			expectedContent: "bob",
 		},
 		{
-			name:    "test no compression via no ContentEncoding",
-			records: make(map[telegraf.TrackingID]string),
+			name: "test no compression via no ContentEncoding",
 			args: &consumer.Record{
 				Record: types.Record{
 					Data:           notZippedBytes,
@@ -120,7 +115,6 @@ func TestOnMessage(t *testing.T) {
 		{
 			name:     "test gzip compression",
 			encoding: "gzip",
-			records:  make(map[telegraf.TrackingID]string),
 			args: &consumer.Record{
 				Record: types.Record{
 					Data:           gzippedBytes,
@@ -133,7 +127,6 @@ func TestOnMessage(t *testing.T) {
 		{
 			name:     "test zlib compression",
 			encoding: "zlib",
-			records:  make(map[telegraf.TrackingID]string),
 			args: &consumer.Record{
 				Record: types.Record{
 					Data:           zlibBytpes,
@@ -159,7 +152,7 @@ func TestOnMessage(t *testing.T) {
 			plugin := &KinesisConsumer{
 				ContentEncoding: tt.encoding,
 				parser:          parser,
-				records:         tt.records,
+				records:         make(map[telegraf.TrackingID]iterator),
 			}
 			require.NoError(t, plugin.Init())
 
