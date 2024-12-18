@@ -6,7 +6,6 @@ import (
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/kinesis/types"
-	consumer "github.com/harlow/kinesis-consumer"
 	"github.com/stretchr/testify/require"
 
 	"github.com/influxdata/telegraf"
@@ -16,6 +15,7 @@ import (
 
 func TestInvalidCoding(t *testing.T) {
 	plugin := &KinesisConsumer{
+		StreamName:      "foo",
 		ContentEncoding: "notsupported",
 	}
 	require.ErrorContains(t, plugin.Init(), "unknown content encoding")
@@ -62,29 +62,25 @@ func TestOnMessage(t *testing.T) {
 	tests := []struct {
 		name            string
 		encoding        string
-		args            *consumer.Record
+		record          *types.Record
 		expectedNumber  int
 		expectedContent string
 	}{
 		{
 			name:     "test no compression",
 			encoding: "none",
-			args: &consumer.Record{
-				Record: types.Record{
-					Data:           notZippedBytes,
-					SequenceNumber: aws.String("anything"),
-				},
+			record: &types.Record{
+				Data:           notZippedBytes,
+				SequenceNumber: aws.String("anything"),
 			},
 			expectedNumber:  2,
 			expectedContent: "bob",
 		},
 		{
 			name: "test no compression via empty string for ContentEncoding",
-			args: &consumer.Record{
-				Record: types.Record{
-					Data:           notZippedBytes,
-					SequenceNumber: aws.String("anything"),
-				},
+			record: &types.Record{
+				Data:           notZippedBytes,
+				SequenceNumber: aws.String("anything"),
 			},
 			expectedNumber:  2,
 			expectedContent: "bob",
@@ -92,22 +88,18 @@ func TestOnMessage(t *testing.T) {
 		{
 			name:     "test no compression via identity ContentEncoding",
 			encoding: "identity",
-			args: &consumer.Record{
-				Record: types.Record{
-					Data:           notZippedBytes,
-					SequenceNumber: aws.String("anything"),
-				},
+			record: &types.Record{
+				Data:           notZippedBytes,
+				SequenceNumber: aws.String("anything"),
 			},
 			expectedNumber:  2,
 			expectedContent: "bob",
 		},
 		{
 			name: "test no compression via no ContentEncoding",
-			args: &consumer.Record{
-				Record: types.Record{
-					Data:           notZippedBytes,
-					SequenceNumber: aws.String("anything"),
-				},
+			record: &types.Record{
+				Data:           notZippedBytes,
+				SequenceNumber: aws.String("anything"),
 			},
 			expectedNumber:  2,
 			expectedContent: "bob",
@@ -115,11 +107,9 @@ func TestOnMessage(t *testing.T) {
 		{
 			name:     "test gzip compression",
 			encoding: "gzip",
-			args: &consumer.Record{
-				Record: types.Record{
-					Data:           gzippedBytes,
-					SequenceNumber: aws.String("anything"),
-				},
+			record: &types.Record{
+				Data:           gzippedBytes,
+				SequenceNumber: aws.String("anything"),
 			},
 			expectedNumber:  1,
 			expectedContent: "bob",
@@ -127,11 +117,9 @@ func TestOnMessage(t *testing.T) {
 		{
 			name:     "test zlib compression",
 			encoding: "zlib",
-			args: &consumer.Record{
-				Record: types.Record{
-					Data:           zlibBytpes,
-					SequenceNumber: aws.String("anything"),
-				},
+			record: &types.Record{
+				Data:           zlibBytpes,
+				SequenceNumber: aws.String("anything"),
 			},
 			expectedNumber:  1,
 			expectedContent: "bob",
@@ -150,14 +138,16 @@ func TestOnMessage(t *testing.T) {
 
 			// Setup plugin
 			plugin := &KinesisConsumer{
+				StreamName:      "foo",
 				ContentEncoding: tt.encoding,
+				Log:             &testutil.Logger{},
 				parser:          parser,
 				records:         make(map[telegraf.TrackingID]iterator),
 			}
 			require.NoError(t, plugin.Init())
 
 			var acc testutil.Accumulator
-			require.NoError(t, plugin.onMessage(acc.WithTracking(tt.expectedNumber), tt.args))
+			require.NoError(t, plugin.onMessage(acc.WithTracking(tt.expectedNumber), "test", tt.record))
 
 			actual := acc.GetTelegrafMetrics()
 			require.Len(t, actual, tt.expectedNumber)

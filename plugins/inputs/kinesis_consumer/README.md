@@ -1,7 +1,10 @@
 # Kinesis Consumer Input Plugin
 
-The [Kinesis][kinesis] consumer plugin reads from a Kinesis data stream
-and creates metrics using one of the supported [input data formats][].
+This plugin consumes records from [AWS Kinesis][kinesis] data stream and
+creates metrics using one of the supported [data formats][data_formats].
+
+[kinesis]: https://aws.amazon.com/kinesis/
+[data_formats]: /docs/DATA_FORMATS_INPUT.md
 
 ## Service Input <!-- @/docs/includes/service_input.md -->
 
@@ -58,8 +61,18 @@ See the [CONFIGURATION.md][CONFIGURATION.md] for more details.
   ## Kinesis StreamName must exist prior to starting telegraf.
   streamname = "StreamName"
 
-  ## Shard iterator type (only 'TRIM_HORIZON' and 'LATEST' currently supported)
+  ## Shard iterator type
+  ## Available options: 'TRIM_HORIZON' (first in non-expired) and 'LATEST'
   # shard_iterator_type = "TRIM_HORIZON"
+
+  ## Interval for checking for new records
+  ## Please consider limits for getting records documented here:
+  ## https://docs.aws.amazon.com/streams/latest/dev/service-sizes-and-limits.html
+  # poll_interval = "250ms"
+
+  ## Interval for scanning for new shards created when resharding
+  ## If set to zero, shards are only scanned once on startup.
+  # shard_update_interval = "30s"
 
   ## Max undelivered messages
   ## This plugin uses tracking metrics, which ensure messages are read to
@@ -73,27 +86,23 @@ See the [CONFIGURATION.md][CONFIGURATION.md] for more details.
   ## setting it too low may never flush the broker's messages.
   # max_undelivered_messages = 1000
 
-  ## Data format to consume.
-  ## Each data format has its own unique set of configuration options, read
-  ## more about them here:
-  ## https://github.com/influxdata/telegraf/blob/master/docs/DATA_FORMATS_INPUT.md
-  data_format = "influx"
-
-  ##
-  ## The content encoding of the data from kinesis
-  ## If you are processing a cloudwatch logs kinesis stream then set this to "gzip"
-  ## as AWS compresses cloudwatch log data before it is sent to kinesis (aws
-  ## also base64 encodes the zip byte data before pushing to the stream.  The base64 decoding
-  ## is done automatically by the golang sdk, as data is read from kinesis)
-  ##
+  ## Content encoding of the record data
+  ## If you are processing a cloudwatch logs kinesis stream then set this to
+  ## "gzip" as AWS compresses cloudwatch log data before it is sent to kinesis.
   # content_encoding = "identity"
 
-  ## Optional
-  ## Configuration for a dynamodb checkpoint
-  [inputs.kinesis_consumer.checkpoint_dynamodb]
-    ## unique name for this consumer
-    app_name = "default"
-    table_name = "default"
+  ## Data format of the records to consume
+  ## See https://github.com/influxdata/telegraf/blob/master/docs/DATA_FORMATS_INPUT.md
+  # data_format = "influx"
+
+  ## Optional: Configuration for DynamoDB backend to store positions in the stream
+  # [inputs.kinesis_consumer.checkpoint_dynamodb]
+  #   ## Unique name for this consumer
+  #   app_name = "default"
+  #   ## Table to store the sequence numbers in
+  #   table_name = "default"
+  #   ## Interval for persisting data to limit write operations
+  #   # interval = "10s"
 ```
 
 ### Required AWS IAM permissions
@@ -118,9 +127,6 @@ leverage this functionality, create a table with the following string type keys:
 Partition key: namespace
 Sort key: shard_id
 ```
-
-[kinesis]: https://aws.amazon.com/kinesis/
-[input data formats]: /docs/DATA_FORMATS_INPUT.md
 
 ## Metrics
 
