@@ -46,6 +46,7 @@ func TestBatchMetricsClear(t *testing.T) {
 	bm.add(metric2)
 
 	require.Len(t, bm.metrics, 2)
+	require.Len(t, bm.metrics, 2)
 	bm.clear()
 
 	require.Empty(t, bm.metrics)
