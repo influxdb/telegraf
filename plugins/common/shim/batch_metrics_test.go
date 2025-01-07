@@ -1,13 +1,11 @@
 package shim
 
 import (
+	"github.com/influxdata/telegraf"
+	"github.com/influxdata/telegraf/testutil"
 	"github.com/stretchr/testify/require"
 	"sync"
 	"testing"
-	"time"
-
-	"github.com/influxdata/telegraf"
-	"github.com/influxdata/telegraf/testutil"
 )
 
 func TestBatchMetricsAdd(t *testing.T) {
@@ -20,11 +18,11 @@ func TestBatchMetricsAdd(t *testing.T) {
 		mu:      &mu,
 	}
 
-	metric := testutil.MustMetric("test_metric", map[string]string{"tag1": "value1"}, map[string]interface{}{"field1": 1}, time.Unix(0, 0))
+	metric := testutil.TestMetric(101, "metric1")
 
 	bm.add(metric)
 
-	testutil.RequireMetricsEqual(t, []telegraf.Metric{metric}, bm.metrics, testutil.IgnoreTime())
+	testutil.RequireMetricsEqual(t, []telegraf.Metric{metric}, bm.metrics)
 }
 
 func TestBatchMetricsClear(t *testing.T) {
@@ -39,14 +37,12 @@ func TestBatchMetricsClear(t *testing.T) {
 		mu:      &mu,
 	}
 
-	metric1 := testutil.MustMetric("metric1", nil, map[string]interface{}{"field1": 1}, time.Unix(0, 0))
-	metric2 := testutil.MustMetric("metric2", nil, map[string]interface{}{"field2": 2}, time.Unix(0, 0))
+	metric1 := testutil.TestMetric(101, "metric1")
+	metric2 := testutil.TestMetric(102, "metric2")
 
 	bm.add(metric1)
 	bm.add(metric2)
 
-	require.Len(t, bm.metrics, 2)
-	require.Len(t, bm.metrics, 2)
 	require.Len(t, bm.metrics, 2)
 	bm.clear()
 
@@ -65,8 +61,8 @@ func TestBatchMetricsLen(t *testing.T) {
 
 	require.Empty(t, bm.metrics)
 
-	metric := testutil.MustMetric("test_metric", nil, map[string]interface{}{"field1": 1}, time.Unix(0, 0))
+	metric := testutil.TestMetric(101, "metric1")
 	bm.add(metric)
 
-	require.Len(t, bm, 1)
+	require.Len(t, bm.metrics, 1)
 }
