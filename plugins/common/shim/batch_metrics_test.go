@@ -24,7 +24,7 @@ func TestBatchMetricsAdd(t *testing.T) {
 
 	bm.add(metric)
 
-	require.Equal(t, []telegraf.Metric{metric}, bm.metrics)
+	testutil.RequireMetricsEqual(t, []telegraf.Metric{metric}, bm.metrics, testutil.IgnoreTime())
 }
 
 func TestBatchMetricsClear(t *testing.T) {
