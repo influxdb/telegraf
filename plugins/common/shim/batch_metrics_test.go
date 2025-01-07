@@ -24,7 +24,7 @@ func TestBatchMetricsAdd(t *testing.T) {
 
 	bm.add(metric)
 
-	require.Equal(t, bm.metrics, []telegraf.Metric{metric})
+	require.Equal(t, []telegraf.Metric{metric}, bm.metrics)
 }
 
 func TestBatchMetricsClear(t *testing.T) {
@@ -65,5 +65,5 @@ func TestBatchMetricsLen(t *testing.T) {
 	metric := testutil.MustMetric("test_metric", nil, map[string]interface{}{"field1": 1}, time.Unix(0, 0))
 	bm.add(metric)
 
-	require.Equal(t, bm.len(), 1)
+	require.Equal(t, 1, bm.len())
 }
