@@ -64,5 +64,5 @@ func TestBatchMetricsLen(t *testing.T) {
 	metric := testutil.TestMetric(101, "metric1")
 	bm.add(metric)
 
-	require.Len(t, bm.metrics, 1)
+	require.Equal(t, bm.len(), 1)
 }
