@@ -126,7 +126,7 @@ func (u *Upsd) gatherUps(acc telegraf.Accumulator, upsname string, variables []n
 	}
 
 	// For compatibility with the apcupsd plugin's output we map the status string status into a bit-format
-	status := u.mapStatus(metrics, tags)
+	status := mapStatus(metrics, tags)
 
 	timeLeftS, err := internal.ToFloat64(metrics["battery.runtime"])
 	if err != nil {
@@ -190,7 +190,7 @@ func (u *Upsd) gatherUps(acc telegraf.Accumulator, upsname string, variables []n
 	acc.AddFields("upsd", fields, tags)
 }
 
-func (u *Upsd) mapStatus(metrics map[string]interface{}, tags map[string]string) uint64 {
+func mapStatus(metrics map[string]interface{}, tags map[string]string) uint64 {
 	status := uint64(0)
 	statusString := fmt.Sprintf("%v", metrics["ups.status"])
 	statuses := strings.Fields(statusString)

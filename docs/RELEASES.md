@@ -19,5 +19,5 @@ new features are held for the next minor release. Users can view what
 [GitHub milestones][] a PR belongs to when they want to determine the release
 it will go out with.
 
-[Google Calendar]: https://calendar.google.com/calendar/embed?src=c_1ikq7u4f5c4o6mh9ep4duo3avk%40group.calendar.google.com
+[Google Calendar]: https://calendar.google.com/calendar/embed?src=c_03d981cefd8d6432894cb162da5c6186e393bc0f970ca6c371201aa05d30d763%40group.calendar.google.com
 [GitHub milestones]: https://github.com/influxdata/telegraf/milestones

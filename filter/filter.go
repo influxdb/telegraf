@@ -101,19 +101,11 @@ type IncludeExcludeFilter struct {
 	excludeDefault bool
 }
 
-func NewIncludeExcludeFilter(
-	include []string,
-	exclude []string,
-) (Filter, error) {
+func NewIncludeExcludeFilter(include, exclude []string) (Filter, error) {
 	return NewIncludeExcludeFilterDefaults(include, exclude, true, false)
 }
 
-func NewIncludeExcludeFilterDefaults(
-	include []string,
-	exclude []string,
-	includeDefault bool,
-	excludeDefault bool,
-) (Filter, error) {
+func NewIncludeExcludeFilterDefaults(include, exclude []string, includeDefault, excludeDefault bool) (Filter, error) {
 	in, err := Compile(include)
 	if err != nil {
 		return nil, err

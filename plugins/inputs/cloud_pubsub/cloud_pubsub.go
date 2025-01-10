@@ -152,7 +152,7 @@ func (ps *PubSub) Start(ac telegraf.Accumulator) error {
 }
 
 // Gather does nothing for this service input.
-func (ps *PubSub) Gather(_ telegraf.Accumulator) error {
+func (*PubSub) Gather(telegraf.Accumulator) error {
 	return nil
 }
 

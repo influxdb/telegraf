@@ -17,12 +17,14 @@ type Mdstat struct {
 	Log telegraf.Logger `toml:"-"`
 }
 
+func (*Mdstat) SampleConfig() string { return sampleConfig }
+
 func (m *Mdstat) Init() error {
-	m.Log.Warn("current platform is not supported")
+	m.Log.Warn("Current platform is not supported")
 	return nil
 }
-func (*Mdstat) SampleConfig() string                { return sampleConfig }
-func (*Mdstat) Gather(_ telegraf.Accumulator) error { return nil }
+
+func (*Mdstat) Gather(telegraf.Accumulator) error { return nil }
 
 func init() {
 	inputs.Add("mdstat", func() telegraf.Input {

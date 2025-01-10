@@ -218,7 +218,7 @@ func (c *CiscoTelemetryMDT) Start(acc telegraf.Accumulator) error {
 	return nil
 }
 
-func (c *CiscoTelemetryMDT) Gather(_ telegraf.Accumulator) error {
+func (*CiscoTelemetryMDT) Gather(telegraf.Accumulator) error {
 	return nil
 }
 
@@ -541,7 +541,7 @@ func (c *CiscoTelemetryMDT) parseKeyField(tags map[string]string, field *telemet
 	}
 }
 
-func (c *CiscoTelemetryMDT) parseRib(grouper *metric.SeriesGrouper, field *telemetry.TelemetryField,
+func parseRib(grouper *metric.SeriesGrouper, field *telemetry.TelemetryField,
 	encodingPath string, tags map[string]string, timestamp time.Time) {
 	// RIB
 	measurement := encodingPath
@@ -574,7 +574,7 @@ func (c *CiscoTelemetryMDT) parseRib(grouper *metric.SeriesGrouper, field *telem
 	}
 }
 
-func (c *CiscoTelemetryMDT) parseMicroburst(grouper *metric.SeriesGrouper, field *telemetry.TelemetryField,
+func parseMicroburst(grouper *metric.SeriesGrouper, field *telemetry.TelemetryField,
 	encodingPath string, tags map[string]string, timestamp time.Time) {
 	var nxMicro *telemetry.TelemetryField
 	var nxMicro1 *telemetry.TelemetryField
@@ -623,12 +623,12 @@ func (c *CiscoTelemetryMDT) parseClassAttributeField(grouper *metric.SeriesGroup
 	isDme := strings.Contains(encodingPath, "sys/")
 	if encodingPath == "rib" {
 		// handle native data path rib
-		c.parseRib(grouper, field, encodingPath, tags, timestamp)
+		parseRib(grouper, field, encodingPath, tags, timestamp)
 		return
 	}
 	if encodingPath == "microburst" {
 		// dump microburst
-		c.parseMicroburst(grouper, field, encodingPath, tags, timestamp)
+		parseMicroburst(grouper, field, encodingPath, tags, timestamp)
 		return
 	}
 	if field == nil || !isDme || len(field.Fields) == 0 || len(field.Fields[0].Fields) == 0 || len(field.Fields[0].Fields[0].Fields) == 0 {

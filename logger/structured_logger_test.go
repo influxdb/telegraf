@@ -307,6 +307,44 @@ func TestStructuredWriteToFileInRotation(t *testing.T) {
 	require.Len(t, files, 2)
 }
 
+func TestStructuredLogMessageKey(t *testing.T) {
+	instance = defaultHandler()
+
+	tmpfile, err := os.CreateTemp("", "")
+	require.NoError(t, err)
+	defer os.Remove(tmpfile.Name())
+
+	cfg := &Config{
+		Logfile:                 tmpfile.Name(),
+		LogFormat:               "structured",
+		RotationMaxArchives:     -1,
+		Debug:                   true,
+		StructuredLogMessageKey: "message",
+	}
+	require.NoError(t, SetupLogging(cfg))
+
+	l := New("testing", "test", "")
+	l.Info("TEST")
+
+	buf, err := os.ReadFile(tmpfile.Name())
+	require.NoError(t, err)
+
+	expected := map[string]interface{}{
+		"level":    "INFO",
+		"message":  "TEST",
+		"category": "testing",
+		"plugin":   "test",
+	}
+
+	var actual map[string]interface{}
+	require.NoError(t, json.Unmarshal(buf, &actual))
+
+	require.Contains(t, actual, "time")
+	require.NotEmpty(t, actual["time"])
+	delete(actual, "time")
+	require.Equal(t, expected, actual)
+}
+
 func BenchmarkTelegrafStructuredLogWrite(b *testing.B) {
 	// Discard all logging output
 	l := &structuredLogger{

@@ -41,7 +41,7 @@ func (c *IncusClient) Connect() error {
 }
 
 // Create a container using a specific remote and alias.
-func (c *IncusClient) Create(name string, remote string, alias string) error {
+func (c *IncusClient) Create(name, remote, alias string) error {
 	fmt.Printf("creating %s with %s:%s\n", name, remote, alias)
 
 	if c.Client == nil {
@@ -147,7 +147,7 @@ func (c *IncusClient) Exec(name string, command ...string) error {
 }
 
 // Push file to container.
-func (c *IncusClient) Push(name string, src string, dst string) error {
+func (c *IncusClient) Push(name, src, dst string) error {
 	fmt.Printf("cp %s %s%s\n", src, name, dst)
 	f, err := os.Open(src)
 	if err != nil {

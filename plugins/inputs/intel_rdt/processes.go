@@ -19,7 +19,7 @@ func newProcessor() processesHandler {
 	return &processManager{}
 }
 
-func (p *processManager) getAllProcesses() ([]process, error) {
+func (*processManager) getAllProcesses() ([]process, error) {
 	allProcesses, err := procfs.AllProcs()
 	if err != nil {
 		return nil, err

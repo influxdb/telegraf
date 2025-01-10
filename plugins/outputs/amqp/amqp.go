@@ -17,7 +17,6 @@ import (
 	"github.com/influxdata/telegraf/plugins/common/proxy"
 	"github.com/influxdata/telegraf/plugins/common/tls"
 	"github.com/influxdata/telegraf/plugins/outputs"
-	"github.com/influxdata/telegraf/plugins/serializers"
 )
 
 //go:embed sample.conf
@@ -67,7 +66,7 @@ type AMQP struct {
 	tls.ClientConfig
 	proxy.TCPProxy
 
-	serializer   serializers.Serializer
+	serializer   telegraf.Serializer
 	connect      func(*ClientConfig) (Client, error)
 	client       Client
 	config       *ClientConfig
@@ -84,7 +83,7 @@ func (*AMQP) SampleConfig() string {
 	return sampleConfig
 }
 
-func (q *AMQP) SetSerializer(serializer serializers.Serializer) {
+func (q *AMQP) SetSerializer(serializer telegraf.Serializer) {
 	q.serializer = serializer
 }
 

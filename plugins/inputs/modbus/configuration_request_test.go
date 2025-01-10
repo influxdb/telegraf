@@ -3177,7 +3177,7 @@ func TestRequestWorkaroundsOneRequestPerField(t *testing.T) {
 		Controller:        "tcp://localhost:1502",
 		ConfigurationType: "request",
 		Log:               testutil.Logger{},
-		Workarounds:       ModbusWorkarounds{OnRequestPerField: true},
+		Workarounds:       workarounds{OnRequestPerField: true},
 	}
 	plugin.Requests = []requestDefinition{
 		{
@@ -3223,7 +3223,7 @@ func TestRequestWorkaroundsReadCoilsStartingAtZeroRequest(t *testing.T) {
 		Controller:        "tcp://localhost:1502",
 		ConfigurationType: "request",
 		Log:               testutil.Logger{},
-		Workarounds:       ModbusWorkarounds{ReadCoilsStartingAtZero: true},
+		Workarounds:       workarounds{ReadCoilsStartingAtZero: true},
 	}
 	plugin.SlaveID = 1
 	plugin.Requests = []requestDefinition{
@@ -3262,7 +3262,7 @@ func TestRequestOverlap(t *testing.T) {
 		Controller:        "tcp://localhost:1502",
 		ConfigurationType: "request",
 		Log:               logger,
-		Workarounds:       ModbusWorkarounds{ReadCoilsStartingAtZero: true},
+		Workarounds:       workarounds{ReadCoilsStartingAtZero: true},
 	}
 	plugin.Requests = []requestDefinition{
 		{
@@ -3320,7 +3320,7 @@ func TestRequestAddressOverflow(t *testing.T) {
 		Controller:        "tcp://localhost:1502",
 		ConfigurationType: "request",
 		Log:               logger,
-		Workarounds:       ModbusWorkarounds{ReadCoilsStartingAtZero: true},
+		Workarounds:       workarounds{ReadCoilsStartingAtZero: true},
 	}
 	plugin.Requests = []requestDefinition{
 		{

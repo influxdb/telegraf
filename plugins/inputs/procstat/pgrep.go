@@ -11,54 +11,54 @@ import (
 )
 
 // Implementation of PIDGatherer that execs pgrep to find processes
-type Pgrep struct {
+type pgrep struct {
 	path string
 }
 
-func newPgrepFinder() (PIDFinder, error) {
+func newPgrepFinder() (pidFinder, error) {
 	path, err := exec.LookPath("pgrep")
 	if err != nil {
 		return nil, fmt.Errorf("could not find pgrep binary: %w", err)
 	}
-	return &Pgrep{path}, nil
+	return &pgrep{path}, nil
 }
 
-func (pg *Pgrep) PidFile(path string) ([]PID, error) {
-	var pids []PID
+func (*pgrep) pidFile(path string) ([]pid, error) {
+	var pids []pid
 	pidString, err := os.ReadFile(path)
 	if err != nil {
 		return pids, fmt.Errorf("failed to read pidfile %q: %w",
 			path, err)
 	}
-	pid, err := strconv.ParseInt(strings.TrimSpace(string(pidString)), 10, 32)
+	processID, err := strconv.ParseInt(strings.TrimSpace(string(pidString)), 10, 32)
 	if err != nil {
 		return pids, err
 	}
-	pids = append(pids, PID(pid))
+	pids = append(pids, pid(processID))
 	return pids, nil
 }
 
-func (pg *Pgrep) Pattern(pattern string) ([]PID, error) {
+func (pg *pgrep) pattern(pattern string) ([]pid, error) {
 	args := []string{pattern}
 	return pg.find(args)
 }
 
-func (pg *Pgrep) UID(user string) ([]PID, error) {
+func (pg *pgrep) uid(user string) ([]pid, error) {
 	args := []string{"-u", user}
 	return pg.find(args)
 }
 
-func (pg *Pgrep) FullPattern(pattern string) ([]PID, error) {
+func (pg *pgrep) fullPattern(pattern string) ([]pid, error) {
 	args := []string{"-f", pattern}
 	return pg.find(args)
 }
 
-func (pg *Pgrep) Children(pid PID) ([]PID, error) {
+func (pg *pgrep) children(pid pid) ([]pid, error) {
 	args := []string{"-P", strconv.FormatInt(int64(pid), 10)}
 	return pg.find(args)
 }
 
-func (pg *Pgrep) find(args []string) ([]PID, error) {
+func (pg *pgrep) find(args []string) ([]pid, error) {
 	// Execute pgrep with the given arguments
 	buf, err := exec.Command(pg.path, args...).Output()
 	if err != nil {
@@ -73,13 +73,13 @@ func (pg *Pgrep) find(args []string) ([]PID, error) {
 
 	// Parse the command output to extract the PIDs
 	fields := strings.Fields(out)
-	pids := make([]PID, 0, len(fields))
+	pids := make([]pid, 0, len(fields))
 	for _, field := range fields {
-		pid, err := strconv.ParseInt(field, 10, 32)
+		processID, err := strconv.ParseInt(field, 10, 32)
 		if err != nil {
 			return nil, err
 		}
-		pids = append(pids, PID(pid))
+		pids = append(pids, pid(processID))
 	}
 	return pids, nil
 }

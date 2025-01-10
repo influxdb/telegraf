@@ -106,7 +106,7 @@ func TestTCPOK1(t *testing.T) {
 	require.NoError(t, c.Init())
 	// Start TCP server
 	wg.Add(1)
-	go TCPServer(t, &wg)
+	go tcpServer(t, &wg)
 	wg.Wait() // Wait for the server to spin up
 	wg.Add(1)
 	// Connect
@@ -151,7 +151,7 @@ func TestTCPOK2(t *testing.T) {
 	require.NoError(t, c.Init())
 	// Start TCP server
 	wg.Add(1)
-	go TCPServer(t, &wg)
+	go tcpServer(t, &wg)
 	wg.Wait()
 	wg.Add(1)
 
@@ -233,7 +233,7 @@ func TestUDPOK1(t *testing.T) {
 	require.NoError(t, c.Init())
 	// Start UDP server
 	wg.Add(1)
-	go UDPServer(t, &wg)
+	go udpServer(t, &wg)
 	wg.Wait()
 	wg.Add(1)
 
@@ -264,7 +264,7 @@ func TestUDPOK1(t *testing.T) {
 	wg.Wait()
 }
 
-func UDPServer(t *testing.T, wg *sync.WaitGroup) {
+func udpServer(t *testing.T, wg *sync.WaitGroup) {
 	defer wg.Done()
 	udpAddr, err := net.ResolveUDPAddr("udp", "127.0.0.1:2004")
 	if err != nil {
@@ -297,7 +297,7 @@ func UDPServer(t *testing.T, wg *sync.WaitGroup) {
 	}
 }
 
-func TCPServer(t *testing.T, wg *sync.WaitGroup) {
+func tcpServer(t *testing.T, wg *sync.WaitGroup) {
 	defer wg.Done()
 	tcpAddr, err := net.ResolveTCPAddr("tcp", "127.0.0.1:2004")
 	if err != nil {

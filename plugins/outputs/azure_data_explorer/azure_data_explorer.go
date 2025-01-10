@@ -20,7 +20,6 @@ import (
 	"github.com/influxdata/telegraf/internal"
 	"github.com/influxdata/telegraf/internal/choice"
 	"github.com/influxdata/telegraf/plugins/outputs"
-	"github.com/influxdata/telegraf/plugins/serializers"
 	"github.com/influxdata/telegraf/plugins/serializers/json"
 )
 
@@ -36,7 +35,7 @@ type AzureDataExplorer struct {
 	TableName       string          `toml:"table_name"`
 	CreateTables    bool            `toml:"create_tables"`
 	IngestionType   string          `toml:"ingestion_type"`
-	serializer      serializers.Serializer
+	serializer      telegraf.Serializer
 	kustoClient     *kusto.Client
 	metricIngestors map[string]ingest.Ingestor
 }

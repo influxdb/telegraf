@@ -87,30 +87,17 @@ func TestMultilineIsDisabled(t *testing.T) {
 }
 
 func TestMultilineFlushEmpty(t *testing.T) {
-	c := &MultilineConfig{
-		Pattern:        "^=>",
-		MatchWhichLine: Previous,
-	}
-	m, err := c.NewMultiline()
-	require.NoError(t, err, "Configuration was OK.")
 	var buffer bytes.Buffer
-
-	text := m.Flush(&buffer)
+	text := Flush(&buffer)
 
 	require.Empty(t, text)
 }
 
 func TestMultilineFlush(t *testing.T) {
-	c := &MultilineConfig{
-		Pattern:        "^=>",
-		MatchWhichLine: Previous,
-	}
-	m, err := c.NewMultiline()
-	require.NoError(t, err, "Configuration was OK.")
 	var buffer bytes.Buffer
 	buffer.WriteString("foo")
 
-	text := m.Flush(&buffer)
+	text := Flush(&buffer)
 	require.Equal(t, "foo", text)
 	require.Zero(t, buffer.Len())
 }
@@ -302,7 +289,7 @@ func TestMultilineQuoted(t *testing.T) {
 				}
 				result = append(result, text)
 			}
-			if text := m.Flush(&buffer); text != "" {
+			if text := Flush(&buffer); text != "" {
 				result = append(result, text)
 			}
 
@@ -364,7 +351,7 @@ func TestMultilineQuotedError(t *testing.T) {
 				}
 				result = append(result, text)
 			}
-			if text := m.Flush(&buffer); text != "" {
+			if text := Flush(&buffer); text != "" {
 				result = append(result, text)
 			}
 
@@ -438,7 +425,7 @@ java.lang.ArithmeticException: / by zero
 				}
 				result = append(result, text)
 			}
-			if text := m.Flush(&buffer); text != "" {
+			if text := Flush(&buffer); text != "" {
 				result = append(result, text)
 			}
 

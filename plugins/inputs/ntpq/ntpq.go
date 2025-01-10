@@ -30,15 +30,24 @@ var reBrackets = regexp.MustCompile(`\s+\([\S]*`)
 type elementType int64
 
 const (
-	None elementType = iota
-	Tag
-	FieldFloat
-	FieldDuration
-	FieldIntDecimal
-	FieldIntOctal
-	FieldIntRatio8
-	FieldIntBits
+	none elementType = iota
+	tag
+	fieldFloat
+	fieldDuration
+	fieldIntDecimal
+	fieldIntOctal
+	fieldIntRatio8
+	fieldIntBits
 )
+
+type NTPQ struct {
+	DNSLookup   bool     `toml:"dns_lookup" deprecated:"1.24.0;1.35.0;add '-n' to 'options' instead to skip DNS lookup"`
+	Options     string   `toml:"options"`
+	Servers     []string `toml:"servers"`
+	ReachFormat string   `toml:"reach_format"`
+
+	runQ func(string) ([]byte, error)
+}
 
 type column struct {
 	name  string
@@ -55,21 +64,12 @@ var tagHeaders = map[string]string{
 
 // Mapping of fields
 var fieldElements = map[string]elementType{
-	"delay":  FieldFloat,
-	"jitter": FieldFloat,
-	"offset": FieldFloat,
-	"reach":  FieldIntDecimal,
-	"poll":   FieldDuration,
-	"when":   FieldDuration,
-}
-
-type NTPQ struct {
-	DNSLookup   bool     `toml:"dns_lookup" deprecated:"1.24.0;1.35.0;add '-n' to 'options' instead to skip DNS lookup"`
-	Options     string   `toml:"options"`
-	Servers     []string `toml:"servers"`
-	ReachFormat string   `toml:"reach_format"`
-
-	runQ func(string) ([]byte, error)
+	"delay":  fieldFloat,
+	"jitter": fieldFloat,
+	"offset": fieldFloat,
+	"reach":  fieldIntDecimal,
+	"poll":   fieldDuration,
+	"when":   fieldDuration,
 }
 
 func (*NTPQ) SampleConfig() string {
@@ -117,19 +117,19 @@ func (n *NTPQ) Init() error {
 		n.ReachFormat = "octal"
 		// Interpret the field as decimal integer returning
 		// the raw (octal) representation
-		fieldElements["reach"] = FieldIntDecimal
+		fieldElements["reach"] = fieldIntDecimal
 	case "decimal":
 		// Interpret the field as octal integer returning
 		// decimal number representation
-		fieldElements["reach"] = FieldIntOctal
+		fieldElements["reach"] = fieldIntOctal
 	case "count":
 		// Interpret the field as bits set returning
 		// the number of bits set
-		fieldElements["reach"] = FieldIntBits
+		fieldElements["reach"] = fieldIntBits
 	case "ratio":
 		// Interpret the field as ratio between the number of
 		// bits set and the maximum available bits set (8).
-		fieldElements["reach"] = FieldIntRatio8
+		fieldElements["reach"] = fieldIntRatio8
 	default:
 		return fmt.Errorf("unknown 'reach_format' %q", n.ReachFormat)
 	}
@@ -176,7 +176,7 @@ func (n *NTPQ) gatherServer(acc telegraf.Accumulator, server string) {
 			if name, isTag := tagHeaders[el]; isTag {
 				columns = append(columns, column{
 					name:  name,
-					etype: Tag,
+					etype: tag,
 				})
 				continue
 			}
@@ -191,7 +191,7 @@ func (n *NTPQ) gatherServer(acc telegraf.Accumulator, server string) {
 			}
 
 			// Skip the column if not found
-			columns = append(columns, column{etype: None})
+			columns = append(columns, column{etype: none})
 		}
 		break
 	}
@@ -221,11 +221,11 @@ func (n *NTPQ) gatherServer(acc telegraf.Accumulator, server string) {
 			col := columns[i]
 
 			switch col.etype {
-			case None:
+			case none:
 				continue
-			case Tag:
+			case tag:
 				tags[col.name] = raw
-			case FieldFloat:
+			case fieldFloat:
 				value, err := strconv.ParseFloat(raw, 64)
 				if err != nil {
 					msg := fmt.Sprintf("%sparsing %q (%v) as float failed", msgPrefix, col.name, raw)
@@ -233,7 +233,7 @@ func (n *NTPQ) gatherServer(acc telegraf.Accumulator, server string) {
 					continue
 				}
 				fields[col.name] = value
-			case FieldDuration:
+			case fieldDuration:
 				// Ignore fields only containing a minus
 				if raw == "-" {
 					continue
@@ -257,28 +257,28 @@ func (n *NTPQ) gatherServer(acc telegraf.Accumulator, server string) {
 					continue
 				}
 				fields[col.name] = value * factor
-			case FieldIntDecimal:
+			case fieldIntDecimal:
 				value, err := strconv.ParseInt(raw, 10, 64)
 				if err != nil {
 					acc.AddError(fmt.Errorf("parsing %q (%v) as int failed: %w", col.name, raw, err))
 					continue
 				}
 				fields[col.name] = value
-			case FieldIntOctal:
+			case fieldIntOctal:
 				value, err := strconv.ParseInt(raw, 8, 64)
 				if err != nil {
 					acc.AddError(fmt.Errorf("parsing %q (%v) as int failed: %w", col.name, raw, err))
 					continue
 				}
 				fields[col.name] = value
-			case FieldIntBits:
+			case fieldIntBits:
 				value, err := strconv.ParseUint(raw, 8, 64)
 				if err != nil {
 					acc.AddError(fmt.Errorf("parsing %q (%v) as int failed: %w", col.name, raw, err))
 					continue
 				}
 				fields[col.name] = bits.OnesCount64(value)
-			case FieldIntRatio8:
+			case fieldIntRatio8:
 				value, err := strconv.ParseUint(raw, 8, 64)
 				if err != nil {
 					acc.AddError(fmt.Errorf("parsing %q (%v) as int failed: %w", col.name, raw, err))

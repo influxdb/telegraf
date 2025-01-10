@@ -120,7 +120,7 @@ func (n *Apache) gatherURL(addr *url.URL, acc telegraf.Accumulator) error {
 
 			switch key {
 			case "Scoreboard":
-				for field, value := range n.gatherScores(part) {
+				for field, value := range gatherScores(part) {
 					fields[field] = value
 				}
 			default:
@@ -137,7 +137,7 @@ func (n *Apache) gatherURL(addr *url.URL, acc telegraf.Accumulator) error {
 	return nil
 }
 
-func (n *Apache) gatherScores(data string) map[string]interface{} {
+func gatherScores(data string) map[string]interface{} {
 	var waiting, open = 0, 0
 	var s, r, w, k, d, c, l, g, i = 0, 0, 0, 0, 0, 0, 0, 0, 0
 

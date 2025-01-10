@@ -17,16 +17,12 @@ type fields map[string]interface{}
 type tags map[string]string
 
 // NewTestHistogram creates new test histogram aggregation with specified config
-func NewTestHistogram(cfg []bucketConfig, reset bool, cumulative bool, pushOnlyOnUpdate bool) telegraf.Aggregator {
+func NewTestHistogram(cfg []bucketConfig, reset, cumulative, pushOnlyOnUpdate bool) telegraf.Aggregator {
 	return NewTestHistogramWithExpirationInterval(cfg, reset, cumulative, pushOnlyOnUpdate, 0)
 }
 
 func NewTestHistogramWithExpirationInterval(
-	cfg []bucketConfig,
-	reset bool,
-	cumulative bool,
-	pushOnlyOnUpdate bool,
-	expirationInterval config.Duration,
+	cfg []bucketConfig, reset, cumulative, pushOnlyOnUpdate bool, expirationInterval config.Duration,
 ) telegraf.Aggregator {
 	htm := NewHistogramAggregator()
 	htm.Configs = cfg

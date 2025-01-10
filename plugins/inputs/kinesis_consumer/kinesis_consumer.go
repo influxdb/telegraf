@@ -2,23 +2,15 @@
 package kinesis_consumer
 
 import (
-	"bytes"
-	"compress/gzip"
-	"compress/zlib"
 	"context"
 	_ "embed"
 	"errors"
-	"fmt"
-	"io"
-	"math/big"
-	"strings"
 	"sync"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/dynamodb"
 	"github.com/aws/aws-sdk-go-v2/service/kinesis"
-	"github.com/aws/smithy-go/logging"
 	consumer "github.com/harlow/kinesis-consumer"
 	"github.com/harlow/kinesis-consumer/store/ddb"
 
@@ -31,86 +23,85 @@ import (
 //go:embed sample.conf
 var sampleConfig string
 
-var (
-	once sync.Once
-	// this is the largest sequence number allowed - https://docs.aws.amazon.com/kinesis/latest/APIReference/API_SequenceNumberRange.html
-	maxSeq = strToBint(strings.Repeat("9", 129))
-	negOne *big.Int
-)
+var once sync.Once
 
-const (
-	defaultMaxUndeliveredMessages = 1000
-)
+type KinesisConsumer struct {
+	StreamName             string          `toml:"streamname"`
+	ShardIteratorType      string          `toml:"shard_iterator_type"`
+	DynamoDB               *dynamoDB       `toml:"checkpoint_dynamodb"`
+	MaxUndeliveredMessages int             `toml:"max_undelivered_messages"`
+	ContentEncoding        string          `toml:"content_encoding"`
+	Log                    telegraf.Logger `toml:"-"`
+	common_aws.CredentialConfig
 
-type (
-	KinesisConsumer struct {
-		StreamName             string    `toml:"streamname"`
-		ShardIteratorType      string    `toml:"shard_iterator_type"`
-		DynamoDB               *dynamoDB `toml:"checkpoint_dynamodb"`
-		MaxUndeliveredMessages int       `toml:"max_undelivered_messages"`
-		ContentEncoding        string    `toml:"content_encoding"`
+	cons   *consumer.Consumer
+	parser telegraf.Parser
+	cancel context.CancelFunc
+	acc    telegraf.TrackingAccumulator
+	sem    chan struct{}
 
-		Log telegraf.Logger `toml:"-"`
+	checkpoint    consumer.Store
+	checkpoints   map[string]checkpoint
+	records       map[telegraf.TrackingID]string
+	checkpointTex sync.Mutex
+	recordsTex    sync.Mutex
+	wg            sync.WaitGroup
 
-		cons   *consumer.Consumer
-		parser telegraf.Parser
-		cancel context.CancelFunc
-		acc    telegraf.TrackingAccumulator
-		sem    chan struct{}
+	contentDecodingFunc decodingFunc
 
-		checkpoint    consumer.Store
-		checkpoints   map[string]checkpoint
-		records       map[telegraf.TrackingID]string
-		checkpointTex sync.Mutex
-		recordsTex    sync.Mutex
-		wg            sync.WaitGroup
+	lastSeqNum string
+}
 
-		processContentEncodingFunc processContent
+type dynamoDB struct {
+	AppName   string `toml:"app_name"`
+	TableName string `toml:"table_name"`
+}
 
-		lastSeqNum *big.Int
-
-		common_aws.CredentialConfig
-	}
-
-	dynamoDB struct {
-		AppName   string `toml:"app_name"`
-		TableName string `toml:"table_name"`
-	}
-
-	checkpoint struct {
-		streamName string
-		shardID    string
-	}
-)
-
-type processContent func([]byte) ([]byte, error)
+type checkpoint struct {
+	streamName string
+	shardID    string
+}
 
 func (*KinesisConsumer) SampleConfig() string {
 	return sampleConfig
 }
 
 func (k *KinesisConsumer) Init() error {
-	return k.configureProcessContentEncodingFunc()
+	// Set defaults
+	if k.MaxUndeliveredMessages < 1 {
+		k.MaxUndeliveredMessages = 1000
+	}
+
+	if k.ShardIteratorType == "" {
+		k.ShardIteratorType = "TRIM_HORIZON"
+	}
+	if k.ContentEncoding == "" {
+		k.ContentEncoding = "identity"
+	}
+
+	f, err := getDecodingFunc(k.ContentEncoding)
+	if err != nil {
+		return err
+	}
+	k.contentDecodingFunc = f
+
+	return nil
 }
 
 func (k *KinesisConsumer) SetParser(parser telegraf.Parser) {
 	k.parser = parser
 }
 
-func (k *KinesisConsumer) Start(ac telegraf.Accumulator) error {
-	err := k.connect(ac)
-	if err != nil {
-		return err
-	}
-
-	return nil
+func (k *KinesisConsumer) Start(acc telegraf.Accumulator) error {
+	return k.connect(acc)
 }
 
 func (k *KinesisConsumer) Gather(acc telegraf.Accumulator) error {
 	if k.cons == nil {
 		return k.connect(acc)
 	}
-	k.lastSeqNum = maxSeq
+	// Enforce writing of last received sequence number
+	k.lastSeqNum = ""
 
 	return nil
 }
@@ -138,7 +129,7 @@ func (k *KinesisConsumer) SetCheckpoint(streamName, shardID, sequenceNumber stri
 	return nil
 }
 
-func (k *KinesisConsumer) connect(ac telegraf.Accumulator) error {
+func (k *KinesisConsumer) connect(acc telegraf.Accumulator) error {
 	cfg, err := k.CredentialConfig.Credentials()
 	if err != nil {
 		return err
@@ -180,7 +171,7 @@ func (k *KinesisConsumer) connect(ac telegraf.Accumulator) error {
 
 	k.cons = cons
 
-	k.acc = ac.WithTracking(k.MaxUndeliveredMessages)
+	k.acc = acc.WithTracking(k.MaxUndeliveredMessages)
 	k.records = make(map[telegraf.TrackingID]string, k.MaxUndeliveredMessages)
 	k.checkpoints = make(map[string]checkpoint, k.MaxUndeliveredMessages)
 	k.sem = make(chan struct{}, k.MaxUndeliveredMessages)
@@ -204,8 +195,7 @@ func (k *KinesisConsumer) connect(ac telegraf.Accumulator) error {
 			case k.sem <- struct{}{}:
 				break
 			}
-			err := k.onMessage(k.acc, r)
-			if err != nil {
+			if err := k.onMessage(k.acc, r); err != nil {
 				<-k.sem
 				k.Log.Errorf("Scan parser error: %v", err)
 			}
@@ -223,7 +213,7 @@ func (k *KinesisConsumer) connect(ac telegraf.Accumulator) error {
 }
 
 func (k *KinesisConsumer) onMessage(acc telegraf.TrackingAccumulator, r *consumer.Record) error {
-	data, err := k.processContentEncodingFunc(r.Data)
+	data, err := k.contentDecodingFunc(r.Data)
 	if err != nil {
 		return err
 	}
@@ -262,111 +252,37 @@ func (k *KinesisConsumer) onDelivery(ctx context.Context) {
 			delete(k.records, info.ID())
 			k.recordsTex.Unlock()
 
-			if info.Delivered() {
-				k.checkpointTex.Lock()
-				chk, ok := k.checkpoints[sequenceNum]
-				if !ok {
-					k.checkpointTex.Unlock()
-					continue
-				}
-				delete(k.checkpoints, sequenceNum)
-				k.checkpointTex.Unlock()
-
-				// at least once
-				if strToBint(sequenceNum).Cmp(k.lastSeqNum) > 0 {
-					continue
-				}
-
-				k.lastSeqNum = strToBint(sequenceNum)
-				if err := k.checkpoint.SetCheckpoint(chk.streamName, chk.shardID, sequenceNum); err != nil {
-					k.Log.Debugf("Setting checkpoint failed: %v", err)
-				}
-			} else {
+			if !info.Delivered() {
 				k.Log.Debug("Metric group failed to process")
+				continue
+			}
+
+			if k.lastSeqNum != "" {
+				continue
+			}
+
+			// Store the sequence number at least once per gather cycle using the checkpoint
+			// storage (usually DynamoDB).
+			k.checkpointTex.Lock()
+			chk, ok := k.checkpoints[sequenceNum]
+			if !ok {
+				k.checkpointTex.Unlock()
+				continue
+			}
+			delete(k.checkpoints, sequenceNum)
+			k.checkpointTex.Unlock()
+
+			k.Log.Tracef("persisting sequence number %q for stream %q and shard %q", sequenceNum)
+			k.lastSeqNum = sequenceNum
+			if err := k.checkpoint.SetCheckpoint(chk.streamName, chk.shardID, sequenceNum); err != nil {
+				k.Log.Errorf("Setting checkpoint failed: %v", err)
 			}
 		}
 	}
 }
 
-func processGzip(data []byte) ([]byte, error) {
-	zipData, err := gzip.NewReader(bytes.NewReader(data))
-	if err != nil {
-		return nil, err
-	}
-	defer zipData.Close()
-	return io.ReadAll(zipData)
-}
-
-func processZlib(data []byte) ([]byte, error) {
-	zlibData, err := zlib.NewReader(bytes.NewReader(data))
-	if err != nil {
-		return nil, err
-	}
-	defer zlibData.Close()
-	return io.ReadAll(zlibData)
-}
-
-func processNoOp(data []byte) ([]byte, error) {
-	return data, nil
-}
-
-func strToBint(s string) *big.Int {
-	n, ok := new(big.Int).SetString(s, 10)
-	if !ok {
-		return negOne
-	}
-	return n
-}
-
-func (k *KinesisConsumer) configureProcessContentEncodingFunc() error {
-	switch k.ContentEncoding {
-	case "gzip":
-		k.processContentEncodingFunc = processGzip
-	case "zlib":
-		k.processContentEncodingFunc = processZlib
-	case "none", "identity", "":
-		k.processContentEncodingFunc = processNoOp
-	default:
-		return fmt.Errorf("unknown content encoding %q", k.ContentEncoding)
-	}
-	return nil
-}
-
-type telegrafLoggerWrapper struct {
-	telegraf.Logger
-}
-
-func (t *telegrafLoggerWrapper) Log(args ...interface{}) {
-	t.Trace(args...)
-}
-
-func (t *telegrafLoggerWrapper) Logf(classification logging.Classification, format string, v ...interface{}) {
-	switch classification {
-	case logging.Debug:
-		format = "DEBUG " + format
-	case logging.Warn:
-		format = "WARN" + format
-	default:
-		format = "INFO " + format
-	}
-	t.Logger.Tracef(format, v...)
-}
-
-// noopStore implements the storage interface with discard
-type noopStore struct{}
-
-func (n noopStore) SetCheckpoint(string, string, string) error   { return nil }
-func (n noopStore) GetCheckpoint(string, string) (string, error) { return "", nil }
-
 func init() {
-	negOne, _ = new(big.Int).SetString("-1", 10)
-
 	inputs.Add("kinesis_consumer", func() telegraf.Input {
-		return &KinesisConsumer{
-			ShardIteratorType:      "TRIM_HORIZON",
-			MaxUndeliveredMessages: defaultMaxUndeliveredMessages,
-			lastSeqNum:             maxSeq,
-			ContentEncoding:        "identity",
-		}
+		return &KinesisConsumer{}
 	})
 }

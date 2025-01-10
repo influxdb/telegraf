@@ -23,8 +23,8 @@ import (
 var sampleConfig string
 
 type Nginx struct {
-	Urls            []string
-	ResponseTimeout config.Duration
+	Urls            []string        `toml:"urls"`
+	ResponseTimeout config.Duration `toml:"response_timeout"`
 	tls.ClientConfig
 
 	// HTTP client

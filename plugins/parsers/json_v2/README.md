@@ -7,6 +7,9 @@ this playground to test out your GJSON path here:
 [gjson.dev/](https://gjson.dev). You can find multiple examples under the
 [`testdata`][] folder.
 
+> [!WARNING]
+> In the current state of the implementation, the json_v2 parser should be avoided in favor of the [XPath Parser](../xpath), especially when working with arrays.
+
 ## Configuration
 
 ```toml

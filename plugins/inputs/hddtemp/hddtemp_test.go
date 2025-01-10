@@ -12,7 +12,7 @@ import (
 type mockFetcher struct {
 }
 
-func (h *mockFetcher) Fetch(_ string) ([]hddtemp.Disk, error) {
+func (*mockFetcher) Fetch(string) ([]hddtemp.Disk, error) {
 	return []hddtemp.Disk{
 		{
 			DeviceName:  "Disk1",

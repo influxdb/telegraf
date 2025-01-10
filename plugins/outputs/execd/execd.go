@@ -14,7 +14,6 @@ import (
 	"github.com/influxdata/telegraf/config"
 	"github.com/influxdata/telegraf/internal/process"
 	"github.com/influxdata/telegraf/plugins/outputs"
-	"github.com/influxdata/telegraf/plugins/serializers"
 )
 
 //go:embed sample.conf
@@ -29,14 +28,14 @@ type Execd struct {
 	Log                      telegraf.Logger
 
 	process    *process.Process
-	serializer serializers.Serializer
+	serializer telegraf.Serializer
 }
 
 func (*Execd) SampleConfig() string {
 	return sampleConfig
 }
 
-func (e *Execd) SetSerializer(s serializers.Serializer) {
+func (e *Execd) SetSerializer(s telegraf.Serializer) {
 	e.serializer = s
 }
 

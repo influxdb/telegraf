@@ -240,53 +240,53 @@ type FakeConsumerGroupSession struct {
 	ctx context.Context
 }
 
-func (s *FakeConsumerGroupSession) Claims() map[string][]int32 {
+func (*FakeConsumerGroupSession) Claims() map[string][]int32 {
 	panic("not implemented")
 }
 
-func (s *FakeConsumerGroupSession) MemberID() string {
+func (*FakeConsumerGroupSession) MemberID() string {
 	panic("not implemented")
 }
 
-func (s *FakeConsumerGroupSession) GenerationID() int32 {
+func (*FakeConsumerGroupSession) GenerationID() int32 {
 	panic("not implemented")
 }
 
-func (s *FakeConsumerGroupSession) MarkOffset(_ string, _ int32, _ int64, _ string) {
+func (*FakeConsumerGroupSession) MarkOffset(string, int32, int64, string) {
 	panic("not implemented")
 }
 
-func (s *FakeConsumerGroupSession) ResetOffset(_ string, _ int32, _ int64, _ string) {
+func (*FakeConsumerGroupSession) ResetOffset(string, int32, int64, string) {
 	panic("not implemented")
 }
 
-func (s *FakeConsumerGroupSession) MarkMessage(_ *sarama.ConsumerMessage, _ string) {
+func (*FakeConsumerGroupSession) MarkMessage(*sarama.ConsumerMessage, string) {
 }
 
 func (s *FakeConsumerGroupSession) Context() context.Context {
 	return s.ctx
 }
 
-func (s *FakeConsumerGroupSession) Commit() {
+func (*FakeConsumerGroupSession) Commit() {
 }
 
 type FakeConsumerGroupClaim struct {
 	messages chan *sarama.ConsumerMessage
 }
 
-func (c *FakeConsumerGroupClaim) Topic() string {
+func (*FakeConsumerGroupClaim) Topic() string {
 	panic("not implemented")
 }
 
-func (c *FakeConsumerGroupClaim) Partition() int32 {
+func (*FakeConsumerGroupClaim) Partition() int32 {
 	panic("not implemented")
 }
 
-func (c *FakeConsumerGroupClaim) InitialOffset() int64 {
+func (*FakeConsumerGroupClaim) InitialOffset() int64 {
 	panic("not implemented")
 }
 
-func (c *FakeConsumerGroupClaim) HighWaterMarkOffset() int64 {
+func (*FakeConsumerGroupClaim) HighWaterMarkOffset() int64 {
 	panic("not implemented")
 }
 

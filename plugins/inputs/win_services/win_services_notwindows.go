@@ -17,12 +17,13 @@ type WinServices struct {
 	Log telegraf.Logger `toml:"-"`
 }
 
+func (*WinServices) SampleConfig() string { return sampleConfig }
+
 func (w *WinServices) Init() error {
-	w.Log.Warn("current platform is not supported")
+	w.Log.Warn("Current platform is not supported")
 	return nil
 }
-func (w *WinServices) SampleConfig() string                { return sampleConfig }
-func (w *WinServices) Gather(_ telegraf.Accumulator) error { return nil }
+func (*WinServices) Gather(telegraf.Accumulator) error { return nil }
 
 func init() {
 	inputs.Add("win_services", func() telegraf.Input {

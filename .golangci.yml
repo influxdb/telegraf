@@ -100,8 +100,8 @@ linters-settings:
       - codegenComment
       - commentedOutCode
       - deferInLoop
-      - dupArg
       - deprecatedComment
+      - dupArg
       - dupBranchBody
       - dupCase
       - dupSubExpr
@@ -130,8 +130,8 @@ linters-settings:
       # performance
       - appendCombine
       - equalFold
-      - indexAlloc
       - hugeParam
+      - indexAlloc
       - preferDecodeRune
       - preferFprint
       - preferStringWriter
@@ -265,6 +265,10 @@ linters-settings:
       - name: enforce-map-style
         arguments: ["make"]
         exclude: [ "TEST" ]
+      - name: enforce-repeated-arg-type-style
+        arguments: ["short"]
+      - name: enforce-slice-style
+        arguments: ["make"]
       - name: error-naming
       - name: error-return
       - name: error-strings
@@ -295,16 +299,10 @@ linters-settings:
       - name: redundant-import-alias
       - name: string-format
         arguments:
-          - - 'fmt.Errorf[0]'
+          - - 'fmt.Errorf[0],errors.New[0]'
             - '/^([^A-Z]|$)/'
             - 'Error string must not start with a capital letter.'
-          - - 'fmt.Errorf[0]'
-            - '/(^|[^\.!?])$/'
-            - 'Error string must not end in punctuation.'
-          - - 'errors.New[0]'
-            - '/^([^A-Z]|$)/'
-            - 'Error string must not start with a capital letter.'
-          - - 'errors.New[0]'
+          - - 'fmt.Errorf[0],errors.New[0]'
             - '/(^|[^\.!?])$/'
             - 'Error string must not end in punctuation.'
           - - 'panic'
@@ -337,15 +335,19 @@ linters-settings:
       - blank-import
       - bool-compare
       - compares
+      - contains
       - empty
+      - encoded-compare
       - error-is-as
       - error-nil
       - expected-actual
       - float-compare
       - formatter
+      - go-require
       - len
       - negative-positive
       - nil-compare
+      - regexp
       - require-error
       - suite-broken-parallel
       - suite-dont-use-pkg
@@ -353,11 +355,6 @@ linters-settings:
       - suite-subtest-run
       - suite-thelper
       - useless-assert
-
-run:
-  # Timeout for analysis, e.g. 30s, 5m.
-  # Default: 1m
-  timeout: 10m
 
 issues:
   # List of regexps of issue texts to exclude.
@@ -397,7 +394,7 @@ issues:
       text: "Use of weak random number generator" #gosec:G404
 
     - path-except: ^plugins/(aggregators|inputs|outputs|parsers|processors|serializers)/...
-      text: "max-public-structs: you have exceeded the maximum number of public struct declarations" #revive:max-public-structs
+      text: "max-public-structs: you have exceeded the maximum number" #revive:max-public-structs
 
   # Independently of option `exclude` we use default exclude patterns,
   # it can be disabled by this option.
@@ -478,3 +475,8 @@ output:
   # Show statistics per linter.
   # Default: false
   show-stats: true
+
+run:
+  # Timeout for analysis, e.g. 30s, 5m.
+  # Default: 1m
+  timeout: 10m

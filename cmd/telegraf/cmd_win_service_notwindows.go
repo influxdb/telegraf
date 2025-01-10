@@ -9,7 +9,7 @@ import (
 )
 
 func cliFlags() []cli.Flag {
-	return []cli.Flag{}
+	return make([]cli.Flag, 0)
 }
 
 func getServiceCommands(io.Writer) []*cli.Command {

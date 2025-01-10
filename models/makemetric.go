@@ -4,16 +4,8 @@ import (
 	"github.com/influxdata/telegraf"
 )
 
-// makemetric applies new metric plugin and agent measurement and tag
-// settings.
-func makemetric(
-	metric telegraf.Metric,
-	nameOverride string,
-	namePrefix string,
-	nameSuffix string,
-	tags map[string]string,
-	globalTags map[string]string,
-) telegraf.Metric {
+// makeMetric applies new metric plugin and agent measurement and tag settings.
+func makeMetric(metric telegraf.Metric, nameOverride, namePrefix, nameSuffix string, tags, globalTags map[string]string) telegraf.Metric {
 	if len(nameOverride) != 0 {
 		metric.SetName(nameOverride)
 	}

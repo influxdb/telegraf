@@ -16,7 +16,6 @@ import (
 	"github.com/influxdata/telegraf/config"
 	"github.com/influxdata/telegraf/internal"
 	"github.com/influxdata/telegraf/plugins/outputs"
-	"github.com/influxdata/telegraf/plugins/serializers"
 )
 
 //go:embed sample.conf
@@ -33,7 +32,7 @@ type Exec struct {
 	Log            telegraf.Logger `toml:"-"`
 
 	runner     Runner
-	serializer serializers.Serializer
+	serializer telegraf.Serializer
 }
 
 func (*Exec) SampleConfig() string {
@@ -47,7 +46,7 @@ func (e *Exec) Init() error {
 }
 
 // SetSerializer sets the serializer for the output.
-func (e *Exec) SetSerializer(serializer serializers.Serializer) {
+func (e *Exec) SetSerializer(serializer telegraf.Serializer) {
 	e.serializer = serializer
 }
 

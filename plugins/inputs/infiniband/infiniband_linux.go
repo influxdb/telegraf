@@ -12,7 +12,7 @@ import (
 )
 
 // Gather statistics from our infiniband cards
-func (i *Infiniband) Gather(acc telegraf.Accumulator) error {
+func (*Infiniband) Gather(acc telegraf.Accumulator) error {
 	rdmaDevices := rdmamap.GetRdmaDeviceList()
 
 	if len(rdmaDevices) == 0 {

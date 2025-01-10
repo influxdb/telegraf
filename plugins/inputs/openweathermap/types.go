@@ -1,6 +1,6 @@
 package openweathermap
 
-type WeatherEntry struct {
+type weatherEntry struct {
 	Dt     int64 `json:"dt"`
 	Clouds struct {
 		All int64 `json:"all"`
@@ -43,21 +43,21 @@ type WeatherEntry struct {
 	} `json:"weather"`
 }
 
-func (e WeatherEntry) snow() float64 {
+func (e weatherEntry) snow() float64 {
 	if e.Snow.Snow1 > 0 {
 		return e.Snow.Snow1
 	}
 	return e.Snow.Snow3
 }
 
-func (e WeatherEntry) rain() float64 {
+func (e weatherEntry) rain() float64 {
 	if e.Rain.Rain1 > 0 {
 		return e.Rain.Rain1
 	}
 	return e.Rain.Rain3
 }
 
-type Status struct {
+type status struct {
 	City struct {
 		Coord struct {
 			Lat float64 `json:"lat"`
@@ -67,5 +67,5 @@ type Status struct {
 		ID      int64  `json:"id"`
 		Name    string `json:"name"`
 	} `json:"city"`
-	List []WeatherEntry `json:"list"`
+	List []weatherEntry `json:"list"`
 }

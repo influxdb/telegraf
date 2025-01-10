@@ -19,11 +19,6 @@ import (
 //go:embed sample.conf
 var sampleConfig string
 
-type protocolDecoder interface {
-	Init() error
-	Decode(net.IP, []byte) ([]telegraf.Metric, error)
-}
-
 type NetFlow struct {
 	ServiceAddress string          `toml:"service_address"`
 	ReadBufferSize config.Size     `toml:"read_buffer_size"`
@@ -35,6 +30,11 @@ type NetFlow struct {
 	conn    *net.UDPConn
 	decoder protocolDecoder
 	wg      sync.WaitGroup
+}
+
+type protocolDecoder interface {
+	init() error
+	decode(net.IP, []byte) ([]telegraf.Metric, error)
 }
 
 func (*NetFlow) SampleConfig() string {
@@ -61,12 +61,12 @@ func (n *NetFlow) Init() error {
 			n.Log.Warn("'private_enterprise_number_files' option will be ignored in 'netflow v9'")
 		}
 		n.decoder = &netflowDecoder{
-			Log: n.Log,
+			log: n.Log,
 		}
 	case "", "ipfix":
 		n.decoder = &netflowDecoder{
-			PENFiles: n.PENFiles,
-			Log:      n.Log,
+			penFiles: n.PENFiles,
+			log:      n.Log,
 		}
 	case "netflow v5":
 		if len(n.PENFiles) != 0 {
@@ -74,12 +74,12 @@ func (n *NetFlow) Init() error {
 		}
 		n.decoder = &netflowv5Decoder{}
 	case "sflow", "sflow v5":
-		n.decoder = &sflowv5Decoder{Log: n.Log}
+		n.decoder = &sflowv5Decoder{log: n.Log}
 	default:
 		return fmt.Errorf("invalid protocol %q, only supports 'sflow', 'netflow v5', 'netflow v9' and 'ipfix'", n.Protocol)
 	}
 
-	return n.decoder.Init()
+	return n.decoder.init()
 }
 
 func (n *NetFlow) Start(acc telegraf.Accumulator) error {
@@ -114,6 +114,10 @@ func (n *NetFlow) Start(acc telegraf.Accumulator) error {
 	return nil
 }
 
+func (*NetFlow) Gather(telegraf.Accumulator) error {
+	return nil
+}
+
 func (n *NetFlow) Stop() {
 	if n.conn != nil {
 		_ = n.conn.Close()
@@ -138,7 +142,7 @@ func (n *NetFlow) read(acc telegraf.Accumulator) {
 		if n.Log.Level().Includes(telegraf.Trace) || n.DumpPackets { // for backward compatibility
 			n.Log.Tracef("raw data: %s", hex.EncodeToString(buf[:count]))
 		}
-		metrics, err := n.decoder.Decode(src.IP, buf[:count])
+		metrics, err := n.decoder.decode(src.IP, buf[:count])
 		if err != nil {
 			errWithData := fmt.Errorf("%w; raw data: %s", err, hex.EncodeToString(buf[:count]))
 			acc.AddError(errWithData)
@@ -148,10 +152,6 @@ func (n *NetFlow) read(acc telegraf.Accumulator) {
 			acc.AddMetric(m)
 		}
 	}
-}
-
-func (n *NetFlow) Gather(_ telegraf.Accumulator) error {
-	return nil
 }
 
 // Register the plugin

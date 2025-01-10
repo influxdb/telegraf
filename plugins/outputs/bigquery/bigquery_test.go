@@ -271,19 +271,32 @@ func localBigQueryServer(t *testing.T) *httptest.Server {
 		case "/projects/test-project/datasets/test-dataset/tables/test1/insertAll",
 			"/projects/test-project/datasets/test-dataset/tables/test-metrics/insertAll":
 			decoder := json.NewDecoder(r.Body)
-			require.NoError(t, decoder.Decode(&receivedBody))
+			if err := decoder.Decode(&receivedBody); err != nil {
+				w.WriteHeader(http.StatusInternalServerError)
+				t.Error(err)
+				return
+			}
 
 			w.WriteHeader(http.StatusOK)
-			_, err := w.Write([]byte(successfulResponse))
-			require.NoError(t, err)
+			if _, err := w.Write([]byte(successfulResponse)); err != nil {
+				w.WriteHeader(http.StatusInternalServerError)
+				t.Error(err)
+				return
+			}
 		case "/projects/test-project/datasets/test-dataset/tables/test-metrics":
 			w.WriteHeader(http.StatusOK)
-			_, err := w.Write([]byte("{}"))
-			require.NoError(t, err)
+			if _, err := w.Write([]byte("{}")); err != nil {
+				w.WriteHeader(http.StatusInternalServerError)
+				t.Error(err)
+				return
+			}
 		default:
 			w.WriteHeader(http.StatusNotFound)
-			_, err := w.Write([]byte(r.URL.String()))
-			require.NoError(t, err)
+			if _, err := w.Write([]byte(r.URL.String())); err != nil {
+				w.WriteHeader(http.StatusInternalServerError)
+				t.Error(err)
+				return
+			}
 		}
 	})
 

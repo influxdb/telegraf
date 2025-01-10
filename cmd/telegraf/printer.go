@@ -24,7 +24,7 @@ var (
 	inputDefaults = []string{"cpu", "mem", "swap", "system", "kernel", "processes", "disk", "diskio"}
 
 	// Default output plugins
-	outputDefaults = []string{}
+	outputDefaults = make([]string, 0)
 )
 
 var header = `# Telegraf Configuration
@@ -126,7 +126,7 @@ func printSampleConfig(outputBuffer io.Writer, filters Filters) {
 			printFilteredSecretstores(secretstoreFilters, false, outputBuffer)
 		} else {
 			fmt.Print(secretstoreHeader)
-			snames := []string{}
+			snames := make([]string, 0, len(secretstores.SecretStores))
 			for sname := range secretstores.SecretStores {
 				snames = append(snames, sname)
 			}
@@ -165,7 +165,7 @@ func printSampleConfig(outputBuffer io.Writer, filters Filters) {
 			printFilteredProcessors(processorFilters, false, outputBuffer)
 		} else {
 			outputBuffer.Write([]byte(processorHeader))
-			pnames := []string{}
+			pnames := make([]string, 0, len(processors.Processors))
 			for pname := range processors.Processors {
 				pnames = append(pnames, pname)
 			}
@@ -182,7 +182,7 @@ func printSampleConfig(outputBuffer io.Writer, filters Filters) {
 			printFilteredAggregators(aggregatorFilters, false, outputBuffer)
 		} else {
 			outputBuffer.Write([]byte(aggregatorHeader))
-			pnames := []string{}
+			pnames := make([]string, 0, len(aggregators.Aggregators))
 			for pname := range aggregators.Aggregators {
 				pnames = append(pnames, pname)
 			}
@@ -261,7 +261,7 @@ func printFilteredInputs(inputFilters []string, commented bool, outputBuffer io.
 	// cache service inputs to print them at the end
 	servInputs := make(map[string]telegraf.ServiceInput)
 	// for alphabetical looping:
-	servInputNames := []string{}
+	servInputNames := make([]string, 0, len(pnames))
 
 	// Print Inputs
 	for _, pname := range pnames {

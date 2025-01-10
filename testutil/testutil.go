@@ -108,3 +108,10 @@ func DefaultSampleConfig(sampleConfig string) []byte {
 	re := regexp.MustCompile(`(?m)(^\s+)#\s*`)
 	return []byte(re.ReplaceAllString(sampleConfig, "$1"))
 }
+
+func WithinDefaultDelta(dt float64) bool {
+	if dt < -DefaultDelta || dt > DefaultDelta {
+		return false
+	}
+	return true
+}

@@ -84,7 +84,7 @@ func (s *SFlow) Start(acc telegraf.Accumulator) error {
 }
 
 // Gather is a NOOP for sFlow as it receives, asynchronously, sFlow network packets
-func (s *SFlow) Gather(_ telegraf.Accumulator) error {
+func (*SFlow) Gather(telegraf.Accumulator) error {
 	return nil
 }
 

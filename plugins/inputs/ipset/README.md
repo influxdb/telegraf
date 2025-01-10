@@ -65,9 +65,10 @@ See the [CONFIGURATION.md][CONFIGURATION.md] for more details.
     ## You can avoid using sudo or root, by setting appropriate privileges for
     ## the telegraf.service systemd service.
     use_sudo = false
+    ## Add number of entries and number of individual IPs (resolve CIDR syntax) for each ipset
+    count_per_ip_entries = false
     ## The default timeout of 1s for ipset execution can be overridden here:
     # timeout = "1s"
-
 ```
 
 ## Metrics

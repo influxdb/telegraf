@@ -11,5 +11,5 @@ jobs:
   semantic:
     uses: influxdata/validate-semantic-github-messages/.github/workflows/semantic.yml@main
     with:
-      CHECK_PR_TITLE_OR_ONE_COMMIT: true
+      COMMITS_HISTORY: 0
 

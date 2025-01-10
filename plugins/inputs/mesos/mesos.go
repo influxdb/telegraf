@@ -23,22 +23,27 @@ import (
 //go:embed sample.conf
 var sampleConfig string
 
-type Role string
+type role string
 
 const (
-	MASTER Role = "master"
-	SLAVE  Role = "slave"
+	master role = "master"
+	slave  role = "slave"
 )
 
+var allMetrics = map[role][]string{
+	master: {"resources", "master", "system", "agents", "frameworks", "framework_offers", "tasks", "messages", "evqueue", "registrar", "allocator"},
+	slave:  {"resources", "agent", "system", "executors", "tasks", "messages"},
+}
+
 type Mesos struct {
-	Timeout    int
-	Masters    []string
+	Timeout    int      `toml:"timeout"`
+	Masters    []string `toml:"masters"`
 	MasterCols []string `toml:"master_collections"`
-	Slaves     []string
+	Slaves     []string `toml:"slaves"`
 	SlaveCols  []string `toml:"slave_collections"`
 	tls.ClientConfig
 
-	Log telegraf.Logger
+	Log telegraf.Logger `toml:"-"`
 
 	initialized bool
 	client      *http.Client
@@ -46,21 +51,52 @@ type Mesos struct {
 	slaveURLs   []*url.URL
 }
 
-var allMetrics = map[Role][]string{
-	MASTER: {"resources", "master", "system", "agents", "frameworks", "framework_offers", "tasks", "messages", "evqueue", "registrar", "allocator"},
-	SLAVE:  {"resources", "agent", "system", "executors", "tasks", "messages"},
+func (*Mesos) SampleConfig() string {
+	return sampleConfig
 }
 
-func (m *Mesos) parseURL(s string, role Role) (*url.URL, error) {
+func (m *Mesos) Gather(acc telegraf.Accumulator) error {
+	if !m.initialized {
+		err := m.initialize()
+		if err != nil {
+			return err
+		}
+		m.initialized = true
+	}
+
+	var wg sync.WaitGroup
+
+	for _, mstr := range m.masterURLs {
+		wg.Add(1)
+		go func(mstr *url.URL) {
+			acc.AddError(m.gatherMainMetrics(mstr, master, acc))
+			wg.Done()
+		}(mstr)
+	}
+
+	for _, slv := range m.slaveURLs {
+		wg.Add(1)
+		go func(slv *url.URL) {
+			acc.AddError(m.gatherMainMetrics(slv, slave, acc))
+			wg.Done()
+		}(slv)
+	}
+
+	wg.Wait()
+
+	return nil
+}
+
+func (m *Mesos) parseURL(s string, role role) (*url.URL, error) {
 	if !strings.HasPrefix(s, "http://") && !strings.HasPrefix(s, "https://") {
 		host, port, err := net.SplitHostPort(s)
 		// no port specified
 		if err != nil {
 			host = s
 			switch role {
-			case MASTER:
+			case master:
 				port = "5050"
-			case SLAVE:
+			case slave:
 				port = "5051"
 			}
 		}
@@ -74,11 +110,11 @@ func (m *Mesos) parseURL(s string, role Role) (*url.URL, error) {
 
 func (m *Mesos) initialize() error {
 	if len(m.MasterCols) == 0 {
-		m.MasterCols = allMetrics[MASTER]
+		m.MasterCols = allMetrics[master]
 	}
 
 	if len(m.SlaveCols) == 0 {
-		m.SlaveCols = allMetrics[SLAVE]
+		m.SlaveCols = allMetrics[slave]
 	}
 
 	if m.Timeout == 0 {
@@ -89,8 +125,8 @@ func (m *Mesos) initialize() error {
 	rawQuery := "timeout=" + strconv.Itoa(m.Timeout) + "ms"
 
 	m.masterURLs = make([]*url.URL, 0, len(m.Masters))
-	for _, master := range m.Masters {
-		u, err := m.parseURL(master, MASTER)
+	for _, mstr := range m.Masters {
+		u, err := m.parseURL(mstr, master)
 		if err != nil {
 			return err
 		}
@@ -100,8 +136,8 @@ func (m *Mesos) initialize() error {
 	}
 
 	m.slaveURLs = make([]*url.URL, 0, len(m.Slaves))
-	for _, slave := range m.Slaves {
-		u, err := m.parseURL(slave, SLAVE)
+	for _, slv := range m.Slaves {
+		u, err := m.parseURL(slv, slave)
 		if err != nil {
 			return err
 		}
@@ -115,43 +151,6 @@ func (m *Mesos) initialize() error {
 		return err
 	}
 	m.client = client
-
-	return nil
-}
-
-func (*Mesos) SampleConfig() string {
-	return sampleConfig
-}
-
-// Gather() metrics from given list of Mesos Masters
-func (m *Mesos) Gather(acc telegraf.Accumulator) error {
-	if !m.initialized {
-		err := m.initialize()
-		if err != nil {
-			return err
-		}
-		m.initialized = true
-	}
-
-	var wg sync.WaitGroup
-
-	for _, master := range m.masterURLs {
-		wg.Add(1)
-		go func(master *url.URL) {
-			acc.AddError(m.gatherMainMetrics(master, MASTER, acc))
-			wg.Done()
-		}(master)
-	}
-
-	for _, slave := range m.slaveURLs {
-		wg.Add(1)
-		go func(slave *url.URL) {
-			acc.AddError(m.gatherMainMetrics(slave, SLAVE, acc))
-			wg.Done()
-		}(slave)
-	}
-
-	wg.Wait()
 
 	return nil
 }
@@ -174,7 +173,7 @@ func (m *Mesos) createHTTPClient() (*http.Client, error) {
 }
 
 // metricsDiff() returns set names for removal
-func metricsDiff(role Role, w []string) []string {
+func metricsDiff(role role, w []string) []string {
 	b := make([]string, 0, len(allMetrics[role]))
 	s := make(map[string]bool)
 
@@ -196,10 +195,10 @@ func metricsDiff(role Role, w []string) []string {
 }
 
 // masterBlocks serves as kind of metrics registry grouping them in sets
-func (m *Mesos) getMetrics(role Role, group string) []string {
+func (m *Mesos) getMetrics(role role, group string) []string {
 	metrics := make(map[string][]string)
 
-	if role == MASTER {
+	if role == master {
 		metrics["resources"] = []string{
 			"master/cpus_percent",
 			"master/cpus_used",
@@ -356,7 +355,7 @@ func (m *Mesos) getMetrics(role Role, group string) []string {
 			"registrar/registry_size_bytes",
 			"registrar/state_store_ms/count",
 		}
-	} else if role == SLAVE {
+	} else if role == slave {
 		metrics["resources"] = []string{
 			"slave/cpus_percent",
 			"slave/cpus_used",
@@ -430,7 +429,6 @@ func (m *Mesos) getMetrics(role Role, group string) []string {
 	}
 
 	ret, ok := metrics[group]
-
 	if !ok {
 		m.Log.Infof("Unknown role %q metrics group: %s", role, group)
 		return nil
@@ -439,13 +437,13 @@ func (m *Mesos) getMetrics(role Role, group string) []string {
 	return ret
 }
 
-func (m *Mesos) filterMetrics(role Role, metrics *map[string]interface{}) {
+func (m *Mesos) filterMetrics(role role, metrics *map[string]interface{}) {
 	var ok bool
 	var selectedMetrics []string
 
-	if role == MASTER {
+	if role == master {
 		selectedMetrics = m.MasterCols
-	} else if role == SLAVE {
+	} else if role == slave {
 		selectedMetrics = m.SlaveCols
 	}
 
@@ -476,13 +474,6 @@ func (m *Mesos) filterMetrics(role Role, metrics *map[string]interface{}) {
 	}
 }
 
-// TaskStats struct for JSON API output /monitor/statistics
-type TaskStats struct {
-	ExecutorID  string                 `json:"executor_id"`
-	FrameworkID string                 `json:"framework_id"`
-	Statistics  map[string]interface{} `json:"statistics"`
-}
-
 func withPath(u *url.URL, path string) *url.URL {
 	c := *u
 	c.Path = path
@@ -498,7 +489,7 @@ func urlTag(u *url.URL) string {
 }
 
 // This should not belong to the object
-func (m *Mesos) gatherMainMetrics(u *url.URL, role Role, acc telegraf.Accumulator) error {
+func (m *Mesos) gatherMainMetrics(u *url.URL, role role, acc telegraf.Accumulator) error {
 	var jsonOut map[string]interface{}
 
 	tags := map[string]string{
@@ -533,7 +524,7 @@ func (m *Mesos) gatherMainMetrics(u *url.URL, role Role, acc telegraf.Accumulato
 		return err
 	}
 
-	if role == MASTER {
+	if role == master {
 		if jf.Fields["master/elected"] != 0.0 {
 			tags["state"] = "leader"
 		} else {

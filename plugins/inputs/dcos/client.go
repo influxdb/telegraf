@@ -133,7 +133,7 @@ func (c *clusterClient) setToken(token string) {
 }
 
 func (c *clusterClient) login(ctx context.Context, sa *serviceAccount) (*authToken, error) {
-	token, err := c.createLoginToken(sa)
+	token, err := createLoginToken(sa)
 	if err != nil {
 		return nil, err
 	}
@@ -212,10 +212,8 @@ func (c *clusterClient) getSummary(ctx context.Context) (*summary, error) {
 }
 
 func (c *clusterClient) getContainers(ctx context.Context, node string) ([]container, error) {
-	list := []string{}
-
-	path := fmt.Sprintf("/system/v1/agent/%s/metrics/v0/containers", node)
-	err := c.doGet(ctx, c.toURL(path), &list)
+	list := make([]string, 0)
+	err := c.doGet(ctx, c.toURL(fmt.Sprintf("/system/v1/agent/%s/metrics/v0/containers", node)), &list)
 	if err != nil {
 		return nil, err
 	}
@@ -318,7 +316,7 @@ func (c *clusterClient) toURL(path string) string {
 	return clusterURL.String()
 }
 
-func (c *clusterClient) createLoginToken(sa *serviceAccount) (string, error) {
+func createLoginToken(sa *serviceAccount) (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodRS256, claims{
 		UID: sa.accountID,
 		RegisteredClaims: jwt.RegisteredClaims{

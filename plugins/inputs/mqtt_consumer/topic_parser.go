@@ -9,7 +9,7 @@ import (
 	"github.com/influxdata/telegraf"
 )
 
-type TopicParsingConfig struct {
+type topicParsingConfig struct {
 	Topic       string            `toml:"topic"`
 	Measurement string            `toml:"measurement"`
 	Tags        string            `toml:"tags"`
@@ -17,7 +17,7 @@ type TopicParsingConfig struct {
 	FieldTypes  map[string]string `toml:"types"`
 }
 
-type TopicParser struct {
+type topicParser struct {
 	topicIndices   map[string]int
 	topicVarLength bool
 	topicMinLength int
@@ -29,8 +29,8 @@ type TopicParser struct {
 	fieldTypes         map[string]string
 }
 
-func (cfg *TopicParsingConfig) NewParser() (*TopicParser, error) {
-	p := &TopicParser{
+func (cfg *topicParsingConfig) newParser() (*topicParser, error) {
+	p := &topicParser{
 		fieldTypes: cfg.FieldTypes,
 	}
 
@@ -150,7 +150,7 @@ func (cfg *TopicParsingConfig) NewParser() (*TopicParser, error) {
 	return p, nil
 }
 
-func (p *TopicParser) Parse(metric telegraf.Metric, topic string) error {
+func (p *topicParser) parse(metric telegraf.Metric, topic string) error {
 	// Split the actual topic into its elements and check for a match
 	topicParts := strings.Split(topic, "/")
 	if p.topicVarLength && len(topicParts) < p.topicMinLength || !p.topicVarLength && len(topicParts) != p.topicMinLength {
@@ -200,7 +200,7 @@ func (p *TopicParser) Parse(metric telegraf.Metric, topic string) error {
 	return nil
 }
 
-func (p *TopicParser) convertToFieldType(value, key string) (interface{}, error) {
+func (p *topicParser) convertToFieldType(value, key string) (interface{}, error) {
 	// If the user configured inputs.mqtt_consumer.topic.types, check for the desired type
 	desiredType, ok := p.fieldTypes[key]
 	if !ok {

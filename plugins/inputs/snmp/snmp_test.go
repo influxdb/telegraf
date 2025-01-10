@@ -56,7 +56,7 @@ func (tsc *testSNMPConnection) Walk(oid string, wf gosnmp.WalkFunc) error {
 	}
 	return nil
 }
-func (tsc *testSNMPConnection) Reconnect() error {
+func (*testSNMPConnection) Reconnect() error {
 	return nil
 }
 

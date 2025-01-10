@@ -23,7 +23,7 @@ func TestNSQStatsV1(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	n := New()
+	n := newNSQ()
 	n.Endpoints = []string{ts.URL}
 
 	var acc testutil.Accumulator
@@ -283,7 +283,7 @@ func TestNSQStatsPreV1(t *testing.T) {
 	}))
 	defer ts.Close()
 
-	n := New()
+	n := newNSQ()
 	n.Endpoints = []string{ts.URL}
 
 	var acc testutil.Accumulator

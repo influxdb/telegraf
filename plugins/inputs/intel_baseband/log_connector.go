@@ -135,7 +135,7 @@ func (lc *logConnector) readNumVFs() error {
 			continue
 		}
 
-		numVFs, err := lc.parseNumVFs(line)
+		numVFs, err := parseNumVFs(line)
 		if err != nil {
 			lc.numVFs = -1
 			return err
@@ -189,7 +189,7 @@ func (lc *logConnector) getMetric(offsetLine int, name string) (int, *logMetric,
 		return offsetLine, nil, err
 	}
 
-	operationName := lc.parseOperationName(line)
+	operationName := parseOperationName(line)
 	if len(operationName) == 0 {
 		return offsetLine, nil, errors.New("valid operation name wasn't found in log")
 	}
@@ -221,7 +221,7 @@ func (lc *logConnector) getMetric(offsetLine int, name string) (int, *logMetric,
 }
 
 // Example value = Thu Apr 13 13:28:40 2023:INFO:Device Status:: 2 VFs
-func (lc *logConnector) parseNumVFs(s string) (int, error) {
+func parseNumVFs(s string) (int, error) {
 	i := strings.LastIndex(s, deviceStatusStartPrefix)
 	if i == -1 {
 		return 0, errors.New("couldn't find device status prefix in line")
@@ -244,7 +244,7 @@ func (lc *logConnector) parseNumVFs(s string) (int, error) {
 // Parse Operation name
 // Example = Thu Apr 13 13:28:40 2023:INFO:5GUL counters: Code Blocks
 // Output: 5GUL
-func (lc *logConnector) parseOperationName(s string) string {
+func parseOperationName(s string) string {
 	i := strings.Index(s, infoLine)
 	if i >= 0 {
 		j := strings.Index(s[i:], countersLine)

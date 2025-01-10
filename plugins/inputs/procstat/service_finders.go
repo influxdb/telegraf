@@ -8,8 +8,9 @@ import (
 	"strconv"
 	"strings"
 
+	gopsprocess "github.com/shirou/gopsutil/v4/process"
+
 	"github.com/influxdata/telegraf"
-	"github.com/shirou/gopsutil/v4/process"
 )
 
 type processFinder struct {
@@ -36,13 +37,13 @@ func (f *processFinder) findByPidFiles(paths []string) ([]processGroup, error) {
 			return nil, fmt.Errorf("failed to parse PID in file %q: %w", path, err)
 		}
 
-		p, err := process.NewProcess(int32(pid))
+		p, err := gopsprocess.NewProcess(int32(pid))
 		if err != nil && !f.errPidFiles[path] {
 			f.log.Errorf("failed to find process for PID %d of file %q: %v", pid, path, err)
 			f.errPidFiles[path] = true
 		}
 		groups = append(groups, processGroup{
-			processes: []*process.Process{p},
+			processes: []*gopsprocess.Process{p},
 			tags:      map[string]string{"pidfile": path},
 		})
 	}
@@ -76,7 +77,7 @@ func findByCgroups(cgroups []string) ([]processGroup, error) {
 				return nil, err
 			}
 			lines := bytes.Split(buf, []byte{'\n'})
-			procs := make([]*process.Process, 0, len(lines))
+			procs := make([]*gopsprocess.Process, 0, len(lines))
 			for _, l := range lines {
 				l := strings.TrimSpace(string(l))
 				if len(l) == 0 {
@@ -86,7 +87,7 @@ func findByCgroups(cgroups []string) ([]processGroup, error) {
 				if err != nil {
 					return nil, fmt.Errorf("failed to parse PID %q in file %q", l, fpath)
 				}
-				p, err := process.NewProcess(int32(pid))
+				p, err := gopsprocess.NewProcess(int32(pid))
 				if err != nil {
 					return nil, fmt.Errorf("failed to find process for PID %d of %q: %w", pid, fpath, err)
 				}
@@ -130,7 +131,7 @@ func findBySupervisorUnits(units string) ([]processGroup, error) {
 			"status":          status,
 		}
 
-		var procs []*process.Process
+		var procs []*gopsprocess.Process
 		switch status {
 		case "FATAL", "EXITED", "BACKOFF", "STOPPING":
 			tags["error"] = strings.Join(kv[2:], " ")
@@ -141,7 +142,7 @@ func findBySupervisorUnits(units string) ([]processGroup, error) {
 			if err != nil {
 				return nil, fmt.Errorf("failed to parse group PID %q: %w", rawpid, err)
 			}
-			p, err := process.NewProcess(int32(grouppid))
+			p, err := gopsprocess.NewProcess(int32(grouppid))
 			if err != nil {
 				return nil, fmt.Errorf("failed to find process for PID %d of unit %q: %w", grouppid, name, err)
 			}

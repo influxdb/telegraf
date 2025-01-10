@@ -9,12 +9,12 @@ import (
 )
 
 type utils interface {
-	GatherAllDomains() (domains []golibvirt.Domain, err error)
-	GatherStatsForDomains(domains []golibvirt.Domain, metricNumber uint32) ([]golibvirt.DomainStatsRecord, error)
-	GatherNumberOfPCPUs() (int, error)
-	GatherVcpuMapping(domain golibvirt.Domain, pCPUs int, shouldGetCurrentPCPU bool) ([]vcpuAffinity, error)
-	EnsureConnected(libvirtURI string) error
-	Disconnect() error
+	gatherAllDomains() (domains []golibvirt.Domain, err error)
+	gatherStatsForDomains(domains []golibvirt.Domain, metricNumber uint32) ([]golibvirt.DomainStatsRecord, error)
+	gatherNumberOfPCPUs() (int, error)
+	gatherVcpuMapping(domain golibvirt.Domain, pCPUs int, shouldGetCurrentPCPU bool) ([]vcpuAffinity, error)
+	ensureConnected(libvirtURI string) error
+	disconnect() error
 }
 
 type utilsImpl struct {
@@ -27,8 +27,8 @@ type vcpuAffinity struct {
 	currentPCPUID int32
 }
 
-// GatherAllDomains gathers all domains on system
-func (l *utilsImpl) GatherAllDomains() (domains []golibvirt.Domain, err error) {
+// gatherAllDomains gathers all domains on system
+func (l *utilsImpl) gatherAllDomains() (domains []golibvirt.Domain, err error) {
 	allDomainStatesFlag := golibvirt.ConnectListDomainsRunning + golibvirt.ConnectListDomainsPaused +
 		golibvirt.ConnectListDomainsShutoff + golibvirt.ConnectListDomainsOther
 
@@ -36,8 +36,8 @@ func (l *utilsImpl) GatherAllDomains() (domains []golibvirt.Domain, err error) {
 	return domains, err
 }
 
-// GatherStatsForDomains gathers stats for given domains based on number that was previously calculated
-func (l *utilsImpl) GatherStatsForDomains(domains []golibvirt.Domain, metricNumber uint32) ([]golibvirt.DomainStatsRecord, error) {
+// gatherStatsForDomains gathers stats for given domains based on number that was previously calculated
+func (l *utilsImpl) gatherStatsForDomains(domains []golibvirt.Domain, metricNumber uint32) ([]golibvirt.DomainStatsRecord, error) {
 	if metricNumber == 0 {
 		// do not need to do expensive call if no stats were set to gather
 		return nil, nil
@@ -49,7 +49,7 @@ func (l *utilsImpl) GatherStatsForDomains(domains []golibvirt.Domain, metricNumb
 	return l.libvirt.ConnectGetAllDomainStats(domains, metricNumber, uint32(allDomainStatesFlag))
 }
 
-func (l *utilsImpl) GatherNumberOfPCPUs() (int, error) {
+func (l *utilsImpl) gatherNumberOfPCPUs() (int, error) {
 	//nolint:dogsled //Using only needed values from library function
 	_, _, _, _, nodes, sockets, cores, threads, err := l.libvirt.NodeGetInfo()
 	if err != nil {
@@ -59,10 +59,10 @@ func (l *utilsImpl) GatherNumberOfPCPUs() (int, error) {
 	return int(nodes * sockets * cores * threads), nil
 }
 
-// GatherVcpuMapping is based on official go-libvirt library:
+// gatherVcpuMapping is based on official go-libvirt library:
 // https://github.com/libvirt/libvirt-go-module/blob/268a5d02e00cc9b3d5d7fa6c08d753071e7d14b8/domain.go#L4516
 // (this library cannot be used here because of C bindings)
-func (l *utilsImpl) GatherVcpuMapping(domain golibvirt.Domain, pCPUs int, shouldGetCurrentPCPU bool) ([]vcpuAffinity, error) {
+func (l *utilsImpl) gatherVcpuMapping(domain golibvirt.Domain, pCPUs int, shouldGetCurrentPCPU bool) ([]vcpuAffinity, error) {
 	//nolint:dogsled //Using only needed values from library function
 	_, _, _, vCPUs, _, err := l.libvirt.DomainGetInfo(domain)
 	if err != nil {
@@ -114,7 +114,7 @@ func (l *utilsImpl) GatherVcpuMapping(domain golibvirt.Domain, pCPUs int, should
 	return vcpuAffinities, nil
 }
 
-func (l *utilsImpl) EnsureConnected(libvirtURI string) error {
+func (l *utilsImpl) ensureConnected(libvirtURI string) error {
 	if isConnected(l.libvirt) {
 		return nil
 	}
@@ -127,7 +127,7 @@ func (l *utilsImpl) EnsureConnected(libvirtURI string) error {
 	return nil
 }
 
-func (l *utilsImpl) Disconnect() error {
+func (l *utilsImpl) disconnect() error {
 	l.libvirt = nil
 	return nil
 }

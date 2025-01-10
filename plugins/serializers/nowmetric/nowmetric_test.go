@@ -191,13 +191,11 @@ func TestSerializeBatch(t *testing.T) {
 	s := &Serializer{}
 	buf, err := s.SerializeBatch(metrics)
 	require.NoError(t, err)
-	require.Equal(
+	require.JSONEq(
 		t,
-		[]byte(
-			`[{"metric_type":"value","resource":"","node":"","value":42,"timestamp":0,"ci2metric_id":null,"source":"Telegraf"},`+
-				`{"metric_type":"value","resource":"","node":"","value":42,"timestamp":0,"ci2metric_id":null,"source":"Telegraf"}]`,
-		),
-		buf,
+		`[{"metric_type":"value","resource":"","node":"","value":42,"timestamp":0,"ci2metric_id":null,"source":"Telegraf"},`+
+			`{"metric_type":"value","resource":"","node":"","value":42,"timestamp":0,"ci2metric_id":null,"source":"Telegraf"}]`,
+		string(buf),
 	)
 }
 
@@ -213,10 +211,10 @@ func TestSerializeJSONv2Format(t *testing.T) {
 	s := &Serializer{Format: "jsonv2"}
 	buf, err := s.Serialize(m)
 	require.NoError(t, err)
-	require.Equal(
+	require.JSONEq(
 		t,
-		[]byte(`{"records":[{"metric_type":"value","resource":"","node":"","value":42,"timestamp":0,"ci2metric_id":null,"source":"Telegraf"}]}`),
-		buf,
+		`{"records":[{"metric_type":"value","resource":"","node":"","value":42,"timestamp":0,"ci2metric_id":null,"source":"Telegraf"}]}`,
+		string(buf),
 	)
 }
 
@@ -233,15 +231,13 @@ func TestSerializeJSONv2FormatBatch(t *testing.T) {
 	metrics := []telegraf.Metric{m, m}
 	buf, err := s.SerializeBatch(metrics)
 	require.NoError(t, err)
-	require.Equal(
+	require.JSONEq(
 		t,
-		[]byte(
-			`{"records":[`+
-				`{"metric_type":"value","resource":"","node":"","value":42,"timestamp":0,"ci2metric_id":null,"source":"Telegraf"},`+
-				`{"metric_type":"value","resource":"","node":"","value":42,"timestamp":0,"ci2metric_id":null,"source":"Telegraf"}`+
-				`]}`,
-		),
-		buf,
+		`{"records":[`+
+			`{"metric_type":"value","resource":"","node":"","value":42,"timestamp":0,"ci2metric_id":null,"source":"Telegraf"},`+
+			`{"metric_type":"value","resource":"","node":"","value":42,"timestamp":0,"ci2metric_id":null,"source":"Telegraf"}`+
+			`]}`,
+		string(buf),
 	)
 }
 

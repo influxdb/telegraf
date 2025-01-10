@@ -159,7 +159,7 @@ func (e *Elasticsearch) Init() error {
 	return nil
 }
 
-func (e *Elasticsearch) Start(_ telegraf.Accumulator) error {
+func (*Elasticsearch) Start(telegraf.Accumulator) error {
 	return nil
 }
 

@@ -31,36 +31,193 @@ type NFSClient struct {
 	mountstatsPath    string
 }
 
-func convertToUint64(line []string) ([]uint64, error) {
-	/* A "line" of input data (a pre-split array of strings) is
-	   processed one field at a time.  Each field is converted to
-	   an uint64 value, and appended to an array of return values.
-	   On an error, check for ErrRange, and returns an error
-	   if found.  This situation indicates a pretty major issue in
-	   the /proc/self/mountstats file, and returning faulty data
-	   is worse than no data.  Other errors are ignored, and append
-	   whatever we got in the first place (probably 0).
-	   Yes, this is ugly. */
+func (*NFSClient) SampleConfig() string {
+	return sampleConfig
+}
 
-	if len(line) < 2 {
-		return nil, nil
+func (n *NFSClient) Init() error {
+	var nfs3Fields = []string{
+		"NULL",
+		"GETATTR",
+		"SETATTR",
+		"LOOKUP",
+		"ACCESS",
+		"READLINK",
+		"READ",
+		"WRITE",
+		"CREATE",
+		"MKDIR",
+		"SYMLINK",
+		"MKNOD",
+		"REMOVE",
+		"RMDIR",
+		"RENAME",
+		"LINK",
+		"READDIR",
+		"READDIRPLUS",
+		"FSSTAT",
+		"FSINFO",
+		"PATHCONF",
+		"COMMIT",
 	}
 
-	nline := make([]uint64, 0, len(line[1:]))
-	// Skip the first field; it's handled specially as the "first" variable
-	for _, l := range line[1:] {
-		val, err := strconv.ParseUint(l, 10, 64)
-		if err != nil {
-			var numError *strconv.NumError
-			if errors.As(err, &numError) {
-				if errors.Is(numError.Err, strconv.ErrRange) {
-					return nil, fmt.Errorf("errrange: line:[%v] raw:[%v] -> parsed:[%v]", line, l, val)
-				}
+	var nfs4Fields = []string{
+		"NULL",
+		"READ",
+		"WRITE",
+		"COMMIT",
+		"OPEN",
+		"OPEN_CONFIRM",
+		"OPEN_NOATTR",
+		"OPEN_DOWNGRADE",
+		"CLOSE",
+		"SETATTR",
+		"FSINFO",
+		"RENEW",
+		"SETCLIENTID",
+		"SETCLIENTID_CONFIRM",
+		"LOCK",
+		"LOCKT",
+		"LOCKU",
+		"ACCESS",
+		"GETATTR",
+		"LOOKUP",
+		"LOOKUP_ROOT",
+		"REMOVE",
+		"RENAME",
+		"LINK",
+		"SYMLINK",
+		"CREATE",
+		"PATHCONF",
+		"STATFS",
+		"READLINK",
+		"READDIR",
+		"SERVER_CAPS",
+		"DELEGRETURN",
+		"GETACL",
+		"SETACL",
+		"FS_LOCATIONS",
+		"RELEASE_LOCKOWNER",
+		"SECINFO",
+		"FSID_PRESENT",
+		"EXCHANGE_ID",
+		"CREATE_SESSION",
+		"DESTROY_SESSION",
+		"SEQUENCE",
+		"GET_LEASE_TIME",
+		"RECLAIM_COMPLETE",
+		"LAYOUTGET",
+		"GETDEVICEINFO",
+		"LAYOUTCOMMIT",
+		"LAYOUTRETURN",
+		"SECINFO_NO_NAME",
+		"TEST_STATEID",
+		"FREE_STATEID",
+		"GETDEVICELIST",
+		"BIND_CONN_TO_SESSION",
+		"DESTROY_CLIENTID",
+		"SEEK",
+		"ALLOCATE",
+		"DEALLOCATE",
+		"LAYOUTSTATS",
+		"CLONE",
+		"COPY",
+		"OFFLOAD_CANCEL",
+		"LOOKUPP",
+		"LAYOUTERROR",
+		"COPY_NOTIFY",
+		"GETXATTR",
+		"SETXATTR",
+		"LISTXATTRS",
+		"REMOVEXATTR",
+	}
+
+	nfs3Ops := make(map[string]bool)
+	nfs4Ops := make(map[string]bool)
+
+	n.mountstatsPath = n.getMountStatsPath()
+
+	if len(n.IncludeOperations) == 0 {
+		for _, Op := range nfs3Fields {
+			nfs3Ops[Op] = true
+		}
+		for _, Op := range nfs4Fields {
+			nfs4Ops[Op] = true
+		}
+	} else {
+		for _, Op := range n.IncludeOperations {
+			nfs3Ops[Op] = true
+		}
+		for _, Op := range n.IncludeOperations {
+			nfs4Ops[Op] = true
+		}
+	}
+
+	if len(n.ExcludeOperations) > 0 {
+		for _, Op := range n.ExcludeOperations {
+			if nfs3Ops[Op] {
+				delete(nfs3Ops, Op)
+			}
+			if nfs4Ops[Op] {
+				delete(nfs4Ops, Op)
 			}
 		}
-		nline = append(nline, val)
 	}
-	return nline, nil
+
+	n.nfs3Ops = nfs3Ops
+	n.nfs4Ops = nfs4Ops
+
+	if len(n.IncludeMounts) > 0 {
+		n.Log.Debugf("Including these mount patterns: %v", n.IncludeMounts)
+	} else {
+		n.Log.Debugf("Including all mounts.")
+	}
+
+	if len(n.ExcludeMounts) > 0 {
+		n.Log.Debugf("Excluding these mount patterns: %v", n.ExcludeMounts)
+	} else {
+		n.Log.Debugf("Not excluding any mounts.")
+	}
+
+	if len(n.IncludeOperations) > 0 {
+		n.Log.Debugf("Including these operations: %v", n.IncludeOperations)
+	} else {
+		n.Log.Debugf("Including all operations.")
+	}
+
+	if len(n.ExcludeOperations) > 0 {
+		n.Log.Debugf("Excluding these mount patterns: %v", n.ExcludeOperations)
+	} else {
+		n.Log.Debugf("Not excluding any operations.")
+	}
+
+	return nil
+}
+
+func (n *NFSClient) Gather(acc telegraf.Accumulator) error {
+	if _, err := os.Stat(n.mountstatsPath); os.IsNotExist(err) {
+		return err
+	}
+
+	// Attempt to read the file to see if we have permissions before opening
+	// which can lead to a panic
+	if _, err := os.ReadFile(n.mountstatsPath); err != nil {
+		return err
+	}
+
+	file, err := os.Open(n.mountstatsPath)
+	if err != nil {
+		n.Log.Errorf("Failed opening the %q file: %v ", file.Name(), err)
+		return err
+	}
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+	if err := n.processText(scanner, acc); err != nil {
+		return err
+	}
+
+	return scanner.Err()
 }
 
 func (n *NFSClient) parseStat(mountpoint, export, version string, line []string, acc telegraf.Accumulator) error {
@@ -291,193 +448,36 @@ func (n *NFSClient) getMountStatsPath() string {
 	return path
 }
 
-func (*NFSClient) SampleConfig() string {
-	return sampleConfig
-}
+func convertToUint64(line []string) ([]uint64, error) {
+	/* A "line" of input data (a pre-split array of strings) is
+	   processed one field at a time.  Each field is converted to
+	   an uint64 value, and appended to an array of return values.
+	   On an error, check for ErrRange, and returns an error
+	   if found.  This situation indicates a pretty major issue in
+	   the /proc/self/mountstats file, and returning faulty data
+	   is worse than no data.  Other errors are ignored, and append
+	   whatever we got in the first place (probably 0).
+	   Yes, this is ugly. */
 
-func (n *NFSClient) Gather(acc telegraf.Accumulator) error {
-	if _, err := os.Stat(n.mountstatsPath); os.IsNotExist(err) {
-		return err
+	if len(line) < 2 {
+		return nil, nil
 	}
 
-	// Attempt to read the file to see if we have permissions before opening
-	// which can lead to a panic
-	if _, err := os.ReadFile(n.mountstatsPath); err != nil {
-		return err
-	}
-
-	file, err := os.Open(n.mountstatsPath)
-	if err != nil {
-		n.Log.Errorf("Failed opening the %q file: %v ", file.Name(), err)
-		return err
-	}
-	defer file.Close()
-
-	scanner := bufio.NewScanner(file)
-	if err := n.processText(scanner, acc); err != nil {
-		return err
-	}
-
-	return scanner.Err()
-}
-
-func (n *NFSClient) Init() error {
-	var nfs3Fields = []string{
-		"NULL",
-		"GETATTR",
-		"SETATTR",
-		"LOOKUP",
-		"ACCESS",
-		"READLINK",
-		"READ",
-		"WRITE",
-		"CREATE",
-		"MKDIR",
-		"SYMLINK",
-		"MKNOD",
-		"REMOVE",
-		"RMDIR",
-		"RENAME",
-		"LINK",
-		"READDIR",
-		"READDIRPLUS",
-		"FSSTAT",
-		"FSINFO",
-		"PATHCONF",
-		"COMMIT",
-	}
-
-	var nfs4Fields = []string{
-		"NULL",
-		"READ",
-		"WRITE",
-		"COMMIT",
-		"OPEN",
-		"OPEN_CONFIRM",
-		"OPEN_NOATTR",
-		"OPEN_DOWNGRADE",
-		"CLOSE",
-		"SETATTR",
-		"FSINFO",
-		"RENEW",
-		"SETCLIENTID",
-		"SETCLIENTID_CONFIRM",
-		"LOCK",
-		"LOCKT",
-		"LOCKU",
-		"ACCESS",
-		"GETATTR",
-		"LOOKUP",
-		"LOOKUP_ROOT",
-		"REMOVE",
-		"RENAME",
-		"LINK",
-		"SYMLINK",
-		"CREATE",
-		"PATHCONF",
-		"STATFS",
-		"READLINK",
-		"READDIR",
-		"SERVER_CAPS",
-		"DELEGRETURN",
-		"GETACL",
-		"SETACL",
-		"FS_LOCATIONS",
-		"RELEASE_LOCKOWNER",
-		"SECINFO",
-		"FSID_PRESENT",
-		"EXCHANGE_ID",
-		"CREATE_SESSION",
-		"DESTROY_SESSION",
-		"SEQUENCE",
-		"GET_LEASE_TIME",
-		"RECLAIM_COMPLETE",
-		"LAYOUTGET",
-		"GETDEVICEINFO",
-		"LAYOUTCOMMIT",
-		"LAYOUTRETURN",
-		"SECINFO_NO_NAME",
-		"TEST_STATEID",
-		"FREE_STATEID",
-		"GETDEVICELIST",
-		"BIND_CONN_TO_SESSION",
-		"DESTROY_CLIENTID",
-		"SEEK",
-		"ALLOCATE",
-		"DEALLOCATE",
-		"LAYOUTSTATS",
-		"CLONE",
-		"COPY",
-		"OFFLOAD_CANCEL",
-		"LOOKUPP",
-		"LAYOUTERROR",
-		"COPY_NOTIFY",
-		"GETXATTR",
-		"SETXATTR",
-		"LISTXATTRS",
-		"REMOVEXATTR",
-	}
-
-	nfs3Ops := make(map[string]bool)
-	nfs4Ops := make(map[string]bool)
-
-	n.mountstatsPath = n.getMountStatsPath()
-
-	if len(n.IncludeOperations) == 0 {
-		for _, Op := range nfs3Fields {
-			nfs3Ops[Op] = true
-		}
-		for _, Op := range nfs4Fields {
-			nfs4Ops[Op] = true
-		}
-	} else {
-		for _, Op := range n.IncludeOperations {
-			nfs3Ops[Op] = true
-		}
-		for _, Op := range n.IncludeOperations {
-			nfs4Ops[Op] = true
-		}
-	}
-
-	if len(n.ExcludeOperations) > 0 {
-		for _, Op := range n.ExcludeOperations {
-			if nfs3Ops[Op] {
-				delete(nfs3Ops, Op)
-			}
-			if nfs4Ops[Op] {
-				delete(nfs4Ops, Op)
+	nline := make([]uint64, 0, len(line[1:]))
+	// Skip the first field; it's handled specially as the "first" variable
+	for _, l := range line[1:] {
+		val, err := strconv.ParseUint(l, 10, 64)
+		if err != nil {
+			var numError *strconv.NumError
+			if errors.As(err, &numError) {
+				if errors.Is(numError.Err, strconv.ErrRange) {
+					return nil, fmt.Errorf("errrange: line:[%v] raw:[%v] -> parsed:[%v]", line, l, val)
+				}
 			}
 		}
+		nline = append(nline, val)
 	}
-
-	n.nfs3Ops = nfs3Ops
-	n.nfs4Ops = nfs4Ops
-
-	if len(n.IncludeMounts) > 0 {
-		n.Log.Debugf("Including these mount patterns: %v", n.IncludeMounts)
-	} else {
-		n.Log.Debugf("Including all mounts.")
-	}
-
-	if len(n.ExcludeMounts) > 0 {
-		n.Log.Debugf("Excluding these mount patterns: %v", n.ExcludeMounts)
-	} else {
-		n.Log.Debugf("Not excluding any mounts.")
-	}
-
-	if len(n.IncludeOperations) > 0 {
-		n.Log.Debugf("Including these operations: %v", n.IncludeOperations)
-	} else {
-		n.Log.Debugf("Including all operations.")
-	}
-
-	if len(n.ExcludeOperations) > 0 {
-		n.Log.Debugf("Excluding these mount patterns: %v", n.ExcludeOperations)
-	} else {
-		n.Log.Debugf("Not excluding any operations.")
-	}
-
-	return nil
+	return nline, nil
 }
 
 func init() {

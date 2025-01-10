@@ -128,7 +128,7 @@ func (d *Docker) Init() error {
 		if choice.Contains("cpu", d.TotalInclude) {
 			d.TotalInclude = []string{"cpu"}
 		} else {
-			d.TotalInclude = []string{}
+			d.TotalInclude = make([]string, 0)
 		}
 	}
 
@@ -309,6 +309,18 @@ func (d *Docker) gatherSwarmInfo(acc telegraf.Accumulator) error {
 				tags["service_mode"] = "global"
 				fields["tasks_running"] = running[service.ID]
 				fields["tasks_desired"] = tasksNoShutdown[service.ID]
+			} else if service.Spec.Mode.ReplicatedJob != nil {
+				tags["service_mode"] = "replicated_job"
+				fields["tasks_running"] = running[service.ID]
+				if service.Spec.Mode.ReplicatedJob.MaxConcurrent != nil {
+					fields["max_concurrent"] = *service.Spec.Mode.ReplicatedJob.MaxConcurrent
+				}
+				if service.Spec.Mode.ReplicatedJob.TotalCompletions != nil {
+					fields["total_completions"] = *service.Spec.Mode.ReplicatedJob.TotalCompletions
+				}
+			} else if service.Spec.Mode.GlobalJob != nil {
+				tags["service_mode"] = "global_job"
+				fields["tasks_running"] = running[service.ID]
 			} else {
 				d.Log.Error("Unknown replica mode")
 			}

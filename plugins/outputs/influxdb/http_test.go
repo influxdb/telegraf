@@ -12,6 +12,8 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"path"
+	"reflect"
+	"strings"
 	"testing"
 	"time"
 
@@ -581,14 +583,30 @@ func TestHTTP_WriteContentEncodingGzip(t *testing.T) {
 		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			switch r.URL.Path {
 			case "/write":
-				require.Equal(t, "gzip", r.Header.Get("Content-Encoding"))
+				if contentHeader := r.Header.Get("Content-Encoding"); contentHeader != "gzip" {
+					w.WriteHeader(http.StatusInternalServerError)
+					t.Errorf("Not equal, expected: %q, actual: %q", "gzip", contentHeader)
+					return
+				}
 
 				gr, err := gzip.NewReader(r.Body)
-				require.NoError(t, err)
-				body, err := io.ReadAll(gr)
-				require.NoError(t, err)
+				if err != nil {
+					w.WriteHeader(http.StatusInternalServerError)
+					t.Error(err)
+					return
+				}
 
-				require.Contains(t, string(body), "cpu value=42")
+				body, err := io.ReadAll(gr)
+				if err != nil {
+					w.WriteHeader(http.StatusInternalServerError)
+					t.Error(err)
+					return
+				}
+				if !strings.Contains(string(body), "cpu value=42") {
+					w.WriteHeader(http.StatusInternalServerError)
+					t.Errorf("'body' should contain %q", "cpu value=42")
+					return
+				}
 				w.WriteHeader(http.StatusNoContent)
 				return
 			default:
@@ -707,13 +725,28 @@ func TestHTTP_WriteDatabaseTagWorksOnRetry(t *testing.T) {
 		http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			switch r.URL.Path {
 			case "/write":
-				err := r.ParseForm()
-				require.NoError(t, err)
-				require.Equal(t, []string{"foo"}, r.Form["db"])
+				if err := r.ParseForm(); err != nil {
+					w.WriteHeader(http.StatusInternalServerError)
+					t.Error(err)
+					return
+				}
+				if !reflect.DeepEqual(r.Form["db"], []string{"foo"}) {
+					w.WriteHeader(http.StatusInternalServerError)
+					t.Errorf("Not equal, expected: %q, actual: %q", []string{"foo"}, r.Form["db"])
+					return
+				}
 
 				body, err := io.ReadAll(r.Body)
-				require.NoError(t, err)
-				require.Contains(t, string(body), "cpu value=42")
+				if err != nil {
+					w.WriteHeader(http.StatusInternalServerError)
+					t.Error(err)
+					return
+				}
+				if !strings.Contains(string(body), "cpu value=42") {
+					w.WriteHeader(http.StatusInternalServerError)
+					t.Errorf("'body' should contain %q", "cpu value=42")
+					return
+				}
 
 				w.WriteHeader(http.StatusNoContent)
 				return
@@ -1024,8 +1057,11 @@ func TestDBRPTagsCreateDatabaseNotCalledOnRetryAfterForbidden(t *testing.T) {
 						return
 					}
 					w.WriteHeader(http.StatusForbidden)
-					_, err = w.Write([]byte(`{"results": [{"error": "error authorizing query"}]}`))
-					require.NoError(t, err)
+					if _, err = w.Write([]byte(`{"results": [{"error": "error authorizing query"}]}`)); err != nil {
+						w.WriteHeader(http.StatusInternalServerError)
+						t.Error(err)
+						return
+					}
 				default:
 					w.WriteHeader(http.StatusInternalServerError)
 				}
@@ -1097,8 +1133,11 @@ func TestDBRPTagsCreateDatabaseCalledOnDatabaseNotFound(t *testing.T) {
 						return
 					}
 					w.WriteHeader(http.StatusForbidden)
-					_, err = w.Write([]byte(`{"results": [{"error": "error authorizing query"}]}`))
-					require.NoError(t, err)
+					if _, err = w.Write([]byte(`{"results": [{"error": "error authorizing query"}]}`)); err != nil {
+						w.WriteHeader(http.StatusInternalServerError)
+						t.Error(err)
+						return
+					}
 				default:
 					w.WriteHeader(http.StatusInternalServerError)
 				}
@@ -1107,8 +1146,11 @@ func TestDBRPTagsCreateDatabaseCalledOnDatabaseNotFound(t *testing.T) {
 				switch r.URL.Path {
 				case "/write":
 					w.WriteHeader(http.StatusNotFound)
-					_, err = w.Write([]byte(`{"error": "database not found: \"telegraf\""}`))
-					require.NoError(t, err)
+					if _, err = w.Write([]byte(`{"error": "database not found: \"telegraf\""}`)); err != nil {
+						w.WriteHeader(http.StatusInternalServerError)
+						t.Error(err)
+						return
+					}
 				default:
 					w.WriteHeader(http.StatusInternalServerError)
 				}
@@ -1182,8 +1224,11 @@ func TestDBNotFoundShouldDropMetricWhenSkipDatabaseCreateIsTrue(t *testing.T) {
 		switch r.URL.Path {
 		case "/write":
 			w.WriteHeader(http.StatusNotFound)
-			_, err = w.Write([]byte(`{"error": "database not found: \"telegraf\""}`))
-			require.NoError(t, err)
+			if _, err = w.Write([]byte(`{"error": "database not found: \"telegraf\""}`)); err != nil {
+				w.WriteHeader(http.StatusInternalServerError)
+				t.Error(err)
+				return
+			}
 		default:
 			w.WriteHeader(http.StatusInternalServerError)
 		}

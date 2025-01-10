@@ -371,7 +371,7 @@ func TestMetricAddressOverflow(t *testing.T) {
 		Controller:        "tcp://localhost:1502",
 		ConfigurationType: "metric",
 		Log:               logger,
-		Workarounds:       ModbusWorkarounds{ReadCoilsStartingAtZero: true},
+		Workarounds:       workarounds{ReadCoilsStartingAtZero: true},
 	}
 	plugin.Metrics = []metricDefinition{
 		{

@@ -236,12 +236,12 @@ func getFilteredMetrics(c *CloudWatch) ([]filteredMetric, error) {
 		return c.metricCache.metrics, nil
 	}
 
-	fMetrics := []filteredMetric{}
+	fMetrics := make([]filteredMetric, 0)
 
 	// check for provided metric filter
 	if c.Metrics != nil {
 		for _, m := range c.Metrics {
-			metrics := []types.Metric{}
+			metrics := make([]types.Metric, 0)
 			var accounts []string
 			if !hasWildcard(m.Dimensions) {
 				dimensions := make([]types.Dimension, 0, len(m.Dimensions))
@@ -321,11 +321,11 @@ func getFilteredMetrics(c *CloudWatch) ([]filteredMetric, error) {
 
 // fetchNamespaceMetrics retrieves available metrics for a given CloudWatch namespace.
 func (c *CloudWatch) fetchNamespaceMetrics() ([]types.Metric, []string) {
-	metrics := []types.Metric{}
+	metrics := make([]types.Metric, 0)
 	var accounts []string
 	for _, namespace := range c.Namespaces {
 		params := &cloudwatch.ListMetricsInput{
-			Dimensions:            []types.DimensionFilter{},
+			Dimensions:            make([]types.DimensionFilter, 0),
 			Namespace:             aws.String(namespace),
 			IncludeLinkedAccounts: &c.IncludeLinkedAccounts,
 		}
@@ -434,7 +434,7 @@ func (c *CloudWatch) getDataQueries(filteredMetrics []filteredMetric) map[string
 func (c *CloudWatch) gatherMetrics(
 	params *cloudwatch.GetMetricDataInput,
 ) ([]types.MetricDataResult, error) {
-	results := []types.MetricDataResult{}
+	results := make([]types.MetricDataResult, 0)
 
 	for {
 		resp, err := c.client.GetMetricData(context.Background(), params)

@@ -54,10 +54,10 @@ type Endpoint interface {
 type defaultEndpoint struct{}
 
 // Host returns 0.0.0.0; used when the host is unknown
-func (d *defaultEndpoint) Host() string { return "0.0.0.0" }
+func (*defaultEndpoint) Host() string { return "0.0.0.0" }
 
 // Name returns "unknown" when an endpoint doesn't exist
-func (d *defaultEndpoint) Name() string { return DefaultServiceName }
+func (*defaultEndpoint) Name() string { return DefaultServiceName }
 
 // MicroToTime converts zipkin's native time of microseconds into time.Time
 func MicroToTime(micro int64) time.Time {

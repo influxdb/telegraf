@@ -299,7 +299,7 @@ func (k *KafkaConsumer) Start(acc telegraf.Accumulator) error {
 	return nil
 }
 
-func (k *KafkaConsumer) Gather(_ telegraf.Accumulator) error {
+func (*KafkaConsumer) Gather(telegraf.Accumulator) error {
 	return nil
 }
 

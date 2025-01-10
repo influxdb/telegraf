@@ -17,9 +17,7 @@ import (
 	"github.com/influxdata/telegraf/testutil"
 )
 
-type statServer struct{}
-
-func (s statServer) serverSocket(l net.Listener) {
+func serverSocket(l net.Listener) {
 	for {
 		conn, err := l.Accept()
 		if err != nil {
@@ -151,8 +149,7 @@ func TestHaproxyGeneratesMetricsUsingSocket(t *testing.T) {
 		sockets[i] = sock
 		defer sock.Close() //nolint:revive,gocritic // done on purpose, closing will be executed properly
 
-		s := statServer{}
-		go s.serverSocket(sock)
+		go serverSocket(sock)
 	}
 
 	r := &HAProxy{
@@ -191,8 +188,7 @@ func TestHaproxyGeneratesMetricsUsingTcp(t *testing.T) {
 	}
 	defer l.Close()
 
-	s := statServer{}
-	go s.serverSocket(l)
+	go serverSocket(l)
 
 	r := &HAProxy{
 		Servers: []string{"tcp://" + l.Addr().String()},

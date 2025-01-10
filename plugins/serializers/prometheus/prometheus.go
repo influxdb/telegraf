@@ -88,18 +88,8 @@ func (s *Serializer) SerializeBatch(metrics []telegraf.Metric) ([]byte, error) {
 
 func init() {
 	serializers.Add("prometheus",
-		func() serializers.Serializer {
+		func() telegraf.Serializer {
 			return &Serializer{}
 		},
 	)
-}
-
-// InitFromConfig is a compatibility function to construct the parser the old way
-func (s *Serializer) InitFromConfig(cfg *serializers.Config) error {
-	s.FormatConfig.CompactEncoding = cfg.PrometheusCompactEncoding
-	s.FormatConfig.SortMetrics = cfg.PrometheusSortMetrics
-	s.FormatConfig.StringAsLabel = cfg.PrometheusStringAsLabel
-	s.FormatConfig.ExportTimestamp = cfg.PrometheusExportTimestamp
-
-	return nil
 }

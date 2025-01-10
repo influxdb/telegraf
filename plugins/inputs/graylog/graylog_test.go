@@ -119,10 +119,10 @@ func (c *mockHTTPClient) makeRequest(req *http.Request) (*http.Response, error) 
 	return &resp, nil
 }
 
-func (c *mockHTTPClient) setHTTPClient(_ *http.Client) {
+func (*mockHTTPClient) setHTTPClient(*http.Client) {
 }
 
-func (c *mockHTTPClient) httpClient() *http.Client {
+func (*mockHTTPClient) httpClient() *http.Client {
 	return nil
 }
 

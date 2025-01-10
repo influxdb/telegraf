@@ -148,14 +148,26 @@ func TestRequestHeaderWhenGzipIsEnabled(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/_bulk":
-			require.Equal(t, "gzip", r.Header.Get("Content-Encoding"))
-			require.Equal(t, "gzip", r.Header.Get("Accept-Encoding"))
-			_, err := w.Write([]byte("{}"))
-			require.NoError(t, err)
+			if contentHeader := r.Header.Get("Content-Encoding"); contentHeader != "gzip" {
+				w.WriteHeader(http.StatusInternalServerError)
+				t.Errorf("Not equal, expected: %q, actual: %q", "gzip", contentHeader)
+				return
+			}
+			if acceptHeader := r.Header.Get("Accept-Encoding"); acceptHeader != "gzip" {
+				w.WriteHeader(http.StatusInternalServerError)
+				t.Errorf("Not equal, expected: %q, actual: %q", "gzip", acceptHeader)
+				return
+			}
+			if _, err := w.Write([]byte("{}")); err != nil {
+				w.WriteHeader(http.StatusInternalServerError)
+				t.Error(err)
+			}
 			return
 		default:
-			_, err := w.Write([]byte(`{"version": {"number": "7.8"}}`))
-			require.NoError(t, err)
+			if _, err := w.Write([]byte(`{"version": {"number": "7.8"}}`)); err != nil {
+				w.WriteHeader(http.StatusInternalServerError)
+				t.Error(err)
+			}
 			return
 		}
 	}))
@@ -188,13 +200,21 @@ func TestRequestHeaderWhenGzipIsDisabled(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/_bulk":
-			require.NotEqual(t, "gzip", r.Header.Get("Content-Encoding"))
-			_, err := w.Write([]byte("{}"))
-			require.NoError(t, err)
+			if contentHeader := r.Header.Get("Content-Encoding"); contentHeader == "gzip" {
+				w.WriteHeader(http.StatusInternalServerError)
+				t.Errorf("Not equal, expected: %q, actual: %q", "gzip", contentHeader)
+				return
+			}
+			if _, err := w.Write([]byte("{}")); err != nil {
+				w.WriteHeader(http.StatusInternalServerError)
+				t.Error(err)
+			}
 			return
 		default:
-			_, err := w.Write([]byte(`{"version": {"number": "7.8"}}`))
-			require.NoError(t, err)
+			if _, err := w.Write([]byte(`{"version": {"number": "7.8"}}`)); err != nil {
+				w.WriteHeader(http.StatusInternalServerError)
+				t.Error(err)
+			}
 			return
 		}
 	}))
@@ -224,13 +244,21 @@ func TestAuthorizationHeaderWhenBearerTokenIsPresent(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/_bulk":
-			require.Equal(t, "Bearer 0123456789abcdef", r.Header.Get("Authorization"))
-			_, err := w.Write([]byte("{}"))
-			require.NoError(t, err)
+			if authHeader := r.Header.Get("Authorization"); authHeader != "Bearer 0123456789abcdef" {
+				w.WriteHeader(http.StatusInternalServerError)
+				t.Errorf("Not equal, expected: %q, actual: %q", "Bearer 0123456789abcdef", authHeader)
+				return
+			}
+			if _, err := w.Write([]byte("{}")); err != nil {
+				w.WriteHeader(http.StatusInternalServerError)
+				t.Error(err)
+			}
 			return
 		default:
-			_, err := w.Write([]byte(`{"version": {"number": "7.8"}}`))
-			require.NoError(t, err)
+			if _, err := w.Write([]byte(`{"version": {"number": "7.8"}}`)); err != nil {
+				w.WriteHeader(http.StatusInternalServerError)
+				t.Error(err)
+			}
 			return
 		}
 	}))
@@ -284,13 +312,21 @@ func TestDisconnectedServerOnWrite(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/_bulk":
-			require.Equal(t, "Bearer 0123456789abcdef", r.Header.Get("Authorization"))
-			_, err := w.Write([]byte("{}"))
-			require.NoError(t, err)
-			return
+			if authHeader := r.Header.Get("Authorization"); authHeader != "Bearer 0123456789abcdef" {
+				w.WriteHeader(http.StatusInternalServerError)
+				t.Errorf("Not equal, expected: %q, actual: %q", "Bearer 0123456789abcdef", authHeader)
+				return
+			}
+			if _, err := w.Write([]byte("{}")); err != nil {
+				w.WriteHeader(http.StatusInternalServerError)
+				t.Error(err)
+				return
+			}
 		default:
-			_, err := w.Write([]byte(`{"version": {"number": "7.8"}}`))
-			require.NoError(t, err)
+			if _, err := w.Write([]byte(`{"version": {"number": "7.8"}}`)); err != nil {
+				w.WriteHeader(http.StatusInternalServerError)
+				t.Error(err)
+			}
 			return
 		}
 	}))

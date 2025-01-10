@@ -30,7 +30,7 @@ func (*RethinkDB) SampleConfig() string {
 // Returns one of the errors encountered while gather stats (if any).
 func (r *RethinkDB) Gather(acc telegraf.Accumulator) error {
 	if len(r.Servers) == 0 {
-		return r.gatherServer(localhost, acc)
+		return gatherServer(localhost, acc)
 	}
 
 	var wg sync.WaitGroup
@@ -47,7 +47,7 @@ func (r *RethinkDB) Gather(acc telegraf.Accumulator) error {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			acc.AddError(r.gatherServer(&Server{URL: u}, acc))
+			acc.AddError(gatherServer(&Server{URL: u}, acc))
 		}()
 	}
 
@@ -56,7 +56,7 @@ func (r *RethinkDB) Gather(acc telegraf.Accumulator) error {
 	return nil
 }
 
-func (r *RethinkDB) gatherServer(server *Server, acc telegraf.Accumulator) error {
+func gatherServer(server *Server, acc telegraf.Accumulator) error {
 	var err error
 	connectOpts := gorethink.ConnectOpts{
 		Address:       server.URL.Host,

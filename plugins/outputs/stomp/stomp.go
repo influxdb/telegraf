@@ -14,7 +14,6 @@ import (
 	"github.com/influxdata/telegraf/config"
 	common_tls "github.com/influxdata/telegraf/plugins/common/tls"
 	"github.com/influxdata/telegraf/plugins/outputs"
-	"github.com/influxdata/telegraf/plugins/serializers"
 )
 
 //go:embed sample.conf
@@ -35,7 +34,7 @@ type STOMP struct {
 	conn  net.Conn
 	stomp *stomp.Conn
 
-	serialize serializers.Serializer
+	serialize telegraf.Serializer
 }
 
 func (q *STOMP) Connect() error {
@@ -71,7 +70,7 @@ func (q *STOMP) Connect() error {
 	return nil
 }
 
-func (q *STOMP) SetSerializer(serializer serializers.Serializer) {
+func (q *STOMP) SetSerializer(serializer telegraf.Serializer) {
 	q.serialize = serializer
 }
 

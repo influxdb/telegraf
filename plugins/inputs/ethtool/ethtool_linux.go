@@ -269,15 +269,15 @@ func (c *commandEthtool) init() error {
 	return nil
 }
 
-func (c *commandEthtool) driverName(intf namespacedInterface) (driver string, err error) {
+func (*commandEthtool) driverName(intf namespacedInterface) (driver string, err error) {
 	return intf.namespace.driverName(intf)
 }
 
-func (c *commandEthtool) stats(intf namespacedInterface) (stats map[string]uint64, err error) {
+func (*commandEthtool) stats(intf namespacedInterface) (stats map[string]uint64, err error) {
 	return intf.namespace.stats(intf)
 }
 
-func (c *commandEthtool) get(intf namespacedInterface) (stats map[string]uint64, err error) {
+func (*commandEthtool) get(intf namespacedInterface) (stats map[string]uint64, err error) {
 	return intf.namespace.get(intf)
 }
 

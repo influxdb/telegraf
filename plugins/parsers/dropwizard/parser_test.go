@@ -1,7 +1,6 @@
 package dropwizard
 
 import (
-	"fmt"
 	"testing"
 	"time"
 
@@ -111,7 +110,7 @@ func TestParseValidEmbeddedCounterJSON(t *testing.T) {
 		"tag2":                    "yellow",
 		"tag3 space,comma=equals": "red ,=",
 	}, metrics[0].Tags())
-	require.True(t, metricTime.Equal(metrics[0].Time()), fmt.Sprintf("%s should be equal to %s", metrics[0].Time(), metricTime))
+	require.Truef(t, metricTime.Equal(metrics[0].Time()), "%s should be equal to %s", metrics[0].Time(), metricTime)
 
 	// now test json tags through TagPathsMap
 	parser2 := &Parser{
@@ -505,7 +504,7 @@ func search(metrics []telegraf.Metric, name string, tags map[string]string, fiel
 	return nil
 }
 
-func containsAll(t1 map[string]string, t2 map[string]string) bool {
+func containsAll(t1, t2 map[string]string) bool {
 	for k, v := range t2 {
 		if foundValue, ok := t1[k]; !ok || v != foundValue {
 			return false

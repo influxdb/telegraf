@@ -13,8 +13,6 @@ import (
 )
 
 func TestIngress(t *testing.T) {
-	cli := &client{}
-
 	now := time.Now()
 	now = time.Date(now.Year(), now.Month(), now.Day(), now.Hour(), 1, 36, 0, now.Location())
 
@@ -219,12 +217,9 @@ func TestIngress(t *testing.T) {
 	}
 
 	for _, v := range tests {
-		ks := &KubernetesInventory{
-			client: cli,
-		}
 		acc := new(testutil.Accumulator)
 		for _, ingress := range ((v.handler.responseMap["/ingress/"]).(netv1.IngressList)).Items {
-			ks.gatherIngress(ingress, acc)
+			gatherIngress(ingress, acc)
 		}
 
 		err := acc.FirstError()

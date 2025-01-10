@@ -364,15 +364,16 @@ func (t *Telegraf) runAgent(ctx context.Context, reloadConfig bool) error {
 
 	// Setup logging as configured.
 	logConfig := &logger.Config{
-		Debug:               c.Agent.Debug || t.debug,
-		Quiet:               c.Agent.Quiet || t.quiet,
-		LogTarget:           c.Agent.LogTarget,
-		LogFormat:           c.Agent.LogFormat,
-		Logfile:             c.Agent.Logfile,
-		RotationInterval:    time.Duration(c.Agent.LogfileRotationInterval),
-		RotationMaxSize:     int64(c.Agent.LogfileRotationMaxSize),
-		RotationMaxArchives: c.Agent.LogfileRotationMaxArchives,
-		LogWithTimezone:     c.Agent.LogWithTimezone,
+		Debug:                   c.Agent.Debug || t.debug,
+		Quiet:                   c.Agent.Quiet || t.quiet,
+		LogTarget:               c.Agent.LogTarget,
+		LogFormat:               c.Agent.LogFormat,
+		Logfile:                 c.Agent.Logfile,
+		StructuredLogMessageKey: c.Agent.StructuredLogMessageKey,
+		RotationInterval:        time.Duration(c.Agent.LogfileRotationInterval),
+		RotationMaxSize:         int64(c.Agent.LogfileRotationMaxSize),
+		RotationMaxArchives:     c.Agent.LogfileRotationMaxArchives,
+		LogWithTimezone:         c.Agent.LogWithTimezone,
 	}
 
 	if err := logger.SetupLogging(logConfig); err != nil {

@@ -72,7 +72,7 @@ type nilCloser struct {
 	io.ReadWriter
 }
 
-func (c *nilCloser) Close() error { return nil }
+func (*nilCloser) Close() error { return nil }
 
 func TestStreams(t *testing.T) {
 	var rec record
@@ -125,11 +125,11 @@ func (c *writeOnlyConn) Write(p []byte) (int, error) {
 	return len(p), nil
 }
 
-func (c *writeOnlyConn) Read(_ []byte) (int, error) {
+func (*writeOnlyConn) Read([]byte) (int, error) {
 	return 0, errors.New("conn is write-only")
 }
 
-func (c *writeOnlyConn) Close() error {
+func (*writeOnlyConn) Close() error {
 	return nil
 }
 
@@ -206,7 +206,7 @@ var cleanUpTests = []struct {
 			makeRecord(typeAbortRequest, nil),
 		},
 			nil),
-		ErrRequestAborted,
+		errRequestAborted,
 	},
 	// confirm that child.serve closes all pipes after error reading record
 	{
@@ -215,7 +215,7 @@ var cleanUpTests = []struct {
 			nil,
 		},
 			nil),
-		ErrConnClosed,
+		errConnClosed,
 	},
 }
 

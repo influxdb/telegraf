@@ -23,12 +23,12 @@ func TestClusterIncludeExcludeFilter(t *testing.T) {
 	ch.ClusterInclude = []string{"cluster"}
 	require.Equal(t, "WHERE cluster IN ('cluster') OR cluster NOT IN ('test_cluster')", ch.clusterIncludeExcludeFilter())
 
-	ch.ClusterExclude = []string{}
+	ch.ClusterExclude = make([]string, 0)
 	ch.ClusterInclude = []string{"cluster1", "cluster2"}
 	require.Equal(t, "WHERE cluster IN ('cluster1', 'cluster2')", ch.clusterIncludeExcludeFilter())
 
 	ch.ClusterExclude = []string{"cluster1", "cluster2"}
-	ch.ClusterInclude = []string{}
+	ch.ClusterInclude = make([]string, 0)
 	require.Equal(t, "WHERE cluster NOT IN ('cluster1', 'cluster2')", ch.clusterIncludeExcludeFilter())
 }
 
@@ -623,7 +623,7 @@ func TestWrongJSONMarshalling(t *testing.T) {
 			enc := json.NewEncoder(w)
 			// wrong data section json
 			err := enc.Encode(result{
-				Data: []struct{}{},
+				Data: make([]struct{}, 0),
 			})
 			if err != nil {
 				w.WriteHeader(http.StatusInternalServerError)

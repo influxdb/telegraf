@@ -718,7 +718,7 @@ func TestBasicStatsWithAllStats(t *testing.T) {
 // Test that if an empty array is passed, no points are pushed
 func TestBasicStatsWithNoStats(t *testing.T) {
 	aggregator := NewBasicStats()
-	aggregator.Stats = []string{}
+	aggregator.Stats = make([]string, 0)
 	aggregator.Log = testutil.Logger{}
 	aggregator.initConfiguredStats()
 

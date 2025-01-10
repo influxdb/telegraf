@@ -56,7 +56,7 @@ type Baseband struct {
 	sockConn *socketConnector
 }
 
-func (b *Baseband) SampleConfig() string {
+func (*Baseband) SampleConfig() string {
 	return sampleConfig
 }
 

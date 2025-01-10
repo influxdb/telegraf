@@ -17,31 +17,31 @@ var (
 )
 
 func (l *Libvirt) addMetrics(stats []golibvirt.DomainStatsRecord, vcpuInfos map[string][]vcpuAffinity, acc telegraf.Accumulator) {
-	domainsMetrics := l.translateMetrics(stats)
+	domainsMetrics := translateMetrics(stats)
 
 	for domainName, metrics := range domainsMetrics {
 		for metricType, values := range metrics {
 			switch metricType {
 			case "state":
-				l.addStateMetrics(values, domainName, acc)
+				addStateMetrics(values, domainName, acc)
 			case "cpu":
-				l.addCPUMetrics(values, domainName, acc)
+				addCPUMetrics(values, domainName, acc)
 			case "balloon":
-				l.addBalloonMetrics(values, domainName, acc)
+				addBalloonMetrics(values, domainName, acc)
 			case "vcpu":
 				l.addVcpuMetrics(values, domainName, vcpuInfos[domainName], acc)
 			case "net":
-				l.addInterfaceMetrics(values, domainName, acc)
+				addInterfaceMetrics(values, domainName, acc)
 			case "perf":
-				l.addPerfMetrics(values, domainName, acc)
+				addPerfMetrics(values, domainName, acc)
 			case "block":
-				l.addBlockMetrics(values, domainName, acc)
+				addBlockMetrics(values, domainName, acc)
 			case "iothread":
-				l.addIothreadMetrics(values, domainName, acc)
+				addIothreadMetrics(values, domainName, acc)
 			case "memory":
-				l.addMemoryMetrics(values, domainName, acc)
+				addMemoryMetrics(values, domainName, acc)
 			case "dirtyrate":
-				l.addDirtyrateMetrics(values, domainName, acc)
+				addDirtyrateMetrics(values, domainName, acc)
 			}
 		}
 	}
@@ -61,7 +61,7 @@ func (l *Libvirt) addMetrics(stats []golibvirt.DomainStatsRecord, vcpuInfos map[
 	}
 }
 
-func (l *Libvirt) translateMetrics(stats []golibvirt.DomainStatsRecord) map[string]map[string]map[string]golibvirt.TypedParamValue {
+func translateMetrics(stats []golibvirt.DomainStatsRecord) map[string]map[string]map[string]golibvirt.TypedParamValue {
 	metrics := make(map[string]map[string]map[string]golibvirt.TypedParamValue)
 	for _, stat := range stats {
 		if stat.Params != nil {
@@ -83,7 +83,7 @@ func (l *Libvirt) translateMetrics(stats []golibvirt.DomainStatsRecord) map[stri
 	return metrics
 }
 
-func (l *Libvirt) addStateMetrics(metrics map[string]golibvirt.TypedParamValue, domainName string, acc telegraf.Accumulator) {
+func addStateMetrics(metrics map[string]golibvirt.TypedParamValue, domainName string, acc telegraf.Accumulator) {
 	var stateFields = make(map[string]interface{})
 	var stateTags = map[string]string{
 		"domain_name": domainName,
@@ -101,7 +101,7 @@ func (l *Libvirt) addStateMetrics(metrics map[string]golibvirt.TypedParamValue, 
 	}
 }
 
-func (l *Libvirt) addCPUMetrics(metrics map[string]golibvirt.TypedParamValue, domainName string, acc telegraf.Accumulator) {
+func addCPUMetrics(metrics map[string]golibvirt.TypedParamValue, domainName string, acc telegraf.Accumulator) {
 	var cpuFields = make(map[string]interface{})
 	var cpuCacheMonitorTotalFields = make(map[string]interface{})
 
@@ -188,7 +188,7 @@ func (l *Libvirt) addCPUMetrics(metrics map[string]golibvirt.TypedParamValue, do
 	}
 }
 
-func (l *Libvirt) addBalloonMetrics(metrics map[string]golibvirt.TypedParamValue, domainName string, acc telegraf.Accumulator) {
+func addBalloonMetrics(metrics map[string]golibvirt.TypedParamValue, domainName string, acc telegraf.Accumulator) {
 	var balloonFields = make(map[string]interface{})
 	var balloonTags = map[string]string{
 		"domain_name": domainName,
@@ -283,7 +283,7 @@ func (l *Libvirt) getCurrentPCPUForVCPU(vcpuID string, vcpuInfos []vcpuAffinity)
 	return -1
 }
 
-func (l *Libvirt) addInterfaceMetrics(metrics map[string]golibvirt.TypedParamValue, domainName string, acc telegraf.Accumulator) {
+func addInterfaceMetrics(metrics map[string]golibvirt.TypedParamValue, domainName string, acc telegraf.Accumulator) {
 	var netTotalFields = make(map[string]interface{})
 	var netData = make(map[string]map[string]interface{})
 
@@ -330,7 +330,7 @@ func (l *Libvirt) addInterfaceMetrics(metrics map[string]golibvirt.TypedParamVal
 	}
 }
 
-func (l *Libvirt) addPerfMetrics(metrics map[string]golibvirt.TypedParamValue, domainName string, acc telegraf.Accumulator) {
+func addPerfMetrics(metrics map[string]golibvirt.TypedParamValue, domainName string, acc telegraf.Accumulator) {
 	var perfFields = make(map[string]interface{})
 	var perfTags = map[string]string{
 		"domain_name": domainName,
@@ -351,7 +351,7 @@ func (l *Libvirt) addPerfMetrics(metrics map[string]golibvirt.TypedParamValue, d
 	}
 }
 
-func (l *Libvirt) addBlockMetrics(metrics map[string]golibvirt.TypedParamValue, domainName string, acc telegraf.Accumulator) {
+func addBlockMetrics(metrics map[string]golibvirt.TypedParamValue, domainName string, acc telegraf.Accumulator) {
 	var blockTotalFields = make(map[string]interface{})
 	var blockData = make(map[string]map[string]interface{})
 
@@ -399,7 +399,7 @@ func (l *Libvirt) addBlockMetrics(metrics map[string]golibvirt.TypedParamValue, 
 	}
 }
 
-func (l *Libvirt) addIothreadMetrics(metrics map[string]golibvirt.TypedParamValue, domainName string, acc telegraf.Accumulator) {
+func addIothreadMetrics(metrics map[string]golibvirt.TypedParamValue, domainName string, acc telegraf.Accumulator) {
 	var iothreadTotalFields = make(map[string]interface{})
 	var iothreadData = make(map[string]map[string]interface{})
 
@@ -446,7 +446,7 @@ func (l *Libvirt) addIothreadMetrics(metrics map[string]golibvirt.TypedParamValu
 	}
 }
 
-func (l *Libvirt) addMemoryMetrics(metrics map[string]golibvirt.TypedParamValue, domainName string, acc telegraf.Accumulator) {
+func addMemoryMetrics(metrics map[string]golibvirt.TypedParamValue, domainName string, acc telegraf.Accumulator) {
 	var memoryBandwidthMonitorTotalFields = make(map[string]interface{})
 
 	var memoryBandwidthMonitorData = make(map[string]map[string]interface{})
@@ -528,7 +528,7 @@ func (l *Libvirt) addMemoryMetrics(metrics map[string]golibvirt.TypedParamValue,
 	}
 }
 
-func (l *Libvirt) addDirtyrateMetrics(metrics map[string]golibvirt.TypedParamValue, domainName string, acc telegraf.Accumulator) {
+func addDirtyrateMetrics(metrics map[string]golibvirt.TypedParamValue, domainName string, acc telegraf.Accumulator) {
 	var dirtyrateFields = make(map[string]interface{})
 	var dirtyrateVcpuData = make(map[string]map[string]interface{})
 

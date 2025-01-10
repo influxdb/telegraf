@@ -43,7 +43,7 @@ func (l wrapLog) Print(args ...interface{}) {
 
 type SnmpTrap struct {
 	ServiceAddress string          `toml:"service_address"`
-	Timeout        config.Duration `toml:"timeout" deprecated:"1.20.0;1.35.0;unused option"`
+	Timeout        config.Duration `toml:"timeout"`
 	Version        string          `toml:"version"`
 	Translator     string          `toml:"-"`
 	Path           []string        `toml:"path"`
@@ -75,7 +75,7 @@ func (*SnmpTrap) SampleConfig() string {
 	return sampleConfig
 }
 
-func (s *SnmpTrap) Gather(_ telegraf.Accumulator) error {
+func (*SnmpTrap) Gather(telegraf.Accumulator) error {
 	return nil
 }
 

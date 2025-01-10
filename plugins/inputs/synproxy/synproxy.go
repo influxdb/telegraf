@@ -3,10 +3,10 @@ package synproxy
 
 import (
 	_ "embed"
-	"os"
 	"path"
 
 	"github.com/influxdata/telegraf"
+	"github.com/influxdata/telegraf/internal"
 	"github.com/influxdata/telegraf/plugins/inputs"
 )
 
@@ -24,18 +24,10 @@ func (*Synproxy) SampleConfig() string {
 	return sampleConfig
 }
 
-func getHostProc() string {
-	procPath := "/proc"
-	if os.Getenv("HOST_PROC") != "" {
-		procPath = os.Getenv("HOST_PROC")
-	}
-	return procPath
-}
-
 func init() {
 	inputs.Add("synproxy", func() telegraf.Input {
 		return &Synproxy{
-			statFile: path.Join(getHostProc(), "/net/stat/synproxy"),
+			statFile: path.Join(internal.GetProcPath(), "/net/stat/synproxy"),
 		}
 	})
 }

@@ -1,0 +1,14 @@
+{
+    "some_union_in_a_tag": {
+      "string": "some_value"
+    },
+    "switch_wwn": "10:00:50:EB:1A:0B:84:3A",
+    "statistics_collection_time": 1682509200092,
+    "up_time": 1166984904,
+    "cpu_utilization": {
+      "null": null
+    },
+    "memory_utilization": {
+      "float": 20.0
+    }
+}

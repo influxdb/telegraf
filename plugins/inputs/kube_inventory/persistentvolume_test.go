@@ -13,7 +13,6 @@ import (
 )
 
 func TestPersistentVolume(t *testing.T) {
-	cli := &client{}
 	now := time.Now()
 	now = time.Date(now.Year(), now.Month(), now.Day(), now.Hour(), 1, 36, 0, now.Location())
 
@@ -77,13 +76,10 @@ func TestPersistentVolume(t *testing.T) {
 	}
 
 	for _, v := range tests {
-		ks := &KubernetesInventory{
-			client: cli,
-		}
 		acc := new(testutil.Accumulator)
 		items := ((v.handler.responseMap["/persistentvolumes/"]).(*corev1.PersistentVolumeList)).Items
 		for i := range items {
-			ks.gatherPersistentVolume(&items[i], acc)
+			gatherPersistentVolume(&items[i], acc)
 		}
 
 		err := acc.FirstError()

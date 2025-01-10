@@ -153,17 +153,17 @@ func DefaultImportedPlugins() config {
 	}
 	for name := range inputs.Inputs {
 		log.Println("No config found. Loading default config for plugin", name)
-		conf.Inputs[name] = []toml.Primitive{}
+		conf.Inputs[name] = make([]toml.Primitive, 0)
 		return conf
 	}
 	for name := range processors.Processors {
 		log.Println("No config found. Loading default config for plugin", name)
-		conf.Processors[name] = []toml.Primitive{}
+		conf.Processors[name] = make([]toml.Primitive, 0)
 		return conf
 	}
 	for name := range outputs.Outputs {
 		log.Println("No config found. Loading default config for plugin", name)
-		conf.Outputs[name] = []toml.Primitive{}
+		conf.Outputs[name] = make([]toml.Primitive, 0)
 		return conf
 	}
 	return conf

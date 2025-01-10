@@ -192,7 +192,7 @@ func (s *Serializer) createEvent(m telegraf.Metric) (*cloudevents.Event, error) 
 
 func init() {
 	serializers.Add("cloudevents",
-		func() serializers.Serializer {
+		func() telegraf.Serializer {
 			return &Serializer{}
 		},
 	)

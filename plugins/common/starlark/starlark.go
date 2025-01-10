@@ -25,6 +25,7 @@ type Common struct {
 	StarlarkLoadFunc func(module string, logger telegraf.Logger) (starlark.StringDict, error)
 
 	thread     *starlark.Thread
+	builtins   starlark.StringDict
 	globals    starlark.StringDict
 	functions  map[string]*starlark.Function
 	parameters map[string]starlark.Tuple
@@ -35,7 +36,7 @@ func (s *Common) GetState() interface{} {
 	// Return the actual byte-type instead of nil allowing the persister
 	// to guess instantiate variable of the appropriate type
 	if s.state == nil {
-		return []byte{}
+		return make([]byte, 0)
 	}
 
 	// Convert the starlark dict into a golang dictionary for serialization
@@ -65,7 +66,7 @@ func (s *Common) GetState() interface{} {
 	var buf bytes.Buffer
 	if err := gob.NewEncoder(&buf).Encode(state); err != nil {
 		s.Log.Errorf("encoding state failed: %v", err)
-		return []byte{}
+		return make([]byte, 0)
 	}
 
 	return buf.Bytes()
@@ -97,8 +98,9 @@ func (s *Common) SetState(state interface{}) error {
 			return fmt.Errorf("state item %q cannot be set: %w", k, err)
 		}
 	}
+	s.builtins["state"] = s.state
 
-	return nil
+	return s.InitProgram()
 }
 
 func (s *Common) Init() error {
@@ -109,44 +111,48 @@ func (s *Common) Init() error {
 		return errors.New("both source or script cannot be set")
 	}
 
+	s.builtins = starlark.StringDict{}
+	s.builtins["Metric"] = starlark.NewBuiltin("Metric", newMetric)
+	s.builtins["deepcopy"] = starlark.NewBuiltin("deepcopy", deepcopy)
+	s.builtins["catch"] = starlark.NewBuiltin("catch", catch)
+
+	if err := s.addConstants(&s.builtins); err != nil {
+		return err
+	}
+
+	// Initialize the program
+	if err := s.InitProgram(); err != nil {
+		// Try again with a declared state. This might be necessary for
+		// state persistence.
+		s.state = starlark.NewDict(0)
+		s.builtins["state"] = s.state
+		if serr := s.InitProgram(); serr != nil {
+			return err
+		}
+	}
+
+	s.functions = make(map[string]*starlark.Function)
+	s.parameters = make(map[string]starlark.Tuple)
+
+	return nil
+}
+
+func (s *Common) InitProgram() error {
+	// Load the program. In case of an error we can try to insert the state
+	// which can be used implicitly e.g. when persisting states
+	program, err := s.sourceProgram(s.builtins)
+	if err != nil {
+		return err
+	}
+
+	// Execute source
 	s.thread = &starlark.Thread{
 		Print: func(_ *starlark.Thread, msg string) { s.Log.Debug(msg) },
 		Load: func(_ *starlark.Thread, module string) (starlark.StringDict, error) {
 			return s.StarlarkLoadFunc(module, s.Log)
 		},
 	}
-
-	builtins := starlark.StringDict{}
-	builtins["Metric"] = starlark.NewBuiltin("Metric", newMetric)
-	builtins["deepcopy"] = starlark.NewBuiltin("deepcopy", deepcopy)
-	builtins["catch"] = starlark.NewBuiltin("catch", catch)
-
-	if err := s.addConstants(&builtins); err != nil {
-		return err
-	}
-
-	// Insert the persisted state if any
-	if s.state != nil {
-		builtins["state"] = s.state
-	}
-
-	// Load the program. In case of an error we can try to insert the state
-	// which can be used implicitly e.g. when persisting states
-	program, err := s.sourceProgram(builtins)
-	if err != nil {
-		// Try again with a declared state. This might be necessary for
-		// state persistence.
-		s.state = starlark.NewDict(0)
-		builtins["state"] = s.state
-		p, serr := s.sourceProgram(builtins)
-		if serr != nil {
-			return err
-		}
-		program = p
-	}
-
-	// Execute source
-	globals, err := program.Init(s.thread, builtins)
+	globals, err := program.Init(s.thread, s.builtins)
 	if err != nil {
 		return err
 	}
@@ -162,10 +168,8 @@ func (s *Common) Init() error {
 	// metrics. Tasks that require global state will not be possible due to
 	// this, so maybe we should relax this in the future.
 	globals.Freeze()
-
 	s.globals = globals
-	s.functions = make(map[string]*starlark.Function)
-	s.parameters = make(map[string]starlark.Tuple)
+
 	return nil
 }
 

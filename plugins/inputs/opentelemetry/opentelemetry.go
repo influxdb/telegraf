@@ -46,10 +46,6 @@ func (*OpenTelemetry) SampleConfig() string {
 	return sampleConfig
 }
 
-func (*OpenTelemetry) Gather(telegraf.Accumulator) error {
-	return nil
-}
-
 func (o *OpenTelemetry) Init() error {
 	if o.ServiceAddress == "" {
 		o.ServiceAddress = "0.0.0.0:4317"
@@ -120,6 +116,10 @@ func (o *OpenTelemetry) Start(acc telegraf.Accumulator) error {
 		}
 	}()
 
+	return nil
+}
+
+func (*OpenTelemetry) Gather(telegraf.Accumulator) error {
 	return nil
 }
 

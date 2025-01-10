@@ -7,6 +7,7 @@ import (
 	_ "embed"
 	"errors"
 	"fmt"
+	"net"
 	"strings"
 	"sync"
 	"time"
@@ -272,8 +273,14 @@ func (c *GNMI) Start(acc telegraf.Accumulator) error {
 		go func(addr string) {
 			defer c.wg.Done()
 
+			host, port, err := net.SplitHostPort(addr)
+			if err != nil {
+				acc.AddError(fmt.Errorf("unable to parse address %s: %w", addr, err))
+				return
+			}
 			h := handler{
-				address:             addr,
+				host:                host,
+				port:                port,
 				aliases:             c.internalAliases,
 				tagsubs:             c.TagSubscriptions,
 				maxMsgSize:          int(c.MaxMsgSize),
@@ -307,7 +314,7 @@ func (c *GNMI) Start(acc telegraf.Accumulator) error {
 	return nil
 }
 
-func (c *GNMI) Gather(_ telegraf.Accumulator) error {
+func (*GNMI) Gather(telegraf.Accumulator) error {
 	return nil
 }
 

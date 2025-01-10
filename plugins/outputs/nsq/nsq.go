@@ -9,7 +9,6 @@ import (
 
 	"github.com/influxdata/telegraf"
 	"github.com/influxdata/telegraf/plugins/outputs"
-	"github.com/influxdata/telegraf/plugins/serializers"
 )
 
 //go:embed sample.conf
@@ -21,14 +20,14 @@ type NSQ struct {
 	Log    telegraf.Logger `toml:"-"`
 
 	producer   *nsq.Producer
-	serializer serializers.Serializer
+	serializer telegraf.Serializer
 }
 
 func (*NSQ) SampleConfig() string {
 	return sampleConfig
 }
 
-func (n *NSQ) SetSerializer(serializer serializers.Serializer) {
+func (n *NSQ) SetSerializer(serializer telegraf.Serializer) {
 	n.serializer = serializer
 }
 

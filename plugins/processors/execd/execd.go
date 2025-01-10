@@ -15,7 +15,6 @@ import (
 	"github.com/influxdata/telegraf/internal/process"
 	"github.com/influxdata/telegraf/plugins/parsers/influx"
 	"github.com/influxdata/telegraf/plugins/processors"
-	"github.com/influxdata/telegraf/plugins/serializers"
 )
 
 //go:embed sample.conf
@@ -28,7 +27,7 @@ type Execd struct {
 	Log          telegraf.Logger
 
 	parser     telegraf.Parser
-	serializer serializers.Serializer
+	serializer telegraf.Serializer
 	acc        telegraf.Accumulator
 	process    *process.Process
 }

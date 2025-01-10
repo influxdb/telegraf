@@ -13,7 +13,7 @@ import (
 var tags = make(map[string]string)
 
 func TestAddNonReplStats(t *testing.T) {
-	d := NewMongodbData(
+	d := newMongodbData(
 		&statLine{
 			StorageEngine:       "",
 			Time:                time.Now(),
@@ -62,7 +62,7 @@ func TestAddNonReplStats(t *testing.T) {
 	)
 	var acc testutil.Accumulator
 
-	d.AddDefaultStats()
+	d.addDefaultStats()
 	d.flush(&acc)
 
 	for key := range defaultStats {
@@ -71,7 +71,7 @@ func TestAddNonReplStats(t *testing.T) {
 }
 
 func TestAddReplStats(t *testing.T) {
-	d := NewMongodbData(
+	d := newMongodbData(
 		&statLine{
 			StorageEngine: "mmapv1",
 			Mapped:        0,
@@ -83,7 +83,7 @@ func TestAddReplStats(t *testing.T) {
 
 	var acc testutil.Accumulator
 
-	d.AddDefaultStats()
+	d.addDefaultStats()
 	d.flush(&acc)
 
 	for key := range mmapStats {
@@ -92,7 +92,7 @@ func TestAddReplStats(t *testing.T) {
 }
 
 func TestAddWiredTigerStats(t *testing.T) {
-	d := NewMongodbData(
+	d := newMongodbData(
 		&statLine{
 			StorageEngine:              "wiredTiger",
 			CacheDirtyPercent:          0,
@@ -124,7 +124,7 @@ func TestAddWiredTigerStats(t *testing.T) {
 
 	var acc testutil.Accumulator
 
-	d.AddDefaultStats()
+	d.addDefaultStats()
 	d.flush(&acc)
 
 	for key := range wiredTigerStats {
@@ -139,7 +139,7 @@ func TestAddWiredTigerStats(t *testing.T) {
 }
 
 func TestAddShardStats(t *testing.T) {
-	d := NewMongodbData(
+	d := newMongodbData(
 		&statLine{
 			TotalInUse:      0,
 			TotalAvailable:  0,
@@ -151,7 +151,7 @@ func TestAddShardStats(t *testing.T) {
 
 	var acc testutil.Accumulator
 
-	d.AddDefaultStats()
+	d.addDefaultStats()
 	d.flush(&acc)
 
 	for key := range defaultShardStats {
@@ -160,7 +160,7 @@ func TestAddShardStats(t *testing.T) {
 }
 
 func TestAddLatencyStats(t *testing.T) {
-	d := NewMongodbData(
+	d := newMongodbData(
 		&statLine{
 			CommandOpsCnt:  73,
 			CommandLatency: 364,
@@ -174,7 +174,7 @@ func TestAddLatencyStats(t *testing.T) {
 
 	var acc testutil.Accumulator
 
-	d.AddDefaultStats()
+	d.addDefaultStats()
 	d.flush(&acc)
 
 	for key := range defaultLatencyStats {
@@ -183,7 +183,7 @@ func TestAddLatencyStats(t *testing.T) {
 }
 
 func TestAddAssertsStats(t *testing.T) {
-	d := NewMongodbData(
+	d := newMongodbData(
 		&statLine{
 			Regular:   3,
 			Warning:   9,
@@ -196,7 +196,7 @@ func TestAddAssertsStats(t *testing.T) {
 
 	var acc testutil.Accumulator
 
-	d.AddDefaultStats()
+	d.addDefaultStats()
 	d.flush(&acc)
 
 	for key := range defaultAssertsStats {
@@ -205,7 +205,7 @@ func TestAddAssertsStats(t *testing.T) {
 }
 
 func TestAddCommandsStats(t *testing.T) {
-	d := NewMongodbData(
+	d := newMongodbData(
 		&statLine{
 			AggregateCommandTotal:      12,
 			AggregateCommandFailed:     2,
@@ -231,7 +231,7 @@ func TestAddCommandsStats(t *testing.T) {
 
 	var acc testutil.Accumulator
 
-	d.AddDefaultStats()
+	d.addDefaultStats()
 	d.flush(&acc)
 
 	for key := range defaultCommandsStats {
@@ -240,7 +240,7 @@ func TestAddCommandsStats(t *testing.T) {
 }
 
 func TestAddTCMallocStats(t *testing.T) {
-	d := NewMongodbData(
+	d := newMongodbData(
 		&statLine{
 			TCMallocCurrentAllocatedBytes:        5877253096,
 			TCMallocHeapSize:                     8067108864,
@@ -267,7 +267,7 @@ func TestAddTCMallocStats(t *testing.T) {
 
 	var acc testutil.Accumulator
 
-	d.AddDefaultStats()
+	d.addDefaultStats()
 	d.flush(&acc)
 
 	for key := range defaultTCMallocStats {
@@ -276,7 +276,7 @@ func TestAddTCMallocStats(t *testing.T) {
 }
 
 func TestAddStorageStats(t *testing.T) {
-	d := NewMongodbData(
+	d := newMongodbData(
 		&statLine{
 			StorageFreelistSearchBucketExhausted: 0,
 			StorageFreelistSearchRequests:        0,
@@ -287,7 +287,7 @@ func TestAddStorageStats(t *testing.T) {
 
 	var acc testutil.Accumulator
 
-	d.AddDefaultStats()
+	d.addDefaultStats()
 	d.flush(&acc)
 
 	for key := range defaultStorageStats {
@@ -307,7 +307,7 @@ func TestAddShardHostStats(t *testing.T) {
 		}
 	}
 
-	d := NewMongodbData(
+	d := newMongodbData(
 		&statLine{
 			ShardHostStatsLines: hostStatLines,
 		},
@@ -315,7 +315,7 @@ func TestAddShardHostStats(t *testing.T) {
 	)
 
 	var acc testutil.Accumulator
-	d.AddShardHostStats()
+	d.addShardHostStats()
 	d.flush(&acc)
 
 	hostsFound := make([]string, 0, len(hostStatLines))
@@ -333,7 +333,7 @@ func TestAddShardHostStats(t *testing.T) {
 }
 
 func TestStateTag(t *testing.T) {
-	d := NewMongodbData(
+	d := newMongodbData(
 		&statLine{
 			StorageEngine: "",
 			Time:          time.Now(),
@@ -353,7 +353,7 @@ func TestStateTag(t *testing.T) {
 
 	var acc testutil.Accumulator
 
-	d.AddDefaultStats()
+	d.addDefaultStats()
 	d.flush(&acc)
 	fields := map[string]interface{}{
 		"active_reads":                              int64(0),
@@ -524,7 +524,7 @@ func TestAddTopStats(t *testing.T) {
 		topStatLines = append(topStatLines, topStatLine)
 	}
 
-	d := NewMongodbData(
+	d := newMongodbData(
 		&statLine{
 			TopStatLines: topStatLines,
 		},
@@ -532,7 +532,7 @@ func TestAddTopStats(t *testing.T) {
 	)
 
 	var acc testutil.Accumulator
-	d.AddTopStats()
+	d.addTopStats()
 	d.flush(&acc)
 
 	for range topStatLines {

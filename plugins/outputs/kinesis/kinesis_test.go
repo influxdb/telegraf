@@ -12,7 +12,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/influxdata/telegraf"
-	"github.com/influxdata/telegraf/plugins/serializers"
 	"github.com/influxdata/telegraf/plugins/serializers/influx"
 	"github.com/influxdata/telegraf/testutil"
 )
@@ -566,11 +565,7 @@ func (m *mockKinesisPutRecords) AssertRequests(
 	}
 }
 
-func createTestMetric(
-	t *testing.T,
-	name string,
-	serializer serializers.Serializer,
-) (telegraf.Metric, []byte) {
+func createTestMetric(t *testing.T, name string, serializer telegraf.Serializer) (telegraf.Metric, []byte) {
 	metric := testutil.TestMetric(1, name)
 
 	data, err := serializer.Serialize(metric)
@@ -579,11 +574,7 @@ func createTestMetric(
 	return metric, data
 }
 
-func createTestMetrics(
-	t *testing.T,
-	count uint32,
-	serializer serializers.Serializer,
-) ([]telegraf.Metric, [][]byte) {
+func createTestMetrics(t *testing.T, count uint32, serializer telegraf.Serializer) ([]telegraf.Metric, [][]byte) {
 	metrics := make([]telegraf.Metric, 0, count)
 	metricsData := make([][]byte, 0, count)
 

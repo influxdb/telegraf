@@ -40,7 +40,7 @@ func (f fakeFileInfo) ModTime() time.Time { return f.modtime }
 func (f fakeFileInfo) IsDir() bool        { return f.isdir }
 func (f fakeFileInfo) Sys() interface{}   { return f.sys }
 
-func (f fakeFileSystem) open(name string) (file, error) {
+func (fakeFileSystem) open(name string) (file, error) {
 	return nil, &os.PathError{Op: "Open", Path: name, Err: errors.New("not implemented by fake filesystem")}
 }
 

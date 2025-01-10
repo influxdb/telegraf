@@ -19,69 +19,69 @@ import (
 //go:embed sample.conf
 var sampleConfig string
 
-// Marklogic configuration toml
+const (
+	// MarkLogic v2 management api endpoints for hosts status
+	statsPath  = "/manage/v2/hosts/"
+	viewFormat = "view=status&format=json"
+)
+
 type Marklogic struct {
 	URL      string   `toml:"url"`
 	Hosts    []string `toml:"hosts"`
 	Username string   `toml:"username"`
 	Password string   `toml:"password"`
-	Sources  []string
-
 	tls.ClientConfig
 
-	client *http.Client
+	client  *http.Client
+	sources []string
 }
 
-type MlPointInt struct {
+type mlPointInt struct {
 	Value int `json:"value"`
 }
 
-type MlPointFloat struct {
+type mlPointFloat struct {
 	Value float64 `json:"value"`
 }
 
-type MlPointBool struct {
+type mlPointBool struct {
 	Value bool `json:"value"`
 }
 
-// MarkLogic v2 management api endpoints for hosts status
-const statsPath = "/manage/v2/hosts/"
-const viewFormat = "view=status&format=json"
-
-type MlHost struct {
+type mlHost struct {
 	HostStatus struct {
 		ID               string `json:"id"`
 		Name             string `json:"name"`
 		StatusProperties struct {
-			Online         MlPointBool `json:"online"`
+			Online         mlPointBool `json:"online"`
 			LoadProperties struct {
-				TotalLoad MlPointFloat `json:"total-load"`
+				TotalLoad mlPointFloat `json:"total-load"`
 			} `json:"load-properties"`
 			RateProperties struct {
-				TotalRate MlPointFloat `json:"total-rate"`
+				TotalRate mlPointFloat `json:"total-rate"`
 			} `json:"rate-properties"`
 			StatusDetail struct {
-				Cpus                   MlPointInt `json:"cpus"`
-				Cores                  MlPointInt `json:"cores"`
+				Cpus                   mlPointInt `json:"cpus"`
+				Cores                  mlPointInt `json:"cores"`
 				TotalCPUStatUser       float64    `json:"total-cpu-stat-user"`
 				TotalCPUStatSystem     float64    `json:"total-cpu-stat-system"`
 				TotalCPUStatIdle       float64    `json:"total-cpu-stat-idle"`
 				TotalCPUStatIowait     float64    `json:"total-cpu-stat-iowait"`
-				MemoryProcessSize      MlPointInt `json:"memory-process-size"`
-				MemoryProcessRss       MlPointInt `json:"memory-process-rss"`
-				MemorySystemTotal      MlPointInt `json:"memory-system-total"`
-				MemorySystemFree       MlPointInt `json:"memory-system-free"`
-				MemoryProcessSwapSize  MlPointInt `json:"memory-process-swap-size"`
-				MemorySize             MlPointInt `json:"memory-size"`
-				HostSize               MlPointInt `json:"host-size"`
-				LogDeviceSpace         MlPointInt `json:"log-device-space"`
-				DataDirSpace           MlPointInt `json:"data-dir-space"`
-				QueryReadBytes         MlPointInt `json:"query-read-bytes"`
-				QueryReadLoad          MlPointInt `json:"query-read-load"`
-				MergeReadLoad          MlPointInt `json:"merge-read-load"`
-				MergeWriteLoad         MlPointInt `json:"merge-write-load"`
-				HTTPServerReceiveBytes MlPointInt `json:"http-server-receive-bytes"`
-				HTTPServerSendBytes    MlPointInt `json:"http-server-send-bytes"`
+				MemoryProcessSize      mlPointInt `json:"memory-process-size"`
+				MemoryProcessRss       mlPointInt `json:"memory-process-rss"`
+				MemorySystemTotal      mlPointInt `json:"memory-system-total"`
+				MemorySystemFree       mlPointInt `json:"memory-system-free"`
+				MemoryProcessSwapSize  mlPointInt `json:"memory-process-swap-size"`
+				MemorySize             mlPointInt `json:"memory-size"`
+				HostSize               mlPointInt `json:"host-size"`
+				LogDeviceSpace         mlPointInt `json:"log-device-space"`
+				DataDirSpace           mlPointInt `json:"data-dir-space"`
+				QueryReadBytes         mlPointInt `json:"query-read-bytes"`
+				QueryReadLoad          mlPointInt `json:"query-read-load"`
+				MergeReadLoad          mlPointInt `json:"merge-read-load"`
+				MergeWriteLoad         mlPointInt `json:"merge-write-load"`
+				HTTPServerReceiveBytes mlPointInt `json:"http-server-receive-bytes"`
+				HTTPServerSendBytes    mlPointInt `json:"http-server-send-bytes"`
 			} `json:"status-detail"`
 		} `json:"status-properties"`
 	} `json:"host-status"`
@@ -91,7 +91,6 @@ func (*Marklogic) SampleConfig() string {
 	return sampleConfig
 }
 
-// Init parse all source URLs and place on the Marklogic struct
 func (c *Marklogic) Init() error {
 	if len(c.URL) == 0 {
 		c.URL = "http://localhost:8002/"
@@ -108,12 +107,11 @@ func (c *Marklogic) Init() error {
 
 		addr.RawQuery = viewFormat
 		u := addr.String()
-		c.Sources = append(c.Sources, u)
+		c.sources = append(c.sources, u)
 	}
 	return nil
 }
 
-// Gather metrics from HTTP Server.
 func (c *Marklogic) Gather(accumulator telegraf.Accumulator) error {
 	var wg sync.WaitGroup
 
@@ -127,7 +125,7 @@ func (c *Marklogic) Gather(accumulator telegraf.Accumulator) error {
 	}
 
 	// Range over all source URL's appended to the struct
-	for _, serv := range c.Sources {
+	for _, serv := range c.sources {
 		wg.Add(1)
 		go func(serv string) {
 			defer wg.Done()
@@ -143,7 +141,7 @@ func (c *Marklogic) Gather(accumulator telegraf.Accumulator) error {
 }
 
 func (c *Marklogic) fetchAndInsertData(acc telegraf.Accumulator, address string) error {
-	ml := &MlHost{}
+	ml := &mlHost{}
 	if err := c.gatherJSONData(address, ml); err != nil {
 		return err
 	}

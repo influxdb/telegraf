@@ -25,19 +25,18 @@ func postWebhooks(t *testing.T, md *MandrillWebhook, eventBody string) *httptest
 	return w
 }
 
-func headRequest(md *MandrillWebhook, t *testing.T) *httptest.ResponseRecorder {
+func headRequest(t *testing.T) *httptest.ResponseRecorder {
 	req, err := http.NewRequest("HEAD", "/mandrill", strings.NewReader(""))
 	require.NoError(t, err)
 	w := httptest.NewRecorder()
 
-	md.returnOK(w, req)
+	returnOK(w, req)
 
 	return w
 }
 
 func TestHead(t *testing.T) {
-	md := &MandrillWebhook{Path: "/mandrill"}
-	resp := headRequest(md, t)
+	resp := headRequest(t)
 	if resp.Code != http.StatusOK {
 		t.Errorf("HEAD returned HTTP status code %v.\nExpected %v", resp.Code, http.StatusOK)
 	}

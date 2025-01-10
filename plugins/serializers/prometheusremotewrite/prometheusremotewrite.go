@@ -350,16 +350,8 @@ func (sl sortableLabels) Swap(i, j int) {
 
 func init() {
 	serializers.Add("prometheusremotewrite",
-		func() serializers.Serializer {
+		func() telegraf.Serializer {
 			return &Serializer{}
 		},
 	)
-}
-
-// InitFromConfig is a compatibility function to construct the parser the old way
-func (s *Serializer) InitFromConfig(cfg *serializers.Config) error {
-	s.SortMetrics = cfg.PrometheusSortMetrics
-	s.StringAsLabel = cfg.PrometheusStringAsLabel
-
-	return nil
 }

@@ -28,7 +28,7 @@ func TestMockExecCommand(_ *testing.T) {
 	var cmd []string //nolint:prealloc // Pre-allocated this slice would break the algorithm
 	for _, arg := range os.Args {
 		if arg == "--" {
-			cmd = []string{}
+			cmd = make([]string, 0)
 			continue
 		}
 		if cmd == nil {

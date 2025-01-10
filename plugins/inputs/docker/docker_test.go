@@ -484,8 +484,6 @@ func TestContainerLabels(t *testing.T) {
 			container: genContainerLabeled(map[string]string{
 				"a": "x",
 			}),
-			include: []string{},
-			exclude: []string{},
 			expected: map[string]string{
 				"a": "x",
 			},
@@ -497,7 +495,6 @@ func TestContainerLabels(t *testing.T) {
 				"b": "y",
 			}),
 			include: []string{"a"},
-			exclude: []string{},
 			expected: map[string]string{
 				"a": "x",
 			},
@@ -508,7 +505,6 @@ func TestContainerLabels(t *testing.T) {
 				"a": "x",
 				"b": "y",
 			}),
-			include: []string{},
 			exclude: []string{"b"},
 			expected: map[string]string{
 				"a": "x",
@@ -522,7 +518,6 @@ func TestContainerLabels(t *testing.T) {
 				"bb": "z",
 			}),
 			include: []string{"a*"},
-			exclude: []string{},
 			expected: map[string]string{
 				"aa": "x",
 				"ab": "y",
@@ -535,7 +530,6 @@ func TestContainerLabels(t *testing.T) {
 				"ab": "y",
 				"bb": "z",
 			}),
-			include: []string{},
 			exclude: []string{"a*"},
 			expected: map[string]string{
 				"bb": "z",
@@ -616,51 +610,42 @@ func TestContainerNames(t *testing.T) {
 		},
 		{
 			name:     "Empty filters matches all",
-			include:  []string{},
-			exclude:  []string{},
 			expected: []string{"etcd", "etcd2", "acme", "acme-test", "foo"},
 		},
 		{
 			name:     "Match all containers",
 			include:  []string{"*"},
-			exclude:  []string{},
 			expected: []string{"etcd", "etcd2", "acme", "acme-test", "foo"},
 		},
 		{
 			name:     "Include prefix match",
 			include:  []string{"etc*"},
-			exclude:  []string{},
 			expected: []string{"etcd", "etcd2"},
 		},
 		{
 			name:     "Exact match",
 			include:  []string{"etcd"},
-			exclude:  []string{},
 			expected: []string{"etcd"},
 		},
 		{
 			name:     "Star matches zero length",
 			include:  []string{"etcd2*"},
-			exclude:  []string{},
 			expected: []string{"etcd2"},
 		},
 		{
 			name:     "Exclude matches all",
-			include:  []string{},
 			exclude:  []string{"etc*"},
 			expected: []string{"acme", "acme-test", "foo"},
 		},
 		{
 			name:     "Exclude single",
-			include:  []string{},
 			exclude:  []string{"etcd"},
 			expected: []string{"etcd2", "acme", "acme-test", "foo"},
 		},
 		{
-			name:     "Exclude all",
-			include:  []string{"*"},
-			exclude:  []string{"*"},
-			expected: []string{},
+			name:    "Exclude all",
+			include: []string{"*"},
+			exclude: []string{"*"},
 		},
 		{
 			name:     "Exclude item matching include",
@@ -721,7 +706,7 @@ func TestContainerNames(t *testing.T) {
 }
 
 func filterMetrics(metrics []telegraf.Metric, f func(telegraf.Metric) bool) []telegraf.Metric {
-	results := []telegraf.Metric{}
+	results := make([]telegraf.Metric, 0, len(metrics))
 	for _, m := range metrics {
 		if f(m) {
 			results = append(results, m)
@@ -1117,6 +1102,32 @@ func TestDockerGatherSwarmInfo(t *testing.T) {
 			"service_mode": "global",
 		},
 	)
+
+	acc.AssertContainsTaggedFields(t,
+		"docker_swarm",
+		map[string]interface{}{
+			"tasks_running":     int(0),
+			"max_concurrent":    uint64(2),
+			"total_completions": uint64(2),
+		},
+		map[string]string{
+			"service_id":   "rfmqydhe8cluzl9hayyrhw5ga",
+			"service_name": "test3",
+			"service_mode": "replicated_job",
+		},
+	)
+
+	acc.AssertContainsTaggedFields(t,
+		"docker_swarm",
+		map[string]interface{}{
+			"tasks_running": int(0),
+		},
+		map[string]string{
+			"service_id":   "mp50lo68vqgkory4e26ts8f9d",
+			"service_name": "test4",
+			"service_mode": "global_job",
+		},
+	)
 }
 
 func TestContainerStateFilter(t *testing.T) {
@@ -1406,7 +1417,6 @@ func Test_parseContainerStatsPerDeviceAndTotal(t *testing.T) {
 			args: args{
 				stat:             stats,
 				perDeviceInclude: containerMetricClasses,
-				totalInclude:     []string{},
 			},
 			expected: []telegraf.Metric{
 				metricCPU0, metricCPU1,
@@ -1417,20 +1427,16 @@ func Test_parseContainerStatsPerDeviceAndTotal(t *testing.T) {
 		{
 			name: "Total metrics enabled",
 			args: args{
-				stat:             stats,
-				perDeviceInclude: []string{},
-				totalInclude:     containerMetricClasses,
+				stat:         stats,
+				totalInclude: containerMetricClasses,
 			},
 			expected: []telegraf.Metric{metricCPUTotal, metricNetworkTotal, metricBlkioTotal},
 		},
 		{
 			name: "Per device and total metrics disabled",
 			args: args{
-				stat:             stats,
-				perDeviceInclude: []string{},
-				totalInclude:     []string{},
+				stat: stats,
 			},
-			expected: []telegraf.Metric{},
 		},
 	}
 
@@ -1468,52 +1474,46 @@ func TestDocker_Init(t *testing.T) {
 		wantTotalInclude     []string
 	}{
 		{
-			"Unsupported perdevice_include setting",
-			fields{
+			name: "Unsupported perdevice_include setting",
+			fields: fields{
 				PerDevice:        false,
 				PerDeviceInclude: []string{"nonExistentClass"},
 				Total:            false,
 				TotalInclude:     []string{"cpu"},
 			},
-			true,
-			[]string{},
-			[]string{},
+			wantErr: true,
 		},
 		{
-			"Unsupported total_include setting",
-			fields{
+			name: "Unsupported total_include setting",
+			fields: fields{
 				PerDevice:        false,
 				PerDeviceInclude: []string{"cpu"},
 				Total:            false,
 				TotalInclude:     []string{"nonExistentClass"},
 			},
-			true,
-			[]string{},
-			[]string{},
+			wantErr: true,
 		},
 		{
-			"PerDevice true adds network and blkio",
-			fields{
+			name: "PerDevice true adds network and blkio",
+			fields: fields{
 				PerDevice:        true,
 				PerDeviceInclude: []string{"cpu"},
 				Total:            true,
 				TotalInclude:     []string{"cpu"},
 			},
-			false,
-			[]string{"cpu", "network", "blkio"},
-			[]string{"cpu"},
+			wantPerDeviceInclude: []string{"cpu", "network", "blkio"},
+			wantTotalInclude:     []string{"cpu"},
 		},
 		{
-			"Total false removes network and blkio",
-			fields{
+			name: "Total false removes network and blkio",
+			fields: fields{
 				PerDevice:        false,
 				PerDeviceInclude: []string{"cpu"},
 				Total:            false,
 				TotalInclude:     []string{"cpu", "network", "blkio"},
 			},
-			false,
-			[]string{"cpu"},
-			[]string{"cpu"},
+			wantPerDeviceInclude: []string{"cpu"},
+			wantTotalInclude:     []string{"cpu"},
 		},
 	}
 	for _, tt := range tests {
@@ -1552,8 +1552,7 @@ func TestDockerGatherDiskUsage(t *testing.T) {
 
 	require.NoError(t, acc.GatherError(d.Gather))
 
-	duOpts := types.DiskUsageOptions{Types: []types.DiskUsageObject{}}
-	d.gatherDiskUsage(&acc, duOpts)
+	d.gatherDiskUsage(&acc, types.DiskUsageOptions{})
 
 	acc.AssertContainsTaggedFields(t,
 		"docker_disk_usage",

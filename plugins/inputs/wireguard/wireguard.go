@@ -57,10 +57,10 @@ func (wg *Wireguard) Gather(acc telegraf.Accumulator) error {
 	}
 
 	for _, device := range devices {
-		wg.gatherDeviceMetrics(acc, device)
+		gatherDeviceMetrics(acc, device)
 
 		for _, peer := range device.Peers {
-			wg.gatherDevicePeerMetrics(acc, device, peer)
+			gatherDevicePeerMetrics(acc, device, peer)
 		}
 	}
 
@@ -89,7 +89,7 @@ func (wg *Wireguard) enumerateDevices() ([]*wgtypes.Device, error) {
 	return devices, nil
 }
 
-func (wg *Wireguard) gatherDeviceMetrics(acc telegraf.Accumulator, device *wgtypes.Device) {
+func gatherDeviceMetrics(acc telegraf.Accumulator, device *wgtypes.Device) {
 	fields := map[string]interface{}{
 		"listen_port":   device.ListenPort,
 		"firewall_mark": device.FirewallMark,
@@ -108,7 +108,7 @@ func (wg *Wireguard) gatherDeviceMetrics(acc telegraf.Accumulator, device *wgtyp
 	acc.AddGauge(measurementDevice, gauges, tags)
 }
 
-func (wg *Wireguard) gatherDevicePeerMetrics(acc telegraf.Accumulator, device *wgtypes.Device, peer wgtypes.Peer) {
+func gatherDevicePeerMetrics(acc telegraf.Accumulator, device *wgtypes.Device, peer wgtypes.Peer) {
 	fields := map[string]interface{}{
 		"persistent_keepalive_interval_ns": peer.PersistentKeepaliveInterval.Nanoseconds(),
 		"protocol_version":                 peer.ProtocolVersion,

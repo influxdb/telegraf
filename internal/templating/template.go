@@ -81,9 +81,8 @@ func NewDefaultTemplateWithPattern(pattern string) (*Template, error) {
 	return NewTemplate(DefaultSeparator, pattern, nil)
 }
 
-// NewTemplate returns a new template ensuring it has a measurement
-// specified.
-func NewTemplate(separator string, pattern string, defaultTags map[string]string) (*Template, error) {
+// NewTemplate returns a new template ensuring it has a measurement specified.
+func NewTemplate(separator, pattern string, defaultTags map[string]string) (*Template, error) {
 	parts := strings.Split(pattern, separator)
 	hasMeasurement := false
 	template := &Template{

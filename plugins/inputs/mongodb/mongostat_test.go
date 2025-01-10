@@ -7,7 +7,7 @@ import (
 )
 
 func TestLatencyStats(t *testing.T) {
-	sl := NewStatLine(
+	sl := newStatLine(
 		mongoStatus{
 			ServerStatus: &serverStatus{
 				Connections: &connectionStats{},
@@ -49,7 +49,6 @@ func TestLatencyStats(t *testing.T) {
 			},
 		},
 		"foo",
-		true,
 		60,
 	)
 
@@ -62,7 +61,7 @@ func TestLatencyStats(t *testing.T) {
 }
 
 func TestLatencyStatsDiffZero(t *testing.T) {
-	sl := NewStatLine(
+	sl := newStatLine(
 		mongoStatus{
 			ServerStatus: &serverStatus{
 				Connections: &connectionStats{},
@@ -118,7 +117,6 @@ func TestLatencyStatsDiffZero(t *testing.T) {
 			},
 		},
 		"foo",
-		true,
 		60,
 	)
 
@@ -131,7 +129,7 @@ func TestLatencyStatsDiffZero(t *testing.T) {
 }
 
 func TestLatencyStatsDiff(t *testing.T) {
-	sl := NewStatLine(
+	sl := newStatLine(
 		mongoStatus{
 			ServerStatus: &serverStatus{
 				Connections: &connectionStats{},
@@ -187,7 +185,6 @@ func TestLatencyStatsDiff(t *testing.T) {
 			},
 		},
 		"foo",
-		true,
 		60,
 	)
 
@@ -200,7 +197,7 @@ func TestLatencyStatsDiff(t *testing.T) {
 }
 
 func TestLocksStatsNilWhenLocksMissingInOldStat(t *testing.T) {
-	sl := NewStatLine(
+	sl := newStatLine(
 		mongoStatus{
 			ServerStatus: &serverStatus{
 				Connections: &connectionStats{},
@@ -223,7 +220,6 @@ func TestLocksStatsNilWhenLocksMissingInOldStat(t *testing.T) {
 			},
 		},
 		"foo",
-		true,
 		60,
 	)
 
@@ -231,7 +227,7 @@ func TestLocksStatsNilWhenLocksMissingInOldStat(t *testing.T) {
 }
 
 func TestLocksStatsNilWhenGlobalLockStatsMissingInOldStat(t *testing.T) {
-	sl := NewStatLine(
+	sl := newStatLine(
 		mongoStatus{
 			ServerStatus: &serverStatus{
 				Connections: &connectionStats{},
@@ -255,7 +251,6 @@ func TestLocksStatsNilWhenGlobalLockStatsMissingInOldStat(t *testing.T) {
 			},
 		},
 		"foo",
-		true,
 		60,
 	)
 
@@ -263,7 +258,7 @@ func TestLocksStatsNilWhenGlobalLockStatsMissingInOldStat(t *testing.T) {
 }
 
 func TestLocksStatsNilWhenGlobalLockStatsEmptyInOldStat(t *testing.T) {
-	sl := NewStatLine(
+	sl := newStatLine(
 		mongoStatus{
 			ServerStatus: &serverStatus{
 				Connections: &connectionStats{},
@@ -289,7 +284,6 @@ func TestLocksStatsNilWhenGlobalLockStatsEmptyInOldStat(t *testing.T) {
 			},
 		},
 		"foo",
-		true,
 		60,
 	)
 
@@ -297,7 +291,7 @@ func TestLocksStatsNilWhenGlobalLockStatsEmptyInOldStat(t *testing.T) {
 }
 
 func TestLocksStatsNilWhenCollectionLockStatsMissingInOldStat(t *testing.T) {
-	sl := NewStatLine(
+	sl := newStatLine(
 		mongoStatus{
 			ServerStatus: &serverStatus{
 				Connections: &connectionStats{},
@@ -325,7 +319,6 @@ func TestLocksStatsNilWhenCollectionLockStatsMissingInOldStat(t *testing.T) {
 			},
 		},
 		"foo",
-		true,
 		60,
 	)
 
@@ -333,7 +326,7 @@ func TestLocksStatsNilWhenCollectionLockStatsMissingInOldStat(t *testing.T) {
 }
 
 func TestLocksStatsNilWhenCollectionLockStatsEmptyInOldStat(t *testing.T) {
-	sl := NewStatLine(
+	sl := newStatLine(
 		mongoStatus{
 			ServerStatus: &serverStatus{
 				Connections: &connectionStats{},
@@ -362,7 +355,6 @@ func TestLocksStatsNilWhenCollectionLockStatsEmptyInOldStat(t *testing.T) {
 			},
 		},
 		"foo",
-		true,
 		60,
 	)
 
@@ -370,7 +362,7 @@ func TestLocksStatsNilWhenCollectionLockStatsEmptyInOldStat(t *testing.T) {
 }
 
 func TestLocksStatsNilWhenLocksMissingInNewStat(t *testing.T) {
-	sl := NewStatLine(
+	sl := newStatLine(
 		mongoStatus{
 			ServerStatus: &serverStatus{
 				Connections: &connectionStats{},
@@ -393,7 +385,6 @@ func TestLocksStatsNilWhenLocksMissingInNewStat(t *testing.T) {
 			},
 		},
 		"foo",
-		true,
 		60,
 	)
 
@@ -401,7 +392,7 @@ func TestLocksStatsNilWhenLocksMissingInNewStat(t *testing.T) {
 }
 
 func TestLocksStatsNilWhenGlobalLockStatsMissingInNewStat(t *testing.T) {
-	sl := NewStatLine(
+	sl := newStatLine(
 		mongoStatus{
 			ServerStatus: &serverStatus{
 				Connections: &connectionStats{},
@@ -425,7 +416,6 @@ func TestLocksStatsNilWhenGlobalLockStatsMissingInNewStat(t *testing.T) {
 			},
 		},
 		"foo",
-		true,
 		60,
 	)
 
@@ -433,7 +423,7 @@ func TestLocksStatsNilWhenGlobalLockStatsMissingInNewStat(t *testing.T) {
 }
 
 func TestLocksStatsNilWhenGlobalLockStatsEmptyInNewStat(t *testing.T) {
-	sl := NewStatLine(
+	sl := newStatLine(
 		mongoStatus{
 			ServerStatus: &serverStatus{
 				Connections: &connectionStats{},
@@ -459,7 +449,6 @@ func TestLocksStatsNilWhenGlobalLockStatsEmptyInNewStat(t *testing.T) {
 			},
 		},
 		"foo",
-		true,
 		60,
 	)
 
@@ -467,7 +456,7 @@ func TestLocksStatsNilWhenGlobalLockStatsEmptyInNewStat(t *testing.T) {
 }
 
 func TestLocksStatsNilWhenCollectionLockStatsMissingInNewStat(t *testing.T) {
-	sl := NewStatLine(
+	sl := newStatLine(
 		mongoStatus{
 			ServerStatus: &serverStatus{
 				Connections: &connectionStats{},
@@ -495,7 +484,6 @@ func TestLocksStatsNilWhenCollectionLockStatsMissingInNewStat(t *testing.T) {
 			},
 		},
 		"foo",
-		true,
 		60,
 	)
 
@@ -503,7 +491,7 @@ func TestLocksStatsNilWhenCollectionLockStatsMissingInNewStat(t *testing.T) {
 }
 
 func TestLocksStatsNilWhenCollectionLockStatsEmptyInNewStat(t *testing.T) {
-	sl := NewStatLine(
+	sl := newStatLine(
 		mongoStatus{
 			ServerStatus: &serverStatus{
 				Connections: &connectionStats{},
@@ -532,7 +520,6 @@ func TestLocksStatsNilWhenCollectionLockStatsEmptyInNewStat(t *testing.T) {
 			},
 		},
 		"foo",
-		true,
 		60,
 	)
 
@@ -540,7 +527,7 @@ func TestLocksStatsNilWhenCollectionLockStatsEmptyInNewStat(t *testing.T) {
 }
 
 func TestLocksStatsPopulated(t *testing.T) {
-	sl := NewStatLine(
+	sl := newStatLine(
 		mongoStatus{
 			ServerStatus: &serverStatus{
 				Connections: &connectionStats{},
@@ -596,7 +583,6 @@ func TestLocksStatsPopulated(t *testing.T) {
 			},
 		},
 		"foo",
-		true,
 		60,
 	)
 

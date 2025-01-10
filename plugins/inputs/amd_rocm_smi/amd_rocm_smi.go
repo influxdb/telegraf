@@ -131,7 +131,7 @@ func (rsmi *ROCmSMI) Gather(acc telegraf.Accumulator) error {
 	return gatherROCmSMI(data, acc)
 }
 
-func (rsmi *ROCmSMI) Stop() {}
+func (*ROCmSMI) Stop() {}
 
 func (rsmi *ROCmSMI) pollROCmSMI() ([]byte, error) {
 	// Construct and execute metrics query, there currently exist (ROCm v4.3.x) a "-a" option
@@ -180,7 +180,7 @@ func (rsmi *ROCmSMI) pollROCmSMI() ([]byte, error) {
 }
 
 func genTagsFields(gpus map[string]gpu, system map[string]sysInfo) []metric {
-	metrics := []metric{}
+	metrics := make([]metric, 0, len(gpus))
 	for cardID := range gpus {
 		if strings.Contains(cardID, "card") {
 			tags := map[string]string{

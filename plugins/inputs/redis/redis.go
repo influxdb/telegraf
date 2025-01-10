@@ -315,7 +315,7 @@ func (r *Redis) Gather(acc telegraf.Accumulator) error {
 		wg.Add(1)
 		go func(client Client) {
 			defer wg.Done()
-			acc.AddError(r.gatherServer(client, acc))
+			acc.AddError(gatherServer(client, acc))
 			acc.AddError(r.gatherCommandValues(client, acc))
 		}(client)
 	}
@@ -344,7 +344,7 @@ func (r *Redis) gatherCommandValues(client Client, acc telegraf.Accumulator) err
 	return nil
 }
 
-func (r *Redis) gatherServer(client Client, acc telegraf.Accumulator) error {
+func gatherServer(client Client, acc telegraf.Accumulator) error {
 	info, err := client.Info().Result()
 	if err != nil {
 		return err
@@ -774,7 +774,7 @@ func coerceType(value interface{}, typ reflect.Type) reflect.Value {
 	return reflect.ValueOf(value)
 }
 
-func (r *Redis) Start(telegraf.Accumulator) error {
+func (*Redis) Start(telegraf.Accumulator) error {
 	return nil
 }
 

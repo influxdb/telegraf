@@ -17,8 +17,8 @@ import (
 type transportMock struct {
 }
 
-func (t *transportMock) RoundTrip(_ *http.Request) (*http.Response, error) {
-	errorString := "Get http://127.0.0.1:2812/_status?format=xml: " +
+func (*transportMock) RoundTrip(*http.Request) (*http.Response, error) {
+	errorString := "get http://127.0.0.1:2812/_status?format=xml: " +
 		"read tcp 192.168.10.2:55610->127.0.0.1:2812: " +
 		"read: connection reset by peer"
 	return nil, errors.New(errorString)

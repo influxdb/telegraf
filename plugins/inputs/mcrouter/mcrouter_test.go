@@ -15,10 +15,6 @@ import (
 )
 
 func TestAddressParsing(t *testing.T) {
-	m := &Mcrouter{
-		Servers: []string{"tcp://" + testutil.GetLocalHost()},
-	}
-
 	var acceptTests = [][3]string{
 		{"tcp://localhost:8086", "localhost:8086", "tcp"},
 		{"tcp://localhost", "localhost:" + defaultServerURL.Port(), "tcp"},
@@ -32,7 +28,7 @@ func TestAddressParsing(t *testing.T) {
 	}
 
 	for _, args := range acceptTests {
-		address, protocol, err := m.ParseAddress(args[0])
+		address, protocol, err := parseAddress(args[0])
 
 		require.NoError(t, err, args[0])
 		require.Equal(t, args[1], address, args[0])
@@ -40,7 +36,7 @@ func TestAddressParsing(t *testing.T) {
 	}
 
 	for _, addr := range rejectTests {
-		address, protocol, err := m.ParseAddress(addr)
+		address, protocol, err := parseAddress(addr)
 
 		require.Error(t, err, addr)
 		require.Empty(t, address, addr)

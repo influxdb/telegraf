@@ -77,7 +77,7 @@ func (*Zipkin) SampleConfig() string {
 
 // Gather is empty for the zipkin plugin; all gathering is done through
 // the separate goroutine launched in (*Zipkin).Start()
-func (z *Zipkin) Gather(_ telegraf.Accumulator) error { return nil }
+func (*Zipkin) Gather(telegraf.Accumulator) error { return nil }
 
 // Start launches a separate goroutine for collecting zipkin client http requests,
 // passing in a telegraf.Accumulator such that data can be collected.

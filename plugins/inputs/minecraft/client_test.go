@@ -6,19 +6,19 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-type MockConnection struct {
+type mockConnection struct {
 	commands map[string]string
 }
 
-func (c *MockConnection) Execute(command string) (string, error) {
+func (c *mockConnection) Execute(command string) (string, error) {
 	return c.commands[command], nil
 }
 
-type MockConnector struct {
-	conn *MockConnection
+type mockConnector struct {
+	conn *mockConnection
 }
 
-func (c *MockConnector) Connect() (Connection, error) {
+func (c *mockConnector) connect() (connection, error) {
 	return c.conn, nil
 }
 
@@ -92,12 +92,12 @@ func TestClient_Player(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			connector := &MockConnector{
-				conn: &MockConnection{commands: tt.commands},
+			connector := &mockConnector{
+				conn: &mockConnection{commands: tt.commands},
 			}
 
 			client := newClient(connector)
-			actual, err := client.Players()
+			actual, err := client.players()
 			require.NoError(t, err)
 
 			require.Equal(t, tt.expected, actual)
@@ -110,7 +110,7 @@ func TestClient_Scores(t *testing.T) {
 		name     string
 		player   string
 		commands map[string]string
-		expected []Score
+		expected []score
 	}{
 		{
 			name:   "minecraft 1.12 player with no scores",
@@ -125,8 +125,8 @@ func TestClient_Scores(t *testing.T) {
 			commands: map[string]string{
 				"scoreboard players list Etho": "Showing 1 tracked objective(s) for Etho:- jump: 2 (jump)",
 			},
-			expected: []Score{
-				{Name: "jump", Value: 2},
+			expected: []score{
+				{name: "jump", value: 2},
 			},
 		},
 		{
@@ -135,10 +135,10 @@ func TestClient_Scores(t *testing.T) {
 			commands: map[string]string{
 				"scoreboard players list Etho": "Showing 3 tracked objective(s) for Etho:- hopper: 2 (hopper)- dropper: 2 (dropper)- redstone: 1 (redstone)",
 			},
-			expected: []Score{
-				{Name: "hopper", Value: 2},
-				{Name: "dropper", Value: 2},
-				{Name: "redstone", Value: 1},
+			expected: []score{
+				{name: "hopper", value: 2},
+				{name: "dropper", value: 2},
+				{name: "redstone", value: 1},
 			},
 		},
 		{
@@ -154,8 +154,8 @@ func TestClient_Scores(t *testing.T) {
 			commands: map[string]string{
 				"scoreboard players list Etho": "Etho has 1 scores:[jumps]: 1",
 			},
-			expected: []Score{
-				{Name: "jumps", Value: 1},
+			expected: []score{
+				{name: "jumps", value: 1},
 			},
 		},
 		{
@@ -164,21 +164,21 @@ func TestClient_Scores(t *testing.T) {
 			commands: map[string]string{
 				"scoreboard players list Etho": "Etho has 3 scores:[hopper]: 2[dropper]: 2[redstone]: 1",
 			},
-			expected: []Score{
-				{Name: "hopper", Value: 2},
-				{Name: "dropper", Value: 2},
-				{Name: "redstone", Value: 1},
+			expected: []score{
+				{name: "hopper", value: 2},
+				{name: "dropper", value: 2},
+				{name: "redstone", value: 1},
 			},
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			connector := &MockConnector{
-				conn: &MockConnection{commands: tt.commands},
+			connector := &mockConnector{
+				conn: &mockConnection{commands: tt.commands},
 			}
 
 			client := newClient(connector)
-			actual, err := client.Scores(tt.player)
+			actual, err := client.scores(tt.player)
 			require.NoError(t, err)
 
 			require.Equal(t, tt.expected, actual)

@@ -121,7 +121,7 @@ func (i *Icinga2) Gather(acc telegraf.Accumulator) error {
 		}
 
 		result := resultObject{}
-		err = i.parseObjectResponse(resp, &result)
+		err = parseObjectResponse(resp, &result)
 		if err != nil {
 			return fmt.Errorf("could not parse object response: %w", err)
 		}
@@ -145,13 +145,13 @@ func (i *Icinga2) Gather(acc telegraf.Accumulator) error {
 
 		switch statusType {
 		case "ApiListener":
-			fields, err = i.parsePerfdataResponse(resp)
+			fields, err = parsePerfdataResponse(resp)
 		case "CIB":
-			fields, err = i.parseCIBResponse(resp)
+			fields, err = parseCIBResponse(resp)
 		case "IdoMysqlConnection":
-			fields, err = i.parsePerfdataResponse(resp)
+			fields, err = parsePerfdataResponse(resp)
 		case "IdoPgsqlConnection":
-			fields, err = i.parsePerfdataResponse(resp)
+			fields, err = parsePerfdataResponse(resp)
 		}
 
 		if err != nil {
@@ -233,7 +233,7 @@ func (i *Icinga2) icingaRequest(address string) (*http.Response, error) {
 	return resp, nil
 }
 
-func (i *Icinga2) parseObjectResponse(resp *http.Response, result *resultObject) error {
+func parseObjectResponse(resp *http.Response, result *resultObject) error {
 	err := json.NewDecoder(resp.Body).Decode(&result)
 	if err != nil {
 		return err
@@ -246,7 +246,7 @@ func (i *Icinga2) parseObjectResponse(resp *http.Response, result *resultObject)
 	return nil
 }
 
-func (i *Icinga2) parseCIBResponse(resp *http.Response) (map[string]interface{}, error) {
+func parseCIBResponse(resp *http.Response) (map[string]interface{}, error) {
 	result := resultCIB{}
 
 	err := json.NewDecoder(resp.Body).Decode(&result)
@@ -262,7 +262,7 @@ func (i *Icinga2) parseCIBResponse(resp *http.Response) (map[string]interface{},
 	return result.Results[0].Status, nil
 }
 
-func (i *Icinga2) parsePerfdataResponse(resp *http.Response) (map[string]interface{}, error) {
+func parsePerfdataResponse(resp *http.Response) (map[string]interface{}, error) {
 	result := resultPerfdata{}
 
 	err := json.NewDecoder(resp.Body).Decode(&result)

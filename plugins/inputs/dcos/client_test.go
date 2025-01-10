@@ -95,7 +95,7 @@ func TestGetSummary(t *testing.T) {
 			name:          "No nodes",
 			responseCode:  http.StatusOK,
 			responseBody:  `{"cluster": "a", "slaves": []}`,
-			expectedValue: &summary{Cluster: "a", Slaves: []slave{}},
+			expectedValue: &summary{Cluster: "a", Slaves: make([]slave, 0)},
 			expectedError: nil,
 		},
 		{

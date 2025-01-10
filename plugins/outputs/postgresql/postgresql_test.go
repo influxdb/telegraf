@@ -976,3 +976,239 @@ func TestStressConcurrencyIntegration(t *testing.T) {
 		}
 	}
 }
+
+func TestLongColumnNamesErrorIntegration(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping integration test in short mode")
+	}
+
+	// Setup the plugin
+	p, err := newPostgresqlTest(t)
+	require.NoError(t, err)
+	require.NoError(t, p.Init())
+	require.NoError(t, p.Connect())
+
+	// Define the metric to send
+	metrics := []telegraf.Metric{
+		metric.New(
+			t.Name(),
+			map[string]string{},
+			map[string]interface{}{
+				"a_field_with_a_some_very_long_name_exceeding_the_column_name_limit_of_postgres_of_63": int64(0),
+				"value": 42,
+			},
+			time.Unix(0, 0).UTC(),
+		),
+		metric.New(
+			t.Name(),
+			map[string]string{},
+			map[string]interface{}{
+				"a_field_with_a_some_very_long_name_exceeding_the_column_name_limit_of_postgres_of_63": int64(1),
+				"value": 43,
+			},
+			time.Unix(0, 1).UTC(),
+		),
+		metric.New(
+			t.Name(),
+			map[string]string{},
+			map[string]interface{}{
+				"a_field_with_a_some_very_long_name_exceeding_the_column_name_limit_of_postgres_of_63": int64(2),
+				"value": 44,
+			},
+			time.Unix(0, 2).UTC(),
+		),
+		metric.New(
+			t.Name(),
+			map[string]string{},
+			map[string]interface{}{
+				"a_field_with_another_very_long_name_exceeding_the_column_name_limit_of_postgres_of_63": int64(99),
+				"value": 45,
+			},
+			time.Unix(0, 9).UTC(),
+		),
+	}
+	require.NoError(t, p.Write(metrics))
+	require.NoError(t, p.Write(metrics))
+
+	// Check if the logging is restricted to once per field and all columns are
+	// mentioned
+	var longColLogErrs []string
+	for _, l := range p.Logger.logs {
+		msg := l.String()
+		if l.level == pgx.LogLevelError && strings.Contains(msg, "Column name too long") {
+			longColLogErrs = append(longColLogErrs, strings.TrimPrefix(msg, "error: Column name too long: "))
+		}
+	}
+	excpectedLongColumns := []string{
+		`"a_field_with_a_some_very_long_name_exceeding_the_column_name_limit_of_postgres_of_63"`,
+		`"a_field_with_another_very_long_name_exceeding_the_column_name_limit_of_postgres_of_63"`,
+	}
+	require.ElementsMatch(t, excpectedLongColumns, longColLogErrs)
+
+	// Denote the expected data in the table
+	expected := []map[string]interface{}{
+		{"time": time.Unix(0, 0).Unix(), "value": int64(42)},
+		{"time": time.Unix(0, 1).Unix(), "value": int64(43)},
+		{"time": time.Unix(0, 2).Unix(), "value": int64(44)},
+		{"time": time.Unix(0, 9).Unix(), "value": int64(45)},
+		{"time": time.Unix(0, 0).Unix(), "value": int64(42)},
+		{"time": time.Unix(0, 1).Unix(), "value": int64(43)},
+		{"time": time.Unix(0, 2).Unix(), "value": int64(44)},
+		{"time": time.Unix(0, 9).Unix(), "value": int64(45)},
+	}
+
+	// Get the actual table data nd convert the time to a timestamp for
+	// easier comparison
+	dump := dbTableDump(t, p.db, "")
+	require.Len(t, dump, len(expected))
+	for i, actual := range dump {
+		if raw, found := actual["time"]; found {
+			if t, ok := raw.(time.Time); ok {
+				actual["time"] = t.Unix()
+			}
+		}
+		require.EqualValues(t, expected[i], actual)
+	}
+}
+
+func TestLongColumnNamesClipIntegration(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping integration test in short mode")
+	}
+
+	// Setup the plugin
+	p, err := newPostgresqlTest(t)
+	require.NoError(t, err)
+	p.ColumnNameLenLimit = 63
+	require.NoError(t, p.Init())
+	require.NoError(t, p.Connect())
+
+	// Define the metric to send
+	metrics := []telegraf.Metric{
+		metric.New(
+			t.Name(),
+			map[string]string{},
+			map[string]interface{}{
+				"a_field_with_a_some_very_long_name_exceeding_the_column_name_limit_of_postgres_of_63": int64(0),
+				"value": 42,
+			},
+			time.Unix(0, 0).UTC(),
+		),
+		metric.New(
+			t.Name(),
+			map[string]string{},
+			map[string]interface{}{
+				"a_field_with_a_some_very_long_name_exceeding_the_column_name_limit_of_postgres_of_63": int64(1),
+				"value": 43,
+			},
+			time.Unix(0, 1).UTC(),
+		),
+		metric.New(
+			t.Name(),
+			map[string]string{},
+			map[string]interface{}{
+				"a_field_with_a_some_very_long_name_exceeding_the_column_name_limit_of_postgres_of_63": int64(2),
+				"value": 44,
+			},
+			time.Unix(0, 2).UTC(),
+		),
+		metric.New(
+			t.Name(),
+			map[string]string{},
+			map[string]interface{}{
+				"a_field_with_another_very_long_name_exceeding_the_column_name_limit_of_postgres_of_63": int64(99),
+				"value": 45,
+			},
+			time.Unix(0, 9).UTC(),
+		),
+	}
+	require.NoError(t, p.Write(metrics))
+	require.NoError(t, p.Write(metrics))
+
+	// Check if the logging is restricted to once per field and all columns are mentioned
+	var longColLogWarns []string
+	var longColLogErrs []string
+	for _, l := range p.Logger.logs {
+		msg := l.String()
+		if l.level == pgx.LogLevelWarn && strings.Contains(msg, "Limiting too long column name") {
+			longColLogWarns = append(longColLogWarns, strings.TrimPrefix(msg, "warn: Limiting too long column name: "))
+			continue
+		}
+		if l.level == pgx.LogLevelError && strings.Contains(msg, "Column name too long") {
+			longColLogErrs = append(longColLogErrs, strings.TrimPrefix(msg, "error: Column name too long: "))
+			continue
+		}
+	}
+
+	excpectedLongColumns := []string{
+		`"a_field_with_a_some_very_long_name_exceeding_the_column_name_limit_of_postgres_of_63"`,
+		`"a_field_with_another_very_long_name_exceeding_the_column_name_limit_of_postgres_of_63"`,
+	}
+	require.ElementsMatch(t, excpectedLongColumns, longColLogWarns)
+	require.Empty(t, longColLogErrs)
+
+	// Denote the expected data in the table
+	expected := []map[string]interface{}{
+		{
+			"time": time.Unix(0, 0).Unix(),
+			"a_field_with_a_some_very_long_name_exceeding_the_column_name_li": int64(0),
+			"a_field_with_another_very_long_name_exceeding_the_column_name_l": nil,
+			"value": int64(42),
+		},
+		{
+			"time": time.Unix(0, 1).Unix(),
+			"a_field_with_a_some_very_long_name_exceeding_the_column_name_li": int64(1),
+			"a_field_with_another_very_long_name_exceeding_the_column_name_l": nil,
+			"value": int64(43),
+		},
+		{
+			"time": time.Unix(0, 2).Unix(),
+			"a_field_with_a_some_very_long_name_exceeding_the_column_name_li": int64(2),
+			"a_field_with_another_very_long_name_exceeding_the_column_name_l": nil,
+			"value": int64(44),
+		},
+		{
+			"time": time.Unix(0, 9).Unix(),
+			"a_field_with_a_some_very_long_name_exceeding_the_column_name_li": nil,
+			"a_field_with_another_very_long_name_exceeding_the_column_name_l": int64(99),
+			"value": int64(45),
+		},
+		{
+			"time": time.Unix(0, 0).Unix(),
+			"a_field_with_a_some_very_long_name_exceeding_the_column_name_li": int64(0),
+			"a_field_with_another_very_long_name_exceeding_the_column_name_l": nil,
+			"value": int64(42),
+		},
+		{
+			"time": time.Unix(0, 1).Unix(),
+			"a_field_with_a_some_very_long_name_exceeding_the_column_name_li": int64(1),
+			"a_field_with_another_very_long_name_exceeding_the_column_name_l": nil,
+			"value": int64(43),
+		},
+		{
+			"time": time.Unix(0, 2).Unix(),
+			"a_field_with_a_some_very_long_name_exceeding_the_column_name_li": int64(2),
+			"a_field_with_another_very_long_name_exceeding_the_column_name_l": nil,
+			"value": int64(44),
+		},
+		{
+			"time": time.Unix(0, 9).Unix(),
+			"a_field_with_a_some_very_long_name_exceeding_the_column_name_li": nil,
+			"a_field_with_another_very_long_name_exceeding_the_column_name_l": int64(99),
+			"value": int64(45),
+		},
+	}
+
+	// Get the actual table data nd convert the time to a timestamp for
+	// easier comparison
+	dump := dbTableDump(t, p.db, "")
+	require.Len(t, dump, len(expected))
+	for i, actual := range dump {
+		if raw, found := actual["time"]; found {
+			if t, ok := raw.(time.Time); ok {
+				actual["time"] = t.Unix()
+			}
+		}
+		require.EqualValues(t, expected[i], actual)
+	}
+}

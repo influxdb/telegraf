@@ -210,7 +210,7 @@ func (ch *ClickHouse) commonMetrics(acc telegraf.Accumulator, conn *connect, met
 		Value  float64 `json:"value"`
 	}
 
-	tags := ch.makeDefaultTags(conn)
+	tags := makeDefaultTags(conn)
 	fields := make(map[string]interface{})
 
 	if commonMetricsIsFloat[metric] {
@@ -241,7 +241,7 @@ func (ch *ClickHouse) zookeeper(acc telegraf.Accumulator, conn *connect) error {
 	if err := ch.execQuery(conn.url, systemZookeeperExistsSQL, &zkExists); err != nil {
 		return err
 	}
-	tags := ch.makeDefaultTags(conn)
+	tags := makeDefaultTags(conn)
 
 	if len(zkExists) > 0 && zkExists[0].ZkExists > 0 {
 		var zkRootNodes []struct {
@@ -270,7 +270,7 @@ func (ch *ClickHouse) replicationQueue(acc telegraf.Accumulator, conn *connect) 
 		return err
 	}
 
-	tags := ch.makeDefaultTags(conn)
+	tags := makeDefaultTags(conn)
 
 	if len(replicationQueueExists) > 0 && replicationQueueExists[0].ReplicationQueueExists > 0 {
 		var replicationTooManyTries []struct {
@@ -301,7 +301,7 @@ func (ch *ClickHouse) detachedParts(acc telegraf.Accumulator, conn *connect) err
 	}
 
 	if len(detachedParts) > 0 {
-		tags := ch.makeDefaultTags(conn)
+		tags := makeDefaultTags(conn)
 		acc.AddFields("clickhouse_detached_parts",
 			map[string]interface{}{
 				"detached_parts": uint64(detachedParts[0].DetachedParts),
@@ -323,7 +323,7 @@ func (ch *ClickHouse) dictionaries(acc telegraf.Accumulator, conn *connect) erro
 	}
 
 	for _, dict := range brokenDictionaries {
-		tags := ch.makeDefaultTags(conn)
+		tags := makeDefaultTags(conn)
 
 		isLoaded := uint64(1)
 		if dict.Status != "LOADED" {
@@ -356,7 +356,7 @@ func (ch *ClickHouse) mutations(acc telegraf.Accumulator, conn *connect) error {
 	}
 
 	if len(mutationsStatus) > 0 {
-		tags := ch.makeDefaultTags(conn)
+		tags := makeDefaultTags(conn)
 
 		acc.AddFields("clickhouse_mutations",
 			map[string]interface{}{
@@ -384,7 +384,7 @@ func (ch *ClickHouse) disks(acc telegraf.Accumulator, conn *connect) error {
 	}
 
 	for _, disk := range disksStatus {
-		tags := ch.makeDefaultTags(conn)
+		tags := makeDefaultTags(conn)
 		tags["name"] = disk.Name
 		tags["path"] = disk.Path
 
@@ -413,7 +413,7 @@ func (ch *ClickHouse) processes(acc telegraf.Accumulator, conn *connect) error {
 	}
 
 	for _, process := range processesStats {
-		tags := ch.makeDefaultTags(conn)
+		tags := makeDefaultTags(conn)
 		tags["query_type"] = process.QueryType
 
 		acc.AddFields("clickhouse_processes",
@@ -448,7 +448,7 @@ func (ch *ClickHouse) textLog(acc telegraf.Accumulator, conn *connect) error {
 		}
 
 		for _, textLogItem := range textLogLast10MinMessages {
-			tags := ch.makeDefaultTags(conn)
+			tags := makeDefaultTags(conn)
 			tags["level"] = textLogItem.Level
 			acc.AddFields("clickhouse_text_log",
 				map[string]interface{}{
@@ -473,7 +473,7 @@ func (ch *ClickHouse) tables(acc telegraf.Accumulator, conn *connect) error {
 	if err := ch.execQuery(conn.url, systemPartsSQL, &parts); err != nil {
 		return err
 	}
-	tags := ch.makeDefaultTags(conn)
+	tags := makeDefaultTags(conn)
 
 	for _, part := range parts {
 		tags["table"] = part.Table
@@ -490,7 +490,7 @@ func (ch *ClickHouse) tables(acc telegraf.Accumulator, conn *connect) error {
 	return nil
 }
 
-func (ch *ClickHouse) makeDefaultTags(conn *connect) map[string]string {
+func makeDefaultTags(conn *connect) map[string]string {
 	tags := map[string]string{
 		"source": conn.Hostname,
 	}

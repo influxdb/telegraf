@@ -97,7 +97,7 @@ func checkFile(filename string, pluginType plugin, sourceFlag bool) (bool, error
 	scanner := bufio.NewScanner(bytes.NewReader(md))
 	scanner.Split(bufio.ScanRunes)
 	offset := 0
-	newlineOffsets := []int{}
+	newlineOffsets := make([]int, 0)
 	for scanner.Scan() {
 		if scanner.Text() == "\n" {
 			newlineOffsets = append(newlineOffsets, offset)

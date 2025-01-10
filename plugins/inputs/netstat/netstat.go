@@ -14,16 +14,16 @@ import (
 //go:embed sample.conf
 var sampleConfig string
 
-type NetStats struct {
-	PS system.PS
+type NetStat struct {
+	ps system.PS
 }
 
-func (*NetStats) SampleConfig() string {
+func (*NetStat) SampleConfig() string {
 	return sampleConfig
 }
 
-func (ns *NetStats) Gather(acc telegraf.Accumulator) error {
-	netconns, err := ns.PS.NetConnections()
+func (ns *NetStat) Gather(acc telegraf.Accumulator) error {
+	netconns, err := ns.ps.NetConnections()
 	if err != nil {
 		return fmt.Errorf("error getting net connections info: %w", err)
 	}
@@ -66,6 +66,6 @@ func (ns *NetStats) Gather(acc telegraf.Accumulator) error {
 
 func init() {
 	inputs.Add("netstat", func() telegraf.Input {
-		return &NetStats{PS: system.NewSystemPS()}
+		return &NetStat{ps: system.NewSystemPS()}
 	})
 }

@@ -92,8 +92,8 @@ func LoadMibsFromPath(paths []string, log telegraf.Logger, loader MibLoader) err
 // should walk the paths given and find all folders
 func walkPaths(paths []string, log telegraf.Logger) ([]string, error) {
 	once.Do(gosmi.Init)
-	folders := []string{}
 
+	folders := make([]string, 0)
 	for _, mibPath := range paths {
 		// Check if we loaded that path already and skip it if so
 		m.Lock()

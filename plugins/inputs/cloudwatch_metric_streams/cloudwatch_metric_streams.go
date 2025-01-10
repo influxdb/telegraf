@@ -149,7 +149,7 @@ func (cms *CloudWatchMetricStreams) Start(acc telegraf.Accumulator) error {
 	return nil
 }
 
-func (cms *CloudWatchMetricStreams) Gather(_ telegraf.Accumulator) error {
+func (*CloudWatchMetricStreams) Gather(telegraf.Accumulator) error {
 	return nil
 }
 

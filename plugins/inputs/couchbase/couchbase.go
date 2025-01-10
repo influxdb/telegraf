@@ -49,7 +49,7 @@ func (*Couchbase) SampleConfig() string {
 }
 
 func (cb *Couchbase) Init() error {
-	f, err := filter.NewIncludeExcludeFilter(cb.BucketStatsIncluded, []string{})
+	f, err := filter.NewIncludeExcludeFilter(cb.BucketStatsIncluded, nil)
 	if err != nil {
 		return err
 	}

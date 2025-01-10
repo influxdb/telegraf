@@ -89,7 +89,7 @@ func (s *tagStore) insert(subscription tagSubscription, path *pathInfo, values [
 			}
 		}
 	case "elements":
-		key, match := s.getElementsKeys(path, subscription.Elements)
+		key, match := getElementsKeys(path, subscription.Elements)
 		if !match || len(values) == 0 {
 			return nil
 		}
@@ -141,7 +141,7 @@ func (s *tagStore) lookup(path *pathInfo, metricTags map[string]string) map[stri
 
 	// Match elements
 	for _, requiredKeys := range s.elements.required {
-		key, match := s.getElementsKeys(path, requiredKeys)
+		key, match := getElementsKeys(path, requiredKeys)
 		if !match {
 			continue
 		}
@@ -153,7 +153,7 @@ func (s *tagStore) lookup(path *pathInfo, metricTags map[string]string) map[stri
 	return tags
 }
 
-func (s *tagStore) getElementsKeys(path *pathInfo, elements []string) (string, bool) {
+func getElementsKeys(path *pathInfo, elements []string) (string, bool) {
 	// Search for the required path elements and collect a ordered
 	// list of their values to in the form
 	//    elementName1={keyA=valueA,keyB=valueB,...},...,elementNameN={keyY=valueY,keyZ=valueZ}

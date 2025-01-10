@@ -109,7 +109,7 @@ func (m *Multiline) ProcessLine(text string, buffer *bytes.Buffer) string {
 	return text
 }
 
-func (m *Multiline) Flush(buffer *bytes.Buffer) string {
+func Flush(buffer *bytes.Buffer) string {
 	if buffer.Len() == 0 {
 		return ""
 	}

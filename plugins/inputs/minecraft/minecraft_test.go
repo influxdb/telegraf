@@ -9,22 +9,22 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-type MockClient struct {
-	ConnectF func() error
-	PlayersF func() ([]string, error)
-	ScoresF  func(player string) ([]Score, error)
+type mockClient struct {
+	connectF func() error
+	playersF func() ([]string, error)
+	scoresF  func(player string) ([]score, error)
 }
 
-func (c *MockClient) Connect() error {
-	return c.ConnectF()
+func (c *mockClient) connect() error {
+	return c.connectF()
 }
 
-func (c *MockClient) Players() ([]string, error) {
-	return c.PlayersF()
+func (c *mockClient) players() ([]string, error) {
+	return c.playersF()
 }
 
-func (c *MockClient) Scores(player string) ([]Score, error) {
-	return c.ScoresF(player)
+func (c *mockClient) scores(player string) ([]score, error) {
+	return c.scoresF(player)
 }
 
 func TestGather(t *testing.T) {
@@ -32,31 +32,31 @@ func TestGather(t *testing.T) {
 
 	tests := []struct {
 		name    string
-		client  *MockClient
+		client  *mockClient
 		metrics []telegraf.Metric
 		err     error
 	}{
 		{
 			name: "no players",
-			client: &MockClient{
-				ConnectF: func() error {
+			client: &mockClient{
+				connectF: func() error {
 					return nil
 				},
-				PlayersF: func() ([]string, error) {
+				playersF: func() ([]string, error) {
 					return nil, nil
 				},
 			},
 		},
 		{
 			name: "one player without scores",
-			client: &MockClient{
-				ConnectF: func() error {
+			client: &mockClient{
+				connectF: func() error {
 					return nil
 				},
-				PlayersF: func() ([]string, error) {
+				playersF: func() ([]string, error) {
 					return []string{"Etho"}, nil
 				},
-				ScoresF: func(player string) ([]Score, error) {
+				scoresF: func(player string) ([]score, error) {
 					switch player {
 					case "Etho":
 						return nil, nil
@@ -68,17 +68,17 @@ func TestGather(t *testing.T) {
 		},
 		{
 			name: "one player with scores",
-			client: &MockClient{
-				ConnectF: func() error {
+			client: &mockClient{
+				connectF: func() error {
 					return nil
 				},
-				PlayersF: func() ([]string, error) {
+				playersF: func() ([]string, error) {
 					return []string{"Etho"}, nil
 				},
-				ScoresF: func(player string) ([]Score, error) {
+				scoresF: func(player string) ([]score, error) {
 					switch player {
 					case "Etho":
-						return []Score{{Name: "jumps", Value: 42}}, nil
+						return []score{{name: "jumps", value: 42}}, nil
 					default:
 						panic("unknown player")
 					}

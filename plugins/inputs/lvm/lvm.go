@@ -33,10 +33,6 @@ func (*LVM) SampleConfig() string {
 	return sampleConfig
 }
 
-func (lvm *LVM) Init() error {
-	return nil
-}
-
 func (lvm *LVM) Gather(acc telegraf.Accumulator) error {
 	if err := lvm.gatherPhysicalVolumes(acc); err != nil {
 		return err

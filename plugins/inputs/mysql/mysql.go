@@ -29,6 +29,14 @@ var sampleConfig string
 
 var tlsRe = regexp.MustCompile(`([\?&])(?:tls=custom)($|&)`)
 
+const (
+	defaultPerfEventsStatementsDigestTextLimit = 120
+	defaultPerfEventsStatementsLimit           = 250
+	defaultPerfEventsStatementsTimeLimit       = 86400
+	defaultGatherGlobalVars                    = true
+	localhost                                  = ""
+)
+
 type Mysql struct {
 	Servers                             []*config.Secret `toml:"servers"`
 	PerfEventsStatementsDigestTextLimit int64            `toml:"perf_events_statements_digest_text_limit"`
@@ -63,15 +71,6 @@ type Mysql struct {
 	getStatusQuery      string
 	loggedConvertFields map[string]bool
 }
-
-const (
-	defaultPerfEventsStatementsDigestTextLimit = 120
-	defaultPerfEventsStatementsLimit           = 250
-	defaultPerfEventsStatementsTimeLimit       = 86400
-	defaultGatherGlobalVars                    = true
-)
-
-const localhost = ""
 
 func (*Mysql) SampleConfig() string {
 	return sampleConfig
@@ -462,7 +461,7 @@ func (m *Mysql) gatherServer(server *config.Secret, acc telegraf.Accumulator) er
 	}
 
 	if m.GatherBinaryLogs {
-		err = m.gatherBinaryLogs(db, servtag, acc)
+		err = gatherBinaryLogs(db, servtag, acc)
 		if err != nil {
 			return err
 		}
@@ -511,35 +510,35 @@ func (m *Mysql) gatherServer(server *config.Secret, acc telegraf.Accumulator) er
 	}
 
 	if m.GatherTableIOWaits {
-		err = m.gatherPerfTableIOWaits(db, servtag, acc)
+		err = gatherPerfTableIOWaits(db, servtag, acc)
 		if err != nil {
 			return err
 		}
 	}
 
 	if m.GatherIndexIOWaits {
-		err = m.gatherPerfIndexIOWaits(db, servtag, acc)
+		err = gatherPerfIndexIOWaits(db, servtag, acc)
 		if err != nil {
 			return err
 		}
 	}
 
 	if m.GatherTableLockWaits {
-		err = m.gatherPerfTableLockWaits(db, servtag, acc)
+		err = gatherPerfTableLockWaits(db, servtag, acc)
 		if err != nil {
 			return err
 		}
 	}
 
 	if m.GatherEventWaits {
-		err = m.gatherPerfEventWaits(db, servtag, acc)
+		err = gatherPerfEventWaits(db, servtag, acc)
 		if err != nil {
 			return err
 		}
 	}
 
 	if m.GatherFileEventsStats {
-		err = m.gatherPerfFileEventsStatuses(db, servtag, acc)
+		err = gatherPerfFileEventsStatuses(db, servtag, acc)
 		if err != nil {
 			return err
 		}
@@ -713,7 +712,7 @@ func (m *Mysql) gatherSlaveStatuses(db *sql.DB, servtag string, acc telegraf.Acc
 
 // gatherBinaryLogs can be used to collect size and count of all binary files
 // binlogs metric requires the MySQL server to turn it on in configuration
-func (m *Mysql) gatherBinaryLogs(db *sql.DB, servtag string, acc telegraf.Accumulator) error {
+func gatherBinaryLogs(db *sql.DB, servtag string, acc telegraf.Accumulator) error {
 	// run query
 	rows, err := db.Query(binaryLogsQuery)
 	if err != nil {
@@ -1175,9 +1174,8 @@ func getColSlice(rows *sql.Rows) ([]interface{}, error) {
 	return nil, fmt.Errorf("not Supported - %d columns", l)
 }
 
-// gatherPerfTableIOWaits can be used to get total count and time
-// of I/O wait event for each table and process
-func (m *Mysql) gatherPerfTableIOWaits(db *sql.DB, servtag string, acc telegraf.Accumulator) error {
+// gatherPerfTableIOWaits can be used to get total count and time of I/O wait event for each table and process
+func gatherPerfTableIOWaits(db *sql.DB, servtag string, acc telegraf.Accumulator) error {
 	rows, err := db.Query(perfTableIOWaitsQuery)
 	if err != nil {
 		return err
@@ -1222,9 +1220,8 @@ func (m *Mysql) gatherPerfTableIOWaits(db *sql.DB, servtag string, acc telegraf.
 	return nil
 }
 
-// gatherPerfIndexIOWaits can be used to get total count and time
-// of I/O wait event for each index and process
-func (m *Mysql) gatherPerfIndexIOWaits(db *sql.DB, servtag string, acc telegraf.Accumulator) error {
+// gatherPerfIndexIOWaits can be used to get total count and time of I/O wait event for each index and process
+func gatherPerfIndexIOWaits(db *sql.DB, servtag string, acc telegraf.Accumulator) error {
 	rows, err := db.Query(perfIndexIOWaitsQuery)
 	if err != nil {
 		return err
@@ -1501,7 +1498,7 @@ func (m *Mysql) gatherPerfSummaryPerAccountPerEvent(db *sql.DB, servtag string, 
 // the total number and time for SQL and external lock wait events
 // for each table and operation
 // requires the MySQL server to be enabled to save this metric
-func (m *Mysql) gatherPerfTableLockWaits(db *sql.DB, servtag string, acc telegraf.Accumulator) error {
+func gatherPerfTableLockWaits(db *sql.DB, servtag string, acc telegraf.Accumulator) error {
 	// check if table exists,
 	// if performance_schema is not enabled, tables do not exist
 	// then there is no need to scan them
@@ -1628,7 +1625,7 @@ func (m *Mysql) gatherPerfTableLockWaits(db *sql.DB, servtag string, acc telegra
 }
 
 // gatherPerfEventWaits can be used to get total time and number of event waits
-func (m *Mysql) gatherPerfEventWaits(db *sql.DB, servtag string, acc telegraf.Accumulator) error {
+func gatherPerfEventWaits(db *sql.DB, servtag string, acc telegraf.Accumulator) error {
 	rows, err := db.Query(perfEventWaitsQuery)
 	if err != nil {
 		return err
@@ -1659,7 +1656,7 @@ func (m *Mysql) gatherPerfEventWaits(db *sql.DB, servtag string, acc telegraf.Ac
 }
 
 // gatherPerfFileEvents can be used to get stats on file events
-func (m *Mysql) gatherPerfFileEventsStatuses(db *sql.DB, servtag string, acc telegraf.Accumulator) error {
+func gatherPerfFileEventsStatuses(db *sql.DB, servtag string, acc telegraf.Accumulator) error {
 	rows, err := db.Query(perfFileEventsQuery)
 	if err != nil {
 		return err

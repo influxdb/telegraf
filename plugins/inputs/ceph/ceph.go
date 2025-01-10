@@ -210,7 +210,7 @@ var perfDump = func(binary string, socket *socket) (string, error) {
 var findSockets = func(c *Ceph) ([]*socket, error) {
 	listing, err := os.ReadDir(c.SocketDir)
 	if err != nil {
-		return []*socket{}, fmt.Errorf("failed to read socket directory %q: %w", c.SocketDir, err)
+		return nil, fmt.Errorf("failed to read socket directory %q: %w", c.SocketDir, err)
 	}
 	sockets := make([]*socket, 0, len(listing))
 	for _, info := range listing {
@@ -714,7 +714,7 @@ type osdPoolStats []struct {
 
 // decodeOsdPoolStats decodes the output of 'ceph osd pool stats'
 func decodeOsdPoolStats(acc telegraf.Accumulator, input string) error {
-	data := osdPoolStats{}
+	data := make(osdPoolStats, 0)
 	if err := json.Unmarshal([]byte(input), &data); err != nil {
 		return fmt.Errorf("failed to parse json: %q: %w", input, err)
 	}

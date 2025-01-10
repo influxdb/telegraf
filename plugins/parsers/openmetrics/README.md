@@ -8,7 +8,7 @@ but can also be used by e.g.
 The plugin allows to output different metric formats as described in the
 [Metric Formats section](#metric-formats).
 
-[OpenMetrics Text Format]: https://github.com/OpenObservability/OpenMetrics/blob/main/specification/OpenMetrics.md
+[OpenMetrics Text Format]: https://github.com/prometheus/OpenMetrics/blob/v1.0.0/specification/OpenMetrics.md
 
 ## Configuration
 

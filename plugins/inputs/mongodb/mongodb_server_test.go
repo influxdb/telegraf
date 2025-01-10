@@ -11,15 +11,15 @@ import (
 	"github.com/influxdata/telegraf/testutil"
 )
 
-var ServicePort = "27017"
+var servicePort = "27017"
 var unreachableMongoEndpoint = "mongodb://user:pass@127.0.0.1:27017/nop"
 
 func createTestServer(t *testing.T) *testutil.Container {
 	container := testutil.Container{
 		Image:        "mongo",
-		ExposedPorts: []string{ServicePort},
+		ExposedPorts: []string{servicePort},
 		WaitingFor: wait.ForAll(
-			wait.NewHTTPStrategy("/").WithPort(nat.Port(ServicePort)),
+			wait.NewHTTPStrategy("/").WithPort(nat.Port(servicePort)),
 			wait.ForLog("Waiting for connections"),
 		),
 	}
@@ -40,7 +40,7 @@ func TestGetDefaultTagsIntegration(t *testing.T) {
 	m := &MongoDB{
 		Log: testutil.Logger{},
 		Servers: []string{
-			fmt.Sprintf("mongodb://%s:%s", container.Address, container.Ports[ServicePort]),
+			fmt.Sprintf("mongodb://%s:%s", container.Address, container.Ports[servicePort]),
 		},
 	}
 	err := m.Init()
@@ -76,7 +76,7 @@ func TestAddDefaultStatsIntegration(t *testing.T) {
 	m := &MongoDB{
 		Log: testutil.Logger{},
 		Servers: []string{
-			fmt.Sprintf("mongodb://%s:%s", container.Address, container.Ports[ServicePort]),
+			fmt.Sprintf("mongodb://%s:%s", container.Address, container.Ports[servicePort]),
 		},
 	}
 	err := m.Init()

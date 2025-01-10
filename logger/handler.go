@@ -119,9 +119,24 @@ func (l *redirectLogger) Print(level telegraf.LogLevel, ts time.Time, prefix str
 		for k, v := range attr {
 			parts = append(parts, fmt.Sprintf("%s=%v", k, v))
 		}
-		attrMsg = " (" + strings.Join(parts, ",") + ")"
+		attrMsg = "(" + strings.Join(parts, ",") + ")"
 	}
 
-	msg := append([]interface{}{ts.In(time.UTC).Format(time.RFC3339), " ", level.Indicator(), " ", prefix + attrMsg}, args...)
+	msg := []interface{}{ts.In(time.UTC).Format(time.RFC3339), level.Indicator()}
+	if prefix+attrMsg != "" {
+		msg = append(msg, prefix+attrMsg)
+	}
+	msg = append(msg, args...)
+
 	fmt.Fprintln(l.writer, msg...)
+}
+
+func (l *redirectLogger) Close() error {
+	if l.writer == os.Stderr {
+		return nil
+	}
+	if closer, ok := l.writer.(io.Closer); ok {
+		return closer.Close()
+	}
+	return nil
 }

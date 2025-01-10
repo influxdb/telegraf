@@ -16,7 +16,6 @@ import (
 	"github.com/influxdata/telegraf/plugins/common/kafka"
 	"github.com/influxdata/telegraf/plugins/common/proxy"
 	"github.com/influxdata/telegraf/plugins/outputs"
-	"github.com/influxdata/telegraf/plugins/serializers"
 )
 
 //go:embed sample.conf
@@ -56,7 +55,7 @@ type Kafka struct {
 	producerFunc func(addrs []string, config *sarama.Config) (sarama.SyncProducer, error)
 	producer     sarama.SyncProducer
 
-	serializer serializers.Serializer
+	serializer telegraf.Serializer
 }
 
 type TopicSuffix struct {
@@ -114,7 +113,7 @@ func (k *Kafka) GetTopicName(metric telegraf.Metric) (telegraf.Metric, string) {
 	return metric, topicName
 }
 
-func (k *Kafka) SetSerializer(serializer serializers.Serializer) {
+func (k *Kafka) SetSerializer(serializer telegraf.Serializer) {
 	k.serializer = serializer
 }
 

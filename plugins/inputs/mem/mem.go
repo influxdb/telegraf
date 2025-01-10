@@ -14,21 +14,21 @@ import (
 //go:embed sample.conf
 var sampleConfig string
 
-type MemStats struct {
+type Mem struct {
 	ps       system.PS
 	platform string
 }
 
-func (*MemStats) SampleConfig() string {
+func (*Mem) SampleConfig() string {
 	return sampleConfig
 }
 
-func (ms *MemStats) Init() error {
+func (ms *Mem) Init() error {
 	ms.platform = runtime.GOOS
 	return nil
 }
 
-func (ms *MemStats) Gather(acc telegraf.Accumulator) error {
+func (ms *Mem) Gather(acc telegraf.Accumulator) error {
 	vm, err := ms.ps.VMStat()
 	if err != nil {
 		return fmt.Errorf("error getting virtual memory info: %w", err)
@@ -102,6 +102,6 @@ func (ms *MemStats) Gather(acc telegraf.Accumulator) error {
 func init() {
 	ps := system.NewSystemPS()
 	inputs.Add("mem", func() telegraf.Input {
-		return &MemStats{ps: ps}
+		return &Mem{ps: ps}
 	})
 }

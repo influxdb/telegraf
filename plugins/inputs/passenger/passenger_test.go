@@ -39,7 +39,7 @@ func teardown(tempFilePath string) {
 }
 
 func Test_Invalid_Passenger_Status_Cli(t *testing.T) {
-	r := &passenger{
+	r := &Passenger{
 		Command: "an-invalid-command passenger-status",
 	}
 
@@ -55,7 +55,7 @@ func Test_Invalid_Xml(t *testing.T) {
 	require.NoError(t, err)
 	defer teardown(tempFilePath)
 
-	r := &passenger{
+	r := &Passenger{
 		Command: tempFilePath,
 	}
 
@@ -72,7 +72,7 @@ func Test_Default_Config_Load_Default_Command(t *testing.T) {
 	require.NoError(t, err)
 	defer teardown(tempFilePath)
 
-	r := &passenger{}
+	r := &Passenger{}
 
 	var acc testutil.Accumulator
 
@@ -87,7 +87,7 @@ func TestPassengerGenerateMetric(t *testing.T) {
 	defer teardown(tempFilePath)
 
 	// Now we tested again above server, with our authentication data
-	r := &passenger{
+	r := &Passenger{
 		Command: tempFilePath,
 	}
 

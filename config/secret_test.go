@@ -67,7 +67,7 @@ func TestGettingMissingResolver(t *testing.T) {
 	mysecret := "a @{referenced:secret}"
 	s := NewSecret([]byte(mysecret))
 	defer s.Destroy()
-	s.unlinked = []string{}
+	s.unlinked = make([]string, 0)
 	s.resolvers = map[string]telegraf.ResolveFunc{
 		"@{a:dummy}": func() ([]byte, bool, error) {
 			return nil, false, nil
@@ -82,7 +82,7 @@ func TestGettingResolverError(t *testing.T) {
 	mysecret := "a @{referenced:secret}"
 	s := NewSecret([]byte(mysecret))
 	defer s.Destroy()
-	s.unlinked = []string{}
+	s.unlinked = make([]string, 0)
 	s.resolvers = map[string]telegraf.ResolveFunc{
 		"@{referenced:secret}": func() ([]byte, bool, error) {
 			return nil, false, errors.New("broken")
@@ -111,7 +111,7 @@ func TestEnclaveOpenError(t *testing.T) {
 	err := s.Link(map[string]telegraf.ResolveFunc{})
 	require.ErrorContains(t, err, "opening enclave failed")
 
-	s.unlinked = []string{}
+	s.unlinked = make([]string, 0)
 	_, err = s.Get()
 	require.ErrorContains(t, err, "opening enclave failed")
 }

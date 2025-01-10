@@ -51,67 +51,67 @@ func (b *MemoryBuffer) Add(metrics ...telegraf.Metric) int {
 	return dropped
 }
 
-func (b *MemoryBuffer) Batch(batchSize int) []telegraf.Metric {
+func (b *MemoryBuffer) BeginTransaction(batchSize int) *Transaction {
 	b.Lock()
 	defer b.Unlock()
 
 	outLen := min(b.size, batchSize)
-	out := make([]telegraf.Metric, outLen)
 	if outLen == 0 {
-		return out
+		return &Transaction{}
 	}
 
 	b.batchFirst = b.first
 	b.batchSize = outLen
-
 	batchIndex := b.batchFirst
-	for i := range out {
-		out[i] = b.buf[batchIndex]
+	batch := make([]telegraf.Metric, outLen)
+	for i := range batch {
+		batch[i] = b.buf[batchIndex]
 		b.buf[batchIndex] = nil
 		batchIndex = b.next(batchIndex)
 	}
 
 	b.first = b.nextby(b.first, b.batchSize)
 	b.size -= outLen
-	return out
+	return &Transaction{Batch: batch, valid: true}
 }
 
-func (b *MemoryBuffer) Accept(batch []telegraf.Metric) {
+func (b *MemoryBuffer) EndTransaction(tx *Transaction) {
 	b.Lock()
 	defer b.Unlock()
 
-	for _, m := range batch {
-		b.metricWritten(m)
-	}
-
-	b.resetBatch()
-	b.BufferSize.Set(int64(b.length()))
-}
-
-func (b *MemoryBuffer) Reject(batch []telegraf.Metric) {
-	b.Lock()
-	defer b.Unlock()
-
-	if len(batch) == 0 {
+	// Ignore invalid transactions and make sure they can only be finished once
+	if !tx.valid {
 		return
 	}
+	tx.valid = false
 
-	free := b.cap - b.size
-	restore := min(len(batch), free)
-	skip := len(batch) - restore
+	// Accept metrics
+	for _, idx := range tx.Accept {
+		b.metricWritten(tx.Batch[idx])
+	}
 
-	b.first = b.prevby(b.first, restore)
-	b.size = min(b.size+restore, b.cap)
+	// Reject metrics
+	for _, idx := range tx.Reject {
+		b.metricRejected(tx.Batch[idx])
+	}
 
-	re := b.first
+	// Keep metrics
+	keep := tx.InferKeep()
+	if len(keep) > 0 {
+		restore := min(len(keep), b.cap-b.size)
+		b.first = b.prevby(b.first, restore)
+		b.size = min(b.size+restore, b.cap)
 
-	// Copy metrics from the batch back into the buffer
-	for i := range batch {
-		if i < skip {
-			b.metricDropped(batch[i])
-		} else {
-			b.buf[re] = batch[i]
-			re = b.next(re)
+		// Restore the metrics that fit into the buffer
+		current := b.first
+		for i := 0; i < restore; i++ {
+			b.buf[current] = tx.Batch[keep[i]]
+			current = b.next(current)
+		}
+
+		// Drop all remaining metrics
+		for i := restore; i < len(keep); i++ {
+			b.metricDropped(tx.Batch[keep[i]])
 		}
 	}
 

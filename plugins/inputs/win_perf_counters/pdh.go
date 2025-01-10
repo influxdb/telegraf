@@ -482,7 +482,7 @@ func PdhGetFormattedCounterValueDouble(hCounter pdhCounterHandle, lpdwType *uint
 //			time.Sleep(2000 * time.Millisecond)
 //		}
 //	}
-func PdhGetFormattedCounterArrayDouble(hCounter pdhCounterHandle, lpdwBufferSize *uint32, lpdwBufferCount *uint32, itemBuffer *byte) uint32 {
+func PdhGetFormattedCounterArrayDouble(hCounter pdhCounterHandle, lpdwBufferSize, lpdwBufferCount *uint32, itemBuffer *byte) uint32 {
 	ret, _, _ := pdhGetFormattedCounterArrayW.Call(
 		uintptr(hCounter),
 		uintptr(PdhFmtDouble|PdhFmtNocap100),
@@ -500,7 +500,7 @@ func PdhGetFormattedCounterArrayDouble(hCounter pdhCounterHandle, lpdwBufferSize
 // call PdhGetCounterInfo and access dwQueryUserData of the pdhCounterInfo structure. phQuery is
 // the handle to the query, and must be used in subsequent calls. This function returns a PDH_
 // constant error code, or ErrorSuccess if the call succeeded.
-func PdhOpenQuery(szDataSource uintptr, dwUserData uintptr, phQuery *pdhQueryHandle) uint32 {
+func PdhOpenQuery(szDataSource, dwUserData uintptr, phQuery *pdhQueryHandle) uint32 {
 	ret, _, _ := pdhOpenQuery.Call(
 		szDataSource,
 		dwUserData,
@@ -638,7 +638,7 @@ func PdhGetRawCounterValue(hCounter pdhCounterHandle, lpdwType *uint32, pValue *
 // ItemBuffer
 // Caller-allocated buffer that receives the array of pdhRawCounterItem structures; the structures contain the raw instance counter values.
 // Set to NULL if lpdwBufferSize is zero.
-func PdhGetRawCounterArray(hCounter pdhCounterHandle, lpdwBufferSize *uint32, lpdwBufferCount *uint32, itemBuffer *byte) uint32 {
+func PdhGetRawCounterArray(hCounter pdhCounterHandle, lpdwBufferSize, lpdwBufferCount *uint32, itemBuffer *byte) uint32 {
 	ret, _, _ := pdhGetRawCounterArrayW.Call(
 		uintptr(hCounter),
 		uintptr(unsafe.Pointer(lpdwBufferSize)),  //nolint:gosec // G103: Valid use of unsafe call to pass lpdwBufferSize

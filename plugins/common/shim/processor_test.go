@@ -30,7 +30,7 @@ func TestProcessorShimWithLargerThanDefaultScannerBufferSize(t *testing.T) {
 	testSendAndReceive(t, "f1", string(b))
 }
 
-func testSendAndReceive(t *testing.T, fieldKey string, fieldValue string) {
+func testSendAndReceive(t *testing.T, fieldKey, fieldValue string) {
 	p := &testProcessor{"hi", "mom"}
 
 	stdinReader, stdinWriter := io.Pipe()

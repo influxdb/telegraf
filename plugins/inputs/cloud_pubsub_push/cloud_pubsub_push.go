@@ -133,7 +133,7 @@ func (p *PubSubPush) Start(acc telegraf.Accumulator) error {
 	return nil
 }
 
-func (p *PubSubPush) Gather(_ telegraf.Accumulator) error {
+func (*PubSubPush) Gather(telegraf.Accumulator) error {
 	return nil
 }
 

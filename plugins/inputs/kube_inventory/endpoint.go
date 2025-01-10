@@ -15,11 +15,11 @@ func collectEndpoints(ctx context.Context, acc telegraf.Accumulator, ki *Kuberne
 		return
 	}
 	for _, i := range list.Items {
-		ki.gatherEndpoint(i, acc)
+		gatherEndpoint(i, acc)
 	}
 }
 
-func (ki *KubernetesInventory) gatherEndpoint(e corev1.Endpoints, acc telegraf.Accumulator) {
+func gatherEndpoint(e corev1.Endpoints, acc telegraf.Accumulator) {
 	creationTs := e.GetCreationTimestamp()
 	if creationTs.IsZero() {
 		return

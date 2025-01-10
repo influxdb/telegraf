@@ -276,11 +276,11 @@ func gatherStatusURL(r *bufio.Reader, tags map[string]string, acc telegraf.Accum
 	if err := dec.Decode(status); err != nil {
 		return errors.New("error while decoding JSON response")
 	}
-	status.Gather(tags, acc)
+	status.gather(tags, acc)
 	return nil
 }
 
-func (s *status) Gather(tags map[string]string, acc telegraf.Accumulator) {
+func (s *status) gather(tags map[string]string, acc telegraf.Accumulator) {
 	s.gatherProcessesMetrics(tags, acc)
 	s.gatherConnectionsMetrics(tags, acc)
 	s.gatherSslMetrics(tags, acc)

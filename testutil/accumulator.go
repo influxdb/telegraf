@@ -292,7 +292,7 @@ func (a *Accumulator) Get(measurement string) (*Metric, bool) {
 	return nil, false
 }
 
-func (a *Accumulator) HasTag(measurement string, key string) bool {
+func (a *Accumulator) HasTag(measurement, key string) bool {
 	for _, p := range a.Metrics {
 		if p.Measurement == measurement {
 			_, ok := p.Tags[key]
@@ -302,7 +302,7 @@ func (a *Accumulator) HasTag(measurement string, key string) bool {
 	return false
 }
 
-func (a *Accumulator) TagSetValue(measurement string, key string) string {
+func (a *Accumulator) TagSetValue(measurement, key string) string {
 	for _, p := range a.Metrics {
 		if p.Measurement == measurement {
 			v, ok := p.Tags[key]
@@ -314,7 +314,7 @@ func (a *Accumulator) TagSetValue(measurement string, key string) string {
 	return ""
 }
 
-func (a *Accumulator) TagValue(measurement string, key string) string {
+func (a *Accumulator) TagValue(measurement, key string) string {
 	for _, p := range a.Metrics {
 		if p.Measurement == measurement {
 			v, ok := p.Tags[key]
@@ -492,7 +492,7 @@ func (a *Accumulator) HasTimestamp(measurement string, timestamp time.Time) bool
 
 // HasField returns true if the given measurement has a field with the given
 // name
-func (a *Accumulator) HasField(measurement string, field string) bool {
+func (a *Accumulator) HasField(measurement, field string) bool {
 	a.Lock()
 	defer a.Unlock()
 	for _, p := range a.Metrics {
@@ -507,7 +507,7 @@ func (a *Accumulator) HasField(measurement string, field string) bool {
 }
 
 // HasIntField returns true if the measurement has an Int value
-func (a *Accumulator) HasIntField(measurement string, field string) bool {
+func (a *Accumulator) HasIntField(measurement, field string) bool {
 	a.Lock()
 	defer a.Unlock()
 	for _, p := range a.Metrics {
@@ -525,7 +525,7 @@ func (a *Accumulator) HasIntField(measurement string, field string) bool {
 }
 
 // HasInt64Field returns true if the measurement has an Int64 value
-func (a *Accumulator) HasInt64Field(measurement string, field string) bool {
+func (a *Accumulator) HasInt64Field(measurement, field string) bool {
 	a.Lock()
 	defer a.Unlock()
 	for _, p := range a.Metrics {
@@ -543,7 +543,7 @@ func (a *Accumulator) HasInt64Field(measurement string, field string) bool {
 }
 
 // HasInt32Field returns true if the measurement has an Int value
-func (a *Accumulator) HasInt32Field(measurement string, field string) bool {
+func (a *Accumulator) HasInt32Field(measurement, field string) bool {
 	a.Lock()
 	defer a.Unlock()
 	for _, p := range a.Metrics {
@@ -561,7 +561,7 @@ func (a *Accumulator) HasInt32Field(measurement string, field string) bool {
 }
 
 // HasStringField returns true if the measurement has a String value
-func (a *Accumulator) HasStringField(measurement string, field string) bool {
+func (a *Accumulator) HasStringField(measurement, field string) bool {
 	a.Lock()
 	defer a.Unlock()
 	for _, p := range a.Metrics {
@@ -579,7 +579,7 @@ func (a *Accumulator) HasStringField(measurement string, field string) bool {
 }
 
 // HasUIntField returns true if the measurement has a UInt value
-func (a *Accumulator) HasUIntField(measurement string, field string) bool {
+func (a *Accumulator) HasUIntField(measurement, field string) bool {
 	a.Lock()
 	defer a.Unlock()
 	for _, p := range a.Metrics {
@@ -597,7 +597,7 @@ func (a *Accumulator) HasUIntField(measurement string, field string) bool {
 }
 
 // HasFloatField returns true if the given measurement has a float value
-func (a *Accumulator) HasFloatField(measurement string, field string) bool {
+func (a *Accumulator) HasFloatField(measurement, field string) bool {
 	a.Lock()
 	defer a.Unlock()
 	for _, p := range a.Metrics {
@@ -628,7 +628,7 @@ func (a *Accumulator) HasMeasurement(measurement string) bool {
 }
 
 // IntField returns the int value of the given measurement and field or false.
-func (a *Accumulator) IntField(measurement string, field string) (int, bool) {
+func (a *Accumulator) IntField(measurement, field string) (int, bool) {
 	a.Lock()
 	defer a.Unlock()
 	for _, p := range a.Metrics {
@@ -646,7 +646,7 @@ func (a *Accumulator) IntField(measurement string, field string) (int, bool) {
 }
 
 // Int64Field returns the int64 value of the given measurement and field or false.
-func (a *Accumulator) Int64Field(measurement string, field string) (int64, bool) {
+func (a *Accumulator) Int64Field(measurement, field string) (int64, bool) {
 	a.Lock()
 	defer a.Unlock()
 	for _, p := range a.Metrics {
@@ -664,7 +664,7 @@ func (a *Accumulator) Int64Field(measurement string, field string) (int64, bool)
 }
 
 // Uint64Field returns the int64 value of the given measurement and field or false.
-func (a *Accumulator) Uint64Field(measurement string, field string) (uint64, bool) {
+func (a *Accumulator) Uint64Field(measurement, field string) (uint64, bool) {
 	a.Lock()
 	defer a.Unlock()
 	for _, p := range a.Metrics {
@@ -682,7 +682,7 @@ func (a *Accumulator) Uint64Field(measurement string, field string) (uint64, boo
 }
 
 // Int32Field returns the int32 value of the given measurement and field or false.
-func (a *Accumulator) Int32Field(measurement string, field string) (int32, bool) {
+func (a *Accumulator) Int32Field(measurement, field string) (int32, bool) {
 	a.Lock()
 	defer a.Unlock()
 	for _, p := range a.Metrics {
@@ -700,7 +700,7 @@ func (a *Accumulator) Int32Field(measurement string, field string) (int32, bool)
 }
 
 // FloatField returns the float64 value of the given measurement and field or false.
-func (a *Accumulator) FloatField(measurement string, field string) (float64, bool) {
+func (a *Accumulator) FloatField(measurement, field string) (float64, bool) {
 	a.Lock()
 	defer a.Unlock()
 	for _, p := range a.Metrics {
@@ -718,7 +718,7 @@ func (a *Accumulator) FloatField(measurement string, field string) (float64, boo
 }
 
 // StringField returns the string value of the given measurement and field or false.
-func (a *Accumulator) StringField(measurement string, field string) (string, bool) {
+func (a *Accumulator) StringField(measurement, field string) (string, bool) {
 	a.Lock()
 	defer a.Unlock()
 	for _, p := range a.Metrics {
@@ -735,7 +735,7 @@ func (a *Accumulator) StringField(measurement string, field string) (string, boo
 }
 
 // BoolField returns the bool value of the given measurement and field or false.
-func (a *Accumulator) BoolField(measurement string, field string) (v bool, ok bool) {
+func (a *Accumulator) BoolField(measurement, field string) (v, ok bool) {
 	a.Lock()
 	defer a.Unlock()
 	for _, p := range a.Metrics {

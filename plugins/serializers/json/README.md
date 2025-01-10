@@ -102,7 +102,7 @@ reference the documentation for the specific plugin.
 ## Transformations
 
 Transformations using the [JSONata standard](https://jsonata.org/) can be specified with
-the `json_tansformation` parameter. The input to the transformation is the serialized
+the `json_transformation` parameter. The input to the transformation is the serialized
 metric in the standard-form above.
 
 **Note**: There is a difference in batch and non-batch serialization mode!

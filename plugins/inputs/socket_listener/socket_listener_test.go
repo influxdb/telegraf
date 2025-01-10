@@ -197,8 +197,8 @@ func TestSocketListener(t *testing.T) {
 	}
 }
 
-func TestLargeReadBuffer(t *testing.T) {
-	// Construct a buffer-size setting of 100KiB
+func TestLargeReadBufferTCP(t *testing.T) {
+	// Construct a buffer-size setting of 1000KiB
 	var bufsize config.Size
 	require.NoError(t, bufsize.UnmarshalText([]byte("1000KiB")))
 
@@ -245,6 +245,92 @@ func TestLargeReadBuffer(t *testing.T) {
 	defer client.Close()
 
 	_, err = client.Write(append(message, '\n'))
+	require.NoError(t, err)
+	client.Close()
+
+	getError := func() error {
+		acc.Lock()
+		defer acc.Unlock()
+		return acc.FirstError()
+	}
+
+	// Test the resulting metrics and compare against expected results
+	require.Eventuallyf(t, func() bool {
+		return acc.NMetrics() >= uint64(len(expected))
+	}, time.Second, 100*time.Millisecond, "did not receive metrics (%d): %v", acc.NMetrics(), getError())
+	actual := acc.GetTelegrafMetrics()
+	testutil.RequireMetricsEqual(t, expected, actual, testutil.IgnoreTime())
+}
+
+func TestLargeReadBufferUnixgram(t *testing.T) {
+	// Construct a buffer-size setting of 100KiB
+	// Assuming that the testing environment has net.core.wmem_max set to a value greater than 100KiB
+	if runtime.GOOS == "windows" {
+		t.Skip("Skipping on Windows, as unixgram sockets are not supported")
+	}
+
+	if runtime.GOOS == "darwin" {
+		t.Skip("Skipping on macOS (darwin), as unixgram write buffer size cannot be changed (default 2048 bytes)")
+	}
+
+	var bufsize config.Size
+	require.NoError(t, bufsize.UnmarshalText([]byte("100KiB")))
+
+	// Create a socket
+	sock, err := os.CreateTemp("", "sock-")
+	require.NoError(t, err)
+	defer sock.Close()
+	defer os.Remove(sock.Name())
+	var serverAddr = sock.Name()
+
+	// Setup plugin with a sufficient read buffer
+	plugin := &SocketListener{
+		ServiceAddress: "unixgram" + "://" + serverAddr,
+		Config: socket.Config{
+			ReadBufferSize: bufsize,
+		},
+		Log: &testutil.Logger{},
+	}
+	parser := &value.Parser{
+		MetricName: "test",
+		DataType:   "string",
+	}
+	require.NoError(t, parser.Init())
+	plugin.SetParser(parser)
+
+	// Create a large message with the readbuffer size
+	message := bytes.Repeat([]byte{'a'}, int(bufsize))
+	expected := []telegraf.Metric{
+		metric.New(
+			"test",
+			map[string]string{},
+			map[string]interface{}{"value": string(message)},
+			time.Unix(0, 0),
+		),
+	}
+
+	// Start the plugin
+	var acc testutil.Accumulator
+	require.NoError(t, plugin.Init())
+	require.NoError(t, plugin.Start(&acc))
+	defer plugin.Stop()
+
+	addr := plugin.socket.Address()
+
+	// Setup the client for submitting data
+	client, err := createClient(plugin.ServiceAddress, addr, nil)
+	require.NoError(t, err)
+	defer client.Close()
+
+	// Check the socket write buffer size
+	unixConn, ok := client.(*net.UnixConn)
+	require.True(t, ok, "client is not a *net.UnixConn")
+	if err := unixConn.SetWriteBuffer(len(message)); err != nil {
+		t.Skipf("Failed to set write buffer size: %v. Skipping test.", err)
+	}
+
+	// Write the message
+	_, err = client.Write(message)
 	require.NoError(t, err)
 	client.Close()
 

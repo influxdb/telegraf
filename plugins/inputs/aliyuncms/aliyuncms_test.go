@@ -26,7 +26,7 @@ const inputTitle = "inputs.aliyuncms"
 
 type mockGatherAliyunCMSClient struct{}
 
-func (m *mockGatherAliyunCMSClient) DescribeMetricList(request *cms.DescribeMetricListRequest) (*cms.DescribeMetricListResponse, error) {
+func (*mockGatherAliyunCMSClient) DescribeMetricList(request *cms.DescribeMetricListRequest) (*cms.DescribeMetricListResponse, error) {
 	resp := new(cms.DescribeMetricListResponse)
 
 	// switch request.Metric {
@@ -250,8 +250,7 @@ func TestPluginMetricsInitialize(t *testing.T) {
 			accessKeySecret: "dummy",
 			metrics: []*metric{
 				{
-					MetricNames: []string{},
-					Dimensions:  `{"instanceId": "i-abcdefgh123456"}`,
+					Dimensions: `{"instanceId": "i-abcdefgh123456"}`,
 				},
 			},
 		},
@@ -263,8 +262,7 @@ func TestPluginMetricsInitialize(t *testing.T) {
 			accessKeySecret: "dummy",
 			metrics: []*metric{
 				{
-					MetricNames: []string{},
-					Dimensions:  `[{"instanceId": "p-example"},{"instanceId": "q-example"}]`,
+					Dimensions: `[{"instanceId": "p-example"},{"instanceId": "q-example"}]`,
 				},
 			},
 		},
@@ -277,8 +275,7 @@ func TestPluginMetricsInitialize(t *testing.T) {
 			expectedErrorString: `cannot parse dimensions (neither obj, nor array) "[": unexpected end of JSON input`,
 			metrics: []*metric{
 				{
-					MetricNames: []string{},
-					Dimensions:  `[`,
+					Dimensions: `[`,
 				},
 			},
 		},
@@ -344,8 +341,7 @@ func TestGatherMetric(t *testing.T) {
 	}
 
 	metric := &metric{
-		MetricNames: []string{},
-		Dimensions:  `"instanceId": "i-abcdefgh123456"`,
+		Dimensions: `"instanceId": "i-abcdefgh123456"`,
 	}
 
 	tests := []struct {
@@ -375,8 +371,7 @@ func TestGatherMetric(t *testing.T) {
 
 func TestGather(t *testing.T) {
 	m := &metric{
-		MetricNames: []string{},
-		Dimensions:  `{"instanceId": "i-abcdefgh123456"}`,
+		Dimensions: `{"instanceId": "i-abcdefgh123456"}`,
 	}
 	plugin := &AliyunCMS{
 		AccessKeyID:     "my_access_key_id",
@@ -434,7 +429,7 @@ func TestGather(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			var acc testutil.Accumulator
 			plugin.Metrics[0].MetricNames = tt.metricNames
-			require.Empty(t, acc.GatherError(plugin.Gather))
+			require.NoError(t, acc.GatherError(plugin.Gather))
 			require.Equal(t, acc.HasMeasurement("aliyuncms_acs_slb_dashboard"), tt.hasMeasurement)
 			if tt.hasMeasurement {
 				acc.AssertContainsTaggedFields(t, "aliyuncms_acs_slb_dashboard", tt.expected[0].Fields(), tt.expected[0].Tags())

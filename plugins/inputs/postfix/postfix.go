@@ -21,6 +21,36 @@ import (
 //go:embed sample.conf
 var sampleConfig string
 
+type Postfix struct {
+	QueueDirectory string `toml:"queue_directory"`
+}
+
+func (*Postfix) SampleConfig() string {
+	return sampleConfig
+}
+
+func (p *Postfix) Gather(acc telegraf.Accumulator) error {
+	if p.QueueDirectory == "" {
+		var err error
+		p.QueueDirectory, err = getQueueDirectory()
+		if err != nil {
+			return fmt.Errorf("unable to determine queue directory: %w", err)
+		}
+	}
+
+	for _, q := range []string{"active", "hold", "incoming", "maildrop", "deferred"} {
+		fields, err := qScan(filepath.Join(p.QueueDirectory, q), acc)
+		if err != nil {
+			acc.AddError(fmt.Errorf("error scanning queue %q: %w", q, err))
+			continue
+		}
+
+		acc.AddFields("postfix_queue", fields, map[string]string{"queue": q})
+	}
+
+	return nil
+}
+
 func getQueueDirectory() (string, error) {
 	qd, err := exec.Command("postconf", "-h", "queue_directory").Output()
 	if err != nil {
@@ -73,36 +103,6 @@ func qScan(path string, acc telegraf.Accumulator) (map[string]interface{}, error
 	}
 
 	return fields, nil
-}
-
-type Postfix struct {
-	QueueDirectory string
-}
-
-func (*Postfix) SampleConfig() string {
-	return sampleConfig
-}
-
-func (p *Postfix) Gather(acc telegraf.Accumulator) error {
-	if p.QueueDirectory == "" {
-		var err error
-		p.QueueDirectory, err = getQueueDirectory()
-		if err != nil {
-			return fmt.Errorf("unable to determine queue directory: %w", err)
-		}
-	}
-
-	for _, q := range []string{"active", "hold", "incoming", "maildrop", "deferred"} {
-		fields, err := qScan(filepath.Join(p.QueueDirectory, q), acc)
-		if err != nil {
-			acc.AddError(fmt.Errorf("error scanning queue %q: %w", q, err))
-			continue
-		}
-
-		acc.AddFields("postfix_queue", fields, map[string]string{"queue": q})
-	}
-
-	return nil
 }
 
 func init() {

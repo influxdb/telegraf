@@ -20,8 +20,29 @@ const (
 	defaultMaxUndeliveredMessages = 1000
 )
 
-type empty struct{}
-type semaphore chan empty
+type NSQConsumer struct {
+	Server                 string          `toml:"server" deprecated:"1.5.0;1.35.0;use 'nsqd' instead"`
+	Nsqd                   []string        `toml:"nsqd"`
+	Nsqlookupd             []string        `toml:"nsqlookupd"`
+	Topic                  string          `toml:"topic"`
+	Channel                string          `toml:"channel"`
+	MaxInFlight            int             `toml:"max_in_flight"`
+	MaxUndeliveredMessages int             `toml:"max_undelivered_messages"`
+	Log                    telegraf.Logger `toml:"-"`
+
+	parser   telegraf.Parser
+	consumer *nsq.Consumer
+
+	mu       sync.Mutex
+	messages map[telegraf.TrackingID]*nsq.Message
+	wg       sync.WaitGroup
+	cancel   context.CancelFunc
+}
+
+type (
+	empty     struct{}
+	semaphore chan empty
+)
 
 type logger struct {
 	log telegraf.Logger
@@ -30,28 +51,6 @@ type logger struct {
 func (l *logger) Output(_ int, s string) error {
 	l.log.Debug(s)
 	return nil
-}
-
-// NSQConsumer represents the configuration of the plugin
-type NSQConsumer struct {
-	Server      string   `toml:"server" deprecated:"1.5.0;1.35.0;use 'nsqd' instead"`
-	Nsqd        []string `toml:"nsqd"`
-	Nsqlookupd  []string `toml:"nsqlookupd"`
-	Topic       string   `toml:"topic"`
-	Channel     string   `toml:"channel"`
-	MaxInFlight int      `toml:"max_in_flight"`
-
-	MaxUndeliveredMessages int `toml:"max_undelivered_messages"`
-
-	parser   telegraf.Parser
-	consumer *nsq.Consumer
-
-	Log telegraf.Logger
-
-	mu       sync.Mutex
-	messages map[telegraf.TrackingID]*nsq.Message
-	wg       sync.WaitGroup
-	cancel   context.CancelFunc
 }
 
 func (*NSQConsumer) SampleConfig() string {
@@ -77,7 +76,6 @@ func (n *NSQConsumer) SetParser(parser telegraf.Parser) {
 	n.parser = parser
 }
 
-// Start pulls data from nsq
 func (n *NSQConsumer) Start(ac telegraf.Accumulator) error {
 	acc := ac.WithTracking(n.MaxUndeliveredMessages)
 	sem := make(semaphore, n.MaxUndeliveredMessages)
@@ -140,6 +138,17 @@ func (n *NSQConsumer) Start(ac telegraf.Accumulator) error {
 	return nil
 }
 
+func (*NSQConsumer) Gather(telegraf.Accumulator) error {
+	return nil
+}
+
+func (n *NSQConsumer) Stop() {
+	n.cancel()
+	n.wg.Wait()
+	n.consumer.Stop()
+	<-n.consumer.StopChan
+}
+
 func (n *NSQConsumer) onDelivery(ctx context.Context, acc telegraf.TrackingAccumulator, sem semaphore) {
 	for {
 		select {
@@ -163,19 +172,6 @@ func (n *NSQConsumer) onDelivery(ctx context.Context, acc telegraf.TrackingAccum
 			}
 		}
 	}
-}
-
-// Stop processing messages
-func (n *NSQConsumer) Stop() {
-	n.cancel()
-	n.wg.Wait()
-	n.consumer.Stop()
-	<-n.consumer.StopChan
-}
-
-// Gather is a noop
-func (n *NSQConsumer) Gather(_ telegraf.Accumulator) error {
-	return nil
 }
 
 func (n *NSQConsumer) connect() error {

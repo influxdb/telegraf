@@ -43,7 +43,7 @@ func createEntityCounterEntry(
 	}
 }
 
-func NewTestP4RuntimeClient(
+func newTestP4RuntimeClient(
 	p4RuntimeClient *fakeP4RuntimeClient,
 	addr string,
 	t *testing.T,
@@ -102,7 +102,7 @@ func TestErrorGetP4Info(t *testing.T) {
 		listener, err := net.Listen("tcp", "127.0.0.1:0")
 		require.NoError(t, err)
 
-		plugin := NewTestP4RuntimeClient(p4RtClient, listener.Addr().String(), t)
+		plugin := newTestP4RuntimeClient(p4RtClient, listener.Addr().String(), t)
 
 		var acc testutil.Accumulator
 		require.Error(t, plugin.Gather(&acc))
@@ -245,7 +245,7 @@ func TestOneCounterRead(t *testing.T) {
 		listener, err := net.Listen("tcp", "127.0.0.1:0")
 		require.NoError(t, err)
 
-		plugin := NewTestP4RuntimeClient(p4RtClient, listener.Addr().String(), t)
+		plugin := newTestP4RuntimeClient(p4RtClient, listener.Addr().String(), t)
 
 		var acc testutil.Accumulator
 		require.NoError(t, plugin.Gather(&acc))
@@ -333,7 +333,7 @@ func TestMultipleEntitiesSingleCounterRead(t *testing.T) {
 		listener, err := net.Listen("tcp", "127.0.0.1:0")
 		require.NoError(t, err)
 
-		plugin := NewTestP4RuntimeClient(p4RtClient, listener.Addr().String(), t)
+		plugin := newTestP4RuntimeClient(p4RtClient, listener.Addr().String(), t)
 
 		var acc testutil.Accumulator
 		require.NoError(t, plugin.Gather(&acc))
@@ -425,7 +425,7 @@ func TestSingleEntitiesMultipleCounterRead(t *testing.T) {
 		listener, err := net.Listen("tcp", "127.0.0.1:0")
 		require.NoError(t, err)
 
-		plugin := NewTestP4RuntimeClient(p4RtClient, listener.Addr().String(), t)
+		plugin := newTestP4RuntimeClient(p4RtClient, listener.Addr().String(), t)
 
 		var acc testutil.Accumulator
 		require.NoError(t, plugin.Gather(&acc))
@@ -457,7 +457,7 @@ func TestNoCountersAvailable(t *testing.T) {
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	require.NoError(t, err)
 
-	plugin := NewTestP4RuntimeClient(p4RtClient, listener.Addr().String(), t)
+	plugin := newTestP4RuntimeClient(p4RtClient, listener.Addr().String(), t)
 
 	var acc testutil.Accumulator
 	require.NoError(t, plugin.Gather(&acc))
@@ -484,7 +484,7 @@ func TestFilterCounters(t *testing.T) {
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	require.NoError(t, err)
 
-	plugin := NewTestP4RuntimeClient(p4RtClient, listener.Addr().String(), t)
+	plugin := newTestP4RuntimeClient(p4RtClient, listener.Addr().String(), t)
 
 	plugin.CounterNamesInclude = []string{"oof"}
 
@@ -534,7 +534,7 @@ func TestFailReadCounterEntryFromEntry(t *testing.T) {
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	require.NoError(t, err)
 
-	plugin := NewTestP4RuntimeClient(p4RtClient, listener.Addr().String(), t)
+	plugin := newTestP4RuntimeClient(p4RtClient, listener.Addr().String(), t)
 
 	var acc testutil.Accumulator
 	require.NoError(t, plugin.Gather(&acc))
@@ -577,7 +577,7 @@ func TestFailReadAllEntries(t *testing.T) {
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	require.NoError(t, err)
 
-	plugin := NewTestP4RuntimeClient(p4RtClient, listener.Addr().String(), t)
+	plugin := newTestP4RuntimeClient(p4RtClient, listener.Addr().String(), t)
 
 	var acc testutil.Accumulator
 	require.NoError(t, plugin.Gather(&acc))

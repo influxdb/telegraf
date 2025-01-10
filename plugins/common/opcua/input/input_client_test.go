@@ -126,7 +126,6 @@ func TestValidateOPCTags(t *testing.T) {
 						TagsSlice:      [][]string{{"t1", "v1"}, {"t3", "v2"}},
 					},
 				},
-				Groups: []NodeGroupSettings{},
 			},
 			nil,
 		},
@@ -150,7 +149,6 @@ func TestValidateOPCTags(t *testing.T) {
 						TagsSlice:      [][]string{{"t1", "bar"}, {"t2", "v2"}},
 					},
 				},
-				Groups: []NodeGroupSettings{},
 			},
 			nil,
 		},
@@ -158,7 +156,6 @@ func TestValidateOPCTags(t *testing.T) {
 			"different metric names",
 			InputClientConfig{
 				MetricName: "mn",
-				RootNodes:  []NodeSettings{},
 				Groups: []NodeGroupSettings{
 					{
 						MetricName: "mn",
@@ -208,7 +205,6 @@ func TestValidateOPCTags(t *testing.T) {
 						TagsSlice:      [][]string{{"t1", "v1"}, {"t2", "v2"}},
 					},
 				},
-				Groups: []NodeGroupSettings{},
 			},
 			nil,
 		},
@@ -239,7 +235,6 @@ func TestNewNodeMetricMappingTags(t *testing.T) {
 				Namespace:      "2",
 				IdentifierType: "s",
 				Identifier:     "h",
-				TagsSlice:      [][]string{},
 			},
 			groupTags:    map[string]string{},
 			expectedTags: map[string]string{},
@@ -265,7 +260,6 @@ func TestNewNodeMetricMappingTags(t *testing.T) {
 				Namespace:      "2",
 				IdentifierType: "s",
 				Identifier:     "h",
-				TagsSlice:      [][]string{},
 			},
 			groupTags:    map[string]string{"t1": "v1"},
 			expectedTags: map[string]string{"t1": "v1"},
@@ -313,7 +307,6 @@ func TestNewNodeMetricMappingIdStrInstantiated(t *testing.T) {
 		Namespace:      "2",
 		IdentifierType: "s",
 		Identifier:     "h",
-		TagsSlice:      [][]string{},
 	}, map[string]string{})
 	require.NoError(t, err)
 	require.Equal(t, "ns=2;s=h", nmm.idStr)
@@ -335,7 +328,6 @@ func TestValidateNodeToAdd(t *testing.T) {
 					Namespace:      "2",
 					IdentifierType: "s",
 					Identifier:     "hf",
-					TagsSlice:      [][]string{},
 				}, map[string]string{})
 				require.NoError(t, err)
 				return nmm
@@ -351,7 +343,6 @@ func TestValidateNodeToAdd(t *testing.T) {
 					Namespace:      "2",
 					IdentifierType: "s",
 					Identifier:     "hf",
-					TagsSlice:      [][]string{},
 				}, map[string]string{})
 				require.NoError(t, err)
 				return nmm
@@ -367,7 +358,6 @@ func TestValidateNodeToAdd(t *testing.T) {
 					Namespace:      "",
 					IdentifierType: "s",
 					Identifier:     "hf",
-					TagsSlice:      [][]string{},
 				}, map[string]string{})
 				require.NoError(t, err)
 				return nmm
@@ -383,7 +373,6 @@ func TestValidateNodeToAdd(t *testing.T) {
 					Namespace:      "2",
 					IdentifierType: "",
 					Identifier:     "hf",
-					TagsSlice:      [][]string{},
 				}, map[string]string{})
 				require.NoError(t, err)
 				return nmm
@@ -399,7 +388,6 @@ func TestValidateNodeToAdd(t *testing.T) {
 					Namespace:      "2",
 					IdentifierType: "j",
 					Identifier:     "hf",
-					TagsSlice:      [][]string{},
 				}, map[string]string{})
 				require.NoError(t, err)
 				return nmm
@@ -433,7 +421,6 @@ func TestValidateNodeToAdd(t *testing.T) {
 					Namespace:      "2",
 					IdentifierType: "i",
 					Identifier:     "hf",
-					TagsSlice:      [][]string{},
 				}, map[string]string{})
 				require.NoError(t, err)
 				return nmm
@@ -461,7 +448,6 @@ func TestValidateNodeToAdd(t *testing.T) {
 					Namespace:      "2",
 					IdentifierType: idT,
 					Identifier:     idV,
-					TagsSlice:      [][]string{},
 				}, map[string]string{})
 				require.NoError(t, err)
 				return nmm
@@ -499,7 +485,6 @@ func TestInitNodeMetricMapping(t *testing.T) {
 						TagsSlice:      [][]string{{"t1", "v1"}},
 					},
 				},
-				Groups: []NodeGroupSettings{},
 			},
 			expected: []NodeMetricMapping{
 				{
@@ -543,7 +528,6 @@ func TestInitNodeMetricMapping(t *testing.T) {
 								TagsSlice:  [][]string{{"t2", "v2"}},
 							},
 						},
-						TagsSlice: [][]string{},
 					},
 				},
 			},
@@ -580,7 +564,6 @@ func TestInitNodeMetricMapping(t *testing.T) {
 			config: InputClientConfig{
 				MetricName: "testmetric",
 				Timestamp:  TimestampSourceTelegraf,
-				RootNodes:  []NodeSettings{},
 				Groups: []NodeGroupSettings{
 					{
 						MetricName:     "groupmetric",
@@ -593,7 +576,6 @@ func TestInitNodeMetricMapping(t *testing.T) {
 								TagsSlice:  [][]string{{"t2", "v2"}},
 							},
 						},
-						TagsSlice: [][]string{},
 					},
 				},
 			},
@@ -618,7 +600,6 @@ func TestInitNodeMetricMapping(t *testing.T) {
 			config: InputClientConfig{
 				MetricName: "testmetric",
 				Timestamp:  TimestampSourceTelegraf,
-				RootNodes:  []NodeSettings{},
 				Groups: []NodeGroupSettings{
 					{
 						MetricName:     "groupmetric",
@@ -632,7 +613,6 @@ func TestInitNodeMetricMapping(t *testing.T) {
 								DefaultTags: map[string]string{"t3": "v3"},
 							},
 						},
-						TagsSlice: [][]string{},
 					},
 				},
 			},
@@ -668,7 +648,6 @@ func TestInitNodeMetricMapping(t *testing.T) {
 						DefaultTags:    map[string]string{"t3": "v3"},
 					},
 				},
-				Groups: []NodeGroupSettings{},
 			},
 			expected: []NodeMetricMapping{
 				{

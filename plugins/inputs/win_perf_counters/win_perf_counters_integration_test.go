@@ -4,7 +4,6 @@ package win_perf_counters
 
 import (
 	"errors"
-	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -171,14 +170,10 @@ func TestWinPerfCountersConfigGet2Integration(t *testing.T) {
 	hostCounters, ok := m.hostCounters["localhost"]
 	require.True(t, ok)
 
-	if len(hostCounters.counters) == 1 {
-		require.NoError(t, nil)
-	} else if len(hostCounters.counters) == 0 {
-		err2 := fmt.Errorf("no results returned from the counterPath: %v", len(hostCounters.counters))
-		require.NoError(t, err2)
+	if len(hostCounters.counters) == 0 {
+		require.FailNow(t, "no results returned from the counterPath: %v", len(hostCounters.counters))
 	} else if len(hostCounters.counters) > 1 {
-		err2 := fmt.Errorf("too many results returned from the counterPath: %v", len(hostCounters.counters))
-		require.NoError(t, err2)
+		require.FailNow(t, "too many results returned from the counterPath: %v", len(hostCounters.counters))
 	}
 }
 
@@ -214,14 +209,10 @@ func TestWinPerfCountersConfigGet3Integration(t *testing.T) {
 	hostCounters, ok := m.hostCounters["localhost"]
 	require.True(t, ok)
 
-	if len(hostCounters.counters) == 2 {
-		require.NoError(t, nil)
-	} else if len(hostCounters.counters) < 2 {
-		err2 := fmt.Errorf("too few results returned from the counterPath: %v", len(hostCounters.counters))
-		require.NoError(t, err2)
+	if len(hostCounters.counters) < 2 {
+		require.FailNow(t, "too few results returned from the counterPath: %v", len(hostCounters.counters))
 	} else if len(hostCounters.counters) > 2 {
-		err2 := fmt.Errorf("too many results returned from the counterPath: %v", len(hostCounters.counters))
-		require.NoError(t, err2)
+		require.FailNow(t, "too many results returned from the counterPath: %v", len(hostCounters.counters))
 	}
 }
 
@@ -255,14 +246,10 @@ func TestWinPerfCountersConfigGet4Integration(t *testing.T) {
 	hostCounters, ok := m.hostCounters["localhost"]
 	require.True(t, ok)
 
-	if len(hostCounters.counters) == 2 {
-		require.NoError(t, nil)
-	} else if len(hostCounters.counters) < 2 {
-		err2 := fmt.Errorf("too few results returned from the counterPath: %v", len(hostCounters.counters))
-		require.NoError(t, err2)
+	if len(hostCounters.counters) < 2 {
+		require.FailNow(t, "too few results returned from the counterPath: %v", len(hostCounters.counters))
 	} else if len(hostCounters.counters) > 2 {
-		err2 := fmt.Errorf("too many results returned from the counterPath: %v", len(hostCounters.counters))
-		require.NoError(t, err2)
+		require.FailNow(t, "too many results returned from the counterPath: %v", len(hostCounters.counters))
 	}
 }
 
@@ -296,14 +283,10 @@ func TestWinPerfCountersConfigGet5Integration(t *testing.T) {
 	hostCounters, ok := m.hostCounters["localhost"]
 	require.True(t, ok)
 
-	if len(hostCounters.counters) == 4 {
-		require.NoError(t, nil)
-	} else if len(hostCounters.counters) < 4 {
-		err2 := fmt.Errorf("too few results returned from the counterPath: %v", len(hostCounters.counters))
-		require.NoError(t, err2)
+	if len(hostCounters.counters) < 4 {
+		require.FailNow(t, "too few results returned from the counterPath: %v", len(hostCounters.counters))
 	} else if len(hostCounters.counters) > 4 {
-		err2 := fmt.Errorf("too many results returned from the counterPath: %v", len(hostCounters.counters))
-		require.NoError(t, err2)
+		require.FailNow(t, "too many results returned from the counterPath: %v", len(hostCounters.counters))
 	}
 }
 
@@ -365,14 +348,10 @@ func TestWinPerfCountersConfigGet7Integration(t *testing.T) {
 	hostCounters, ok := m.hostCounters["localhost"]
 	require.True(t, ok)
 
-	if len(hostCounters.counters) == 2 {
-		require.NoError(t, nil)
-	} else if len(hostCounters.counters) < 2 {
-		err2 := fmt.Errorf("too few results returned from the counterPath: %v", len(hostCounters.counters))
-		require.NoError(t, err2)
+	if len(hostCounters.counters) < 2 {
+		require.FailNow(t, "too few results returned from the counterPath: %v", len(hostCounters.counters))
 	} else if len(hostCounters.counters) > 2 {
-		err2 := fmt.Errorf("too many results returned from the counterPath: %v", len(hostCounters.counters))
-		require.NoError(t, err2)
+		require.FailNow(t, "too many results returned from the counterPath: %v", len(hostCounters.counters))
 	}
 }
 

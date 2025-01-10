@@ -181,7 +181,7 @@ func TestConvertHextoint(t *testing.T) {
 		{
 			name:       "big endian invalid",
 			conversion: "hextoint:BigEndian:invalid",
-			ent:        gosnmp.SnmpPDU{Type: gosnmp.OctetString, Value: []uint8{}},
+			ent:        gosnmp.SnmpPDU{Type: gosnmp.OctetString, Value: make([]uint8, 0)},
 			errmsg:     "invalid bit value",
 		},
 		{
@@ -223,13 +223,13 @@ func TestConvertHextoint(t *testing.T) {
 		{
 			name:       "little endian invalid",
 			conversion: "hextoint:LittleEndian:invalid",
-			ent:        gosnmp.SnmpPDU{Type: gosnmp.OctetString, Value: []byte{}},
+			ent:        gosnmp.SnmpPDU{Type: gosnmp.OctetString, Value: make([]byte, 0)},
 			errmsg:     "invalid bit value",
 		},
 		{
 			name:       "invalid",
 			conversion: "hextoint:invalid:uint64",
-			ent:        gosnmp.SnmpPDU{Type: gosnmp.OctetString, Value: []byte{}},
+			ent:        gosnmp.SnmpPDU{Type: gosnmp.OctetString, Value: make([]byte, 0)},
 			errmsg:     "invalid Endian value",
 		},
 	}

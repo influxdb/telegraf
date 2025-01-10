@@ -145,7 +145,7 @@ func TestGatherBondInterface(t *testing.T) {
 
 	acc = testutil.Accumulator{}
 	require.NoError(t, bond.gatherBondInterface("bondLACP", sampleTestLACP, &acc))
-	bond.gatherSysDetails("bondLACP", sysFiles{ModeFile: sampleSysMode, SlaveFile: sampleSysSlaves, ADPortsFile: sampleSysAdPorts}, &acc)
+	gatherSysDetails("bondLACP", sysFiles{ModeFile: sampleSysMode, SlaveFile: sampleSysSlaves, ADPortsFile: sampleSysAdPorts}, &acc)
 	acc.AssertContainsTaggedFields(t, "bond", map[string]interface{}{"status": 1}, map[string]string{"bond": "bondLACP"})
 	acc.AssertContainsTaggedFields(
 		t,
@@ -169,7 +169,7 @@ func TestGatherBondInterface(t *testing.T) {
 
 	acc = testutil.Accumulator{}
 	require.NoError(t, bond.gatherBondInterface("bondLACPUpDown", sampleTestLACPFirstUpSecondDown, &acc))
-	bond.gatherSysDetails("bondLACPUpDown", sysFiles{ModeFile: sampleSysMode, SlaveFile: sampleSysSlaves, ADPortsFile: sampleSysAdPorts}, &acc)
+	gatherSysDetails("bondLACPUpDown", sysFiles{ModeFile: sampleSysMode, SlaveFile: sampleSysSlaves, ADPortsFile: sampleSysAdPorts}, &acc)
 	acc.AssertContainsTaggedFields(t, "bond", map[string]interface{}{"status": 1}, map[string]string{"bond": "bondLACPUpDown"})
 	acc.AssertContainsTaggedFields(
 		t,

@@ -127,7 +127,7 @@ func TestSetPrecision(t *testing.T) {
 
 func TestAddTrackingMetricGroupEmpty(t *testing.T) {
 	ch := make(chan telegraf.Metric, 10)
-	metrics := []telegraf.Metric{}
+	metrics := make([]telegraf.Metric, 0)
 	acc := NewAccumulator(&TestMetricMaker{}, ch).WithTracking(1)
 
 	id := acc.AddTrackingMetricGroup(metrics)

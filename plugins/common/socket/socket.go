@@ -136,7 +136,7 @@ func (s *Socket) Setup() error {
 		s.listener = l
 	case "unixgram":
 		l := newPacketListener(s.ContentEncoding, s.MaxDecompressionSize, s.MaxParallelParsers)
-		if err := l.setupUnixgram(s.url, s.SocketMode); err != nil {
+		if err := l.setupUnixgram(s.url, s.SocketMode, int(s.ReadBufferSize)); err != nil {
 			return err
 		}
 		s.listener = l

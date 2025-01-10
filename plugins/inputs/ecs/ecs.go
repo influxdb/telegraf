@@ -68,7 +68,7 @@ func (ecs *Ecs) Gather(acc telegraf.Accumulator) error {
 	}
 
 	// accumulate metrics
-	ecs.accTask(task, taskTags, acc)
+	accTask(task, taskTags, acc)
 	ecs.accContainers(task, taskTags, acc)
 
 	return nil
@@ -137,7 +137,7 @@ func resolveEndpoint(ecs *Ecs) {
 	ecs.metadataVersion = 2
 }
 
-func (ecs *Ecs) accTask(task *ecsTask, tags map[string]string, acc telegraf.Accumulator) {
+func accTask(task *ecsTask, tags map[string]string, acc telegraf.Accumulator) {
 	taskFields := map[string]interface{}{
 		"desired_status": task.DesiredStatus,
 		"known_status":   task.KnownStatus,

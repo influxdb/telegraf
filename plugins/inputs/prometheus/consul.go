@@ -14,17 +14,17 @@ import (
 	"github.com/influxdata/telegraf/config"
 )
 
-type ConsulConfig struct {
+type consulConfig struct {
 	// Address of the Consul agent. The address must contain a hostname or an IP address
 	// and optionally a port (format: "host:port").
 	Enabled       bool            `toml:"enabled"`
 	Agent         string          `toml:"agent"`
 	QueryInterval config.Duration `toml:"query_interval"`
-	Queries       []*ConsulQuery  `toml:"query"`
+	Queries       []*consulQuery  `toml:"query"`
 }
 
 // One Consul service discovery query
-type ConsulQuery struct {
+type consulQuery struct {
 	// A name of the searched services (not ID)
 	ServiceName string `toml:"name"`
 
@@ -128,7 +128,7 @@ func (p *Prometheus) startConsul(ctx context.Context) error {
 }
 
 func (p *Prometheus) refreshConsulServices(c *api.Catalog) error {
-	consulServiceURLs := make(map[string]URLAndAddress)
+	consulServiceURLs := make(map[string]urlAndAddress)
 
 	p.Log.Debugf("Refreshing Consul services")
 
@@ -165,8 +165,8 @@ func (p *Prometheus) refreshConsulServices(c *api.Catalog) error {
 				p.Log.Infof("Created scrape URLs from Consul for Service (%s, %s)", q.ServiceName, q.ServiceTag)
 			}
 			q.lastQueryFailed = false
-			p.Log.Debugf("Adding scrape URL from Consul for Service (%s, %s): %s", q.ServiceName, q.ServiceTag, uaa.URL.String())
-			consulServiceURLs[uaa.URL.String()] = *uaa
+			p.Log.Debugf("Adding scrape URL from Consul for Service (%s, %s): %s", q.ServiceName, q.ServiceTag, uaa.url.String())
+			consulServiceURLs[uaa.url.String()] = *uaa
 		}
 	}
 
@@ -177,7 +177,7 @@ func (p *Prometheus) refreshConsulServices(c *api.Catalog) error {
 	return nil
 }
 
-func (p *Prometheus) getConsulServiceURL(q *ConsulQuery, s *api.CatalogService) (*URLAndAddress, error) {
+func (p *Prometheus) getConsulServiceURL(q *consulQuery, s *api.CatalogService) (*urlAndAddress, error) {
 	var buffer bytes.Buffer
 	buffer.Reset()
 	err := q.serviceURLTemplate.Execute(&buffer, s)
@@ -201,9 +201,9 @@ func (p *Prometheus) getConsulServiceURL(q *ConsulQuery, s *api.CatalogService) 
 
 	p.Log.Debugf("Will scrape metrics from Consul Service %s", serviceURL.String())
 
-	return &URLAndAddress{
-		URL:         serviceURL,
-		OriginalURL: serviceURL,
-		Tags:        extraTags,
+	return &urlAndAddress{
+		url:         serviceURL,
+		originalURL: serviceURL,
+		tags:        extraTags,
 	}, nil
 }

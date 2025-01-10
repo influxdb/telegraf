@@ -40,15 +40,15 @@ var info = system.Info{
 		IndexConfigs: map[string]*registry.IndexInfo{
 			"docker.io": {
 				Name:     "docker.io",
-				Mirrors:  []string{},
+				Mirrors:  make([]string, 0),
 				Official: true,
 				Secure:   true,
 			},
-		}, InsecureRegistryCIDRs: []*registry.NetIPNet{{IP: []byte{127, 0, 0, 0}, Mask: []byte{255, 0, 0, 0}}}, Mirrors: []string{}},
+		}, InsecureRegistryCIDRs: []*registry.NetIPNet{{IP: []byte{127, 0, 0, 0}, Mask: []byte{255, 0, 0, 0}}}, Mirrors: make([]string, 0)},
 	OperatingSystem:  "Linux Mint LMDE (containerized)",
 	BridgeNfIptables: true,
 	HTTPSProxy:       "",
-	Labels:           []string{},
+	Labels:           make([]string, 0),
 	MemoryLimit:      false,
 	DriverStatus: [][2]string{
 		{"Pool Name", "docker-8:1-1182287-pool"},
@@ -193,6 +193,31 @@ var serviceList = []swarm.Service{
 			},
 			Mode: swarm.ServiceMode{
 				Global: &swarm.GlobalService{},
+			},
+		},
+	},
+	{
+		ID: "rfmqydhe8cluzl9hayyrhw5ga",
+		Spec: swarm.ServiceSpec{
+			Annotations: swarm.Annotations{
+				Name: "test3",
+			},
+			Mode: swarm.ServiceMode{
+				ReplicatedJob: &swarm.ReplicatedJob{
+					MaxConcurrent:    &two,
+					TotalCompletions: &two,
+				},
+			},
+		},
+	},
+	{
+		ID: "mp50lo68vqgkory4e26ts8f9d",
+		Spec: swarm.ServiceSpec{
+			Annotations: swarm.Annotations{
+				Name: "test4",
+			},
+			Mode: swarm.ServiceMode{
+				GlobalJob: &swarm.GlobalJob{},
 			},
 		},
 	},

@@ -23,18 +23,6 @@ func (*Proxmox) SampleConfig() string {
 	return sampleConfig
 }
 
-func (px *Proxmox) Gather(acc telegraf.Accumulator) error {
-	err := getNodeSearchDomain(px)
-	if err != nil {
-		return err
-	}
-
-	gatherLxcData(px, acc)
-	gatherQemuData(px, acc)
-
-	return nil
-}
-
 func (px *Proxmox) Init() error {
 	// Set hostname as default node name for backwards compatibility
 	if px.NodeName == "" {
@@ -57,12 +45,16 @@ func (px *Proxmox) Init() error {
 	return nil
 }
 
-func init() {
-	inputs.Add("proxmox", func() telegraf.Input {
-		return &Proxmox{
-			requestFunction: performRequest,
-		}
-	})
+func (px *Proxmox) Gather(acc telegraf.Accumulator) error {
+	err := getNodeSearchDomain(px)
+	if err != nil {
+		return err
+	}
+
+	gatherLxcData(px, acc)
+	gatherQemuData(px, acc)
+
+	return nil
 }
 
 func getNodeSearchDomain(px *Proxmox) error {
@@ -273,4 +265,12 @@ func getTags(px *Proxmox, name string, vmConfig vmConfig, rt resourceType) map[s
 		"vm_fqdn":   fqdn,
 		"vm_type":   string(rt),
 	}
+}
+
+func init() {
+	inputs.Add("proxmox", func() telegraf.Input {
+		return &Proxmox{
+			requestFunction: performRequest,
+		}
+	})
 }

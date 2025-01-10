@@ -1,7 +1,6 @@
 package cloudwatch
 
 import (
-	"fmt"
 	"math"
 	"sort"
 	"testing"
@@ -68,11 +67,11 @@ func TestBuildMetricDatums(t *testing.T) {
 	}
 	for _, point := range validMetrics {
 		datums := BuildMetricDatum(false, false, point)
-		require.Len(t, datums, 1, fmt.Sprintf("Valid point should create a Datum {value: %v}", point))
+		require.Lenf(t, datums, 1, "Valid point should create a Datum {value: %v}", point)
 	}
 	for _, point := range invalidMetrics {
 		datums := BuildMetricDatum(false, false, point)
-		require.Empty(t, datums, fmt.Sprintf("Valid point should not create a Datum {value: %v}", point))
+		require.Emptyf(t, datums, "Valid point should not create a Datum {value: %v}", point)
 	}
 
 	statisticMetric := metric.New(
@@ -82,7 +81,7 @@ func TestBuildMetricDatums(t *testing.T) {
 		time.Date(2009, time.November, 10, 23, 0, 0, 0, time.UTC),
 	)
 	datums := BuildMetricDatum(true, false, statisticMetric)
-	require.Len(t, datums, 1, fmt.Sprintf("Valid point should create a Datum {value: %v}", statisticMetric))
+	require.Lenf(t, datums, 1, "Valid point should create a Datum {value: %v}", statisticMetric)
 
 	multiFieldsMetric := metric.New(
 		"test1",
@@ -91,7 +90,7 @@ func TestBuildMetricDatums(t *testing.T) {
 		time.Date(2009, time.November, 10, 23, 0, 0, 0, time.UTC),
 	)
 	datums = BuildMetricDatum(true, false, multiFieldsMetric)
-	require.Len(t, datums, 4, fmt.Sprintf("Each field should create a Datum {value: %v}", multiFieldsMetric))
+	require.Lenf(t, datums, 4, "Each field should create a Datum {value: %v}", multiFieldsMetric)
 
 	multiStatisticMetric := metric.New(
 		"test1",
@@ -105,7 +104,7 @@ func TestBuildMetricDatums(t *testing.T) {
 		time.Date(2009, time.November, 10, 23, 0, 0, 0, time.UTC),
 	)
 	datums = BuildMetricDatum(true, false, multiStatisticMetric)
-	require.Len(t, datums, 7, fmt.Sprintf("Valid point should create a Datum {value: %v}", multiStatisticMetric))
+	require.Lenf(t, datums, 7, "Valid point should create a Datum {value: %v}", multiStatisticMetric)
 }
 
 func TestMetricDatumResolution(t *testing.T) {

@@ -132,6 +132,12 @@ to use them.
   ## tag IDs. Each entry consumes approximately 34 bytes of memory.
   # tag_cache_size = 100000
 
+  ## Cut column names at the given length to not exceed PostgreSQL's
+  ## 'identifier length' limit (default: no limit)
+  ## (see https://www.postgresql.org/docs/current/limits.html)
+  ## Be careful to not create duplicate column names!
+  # column_name_length_limit = 0
+
   ## Enable & set the log level for the Postgres driver.
   # log_level = "warn" # trace, debug, info, warn, error, none
 ```
@@ -196,6 +202,19 @@ statements. This allows for complete control of the schema by the user.
 Documentation on how to write templates can be found [sqltemplate docs][1]
 
 [1]: https://pkg.go.dev/github.com/influxdata/telegraf/plugins/outputs/postgresql/sqltemplate
+
+## Long Column Names
+
+Postgres imposes a limit on the length of column identifiers, which can be found
+in the [official docs](https://www.postgresql.org/docs/current/limits.html). By
+default Telegraf does not enforce this limit as this limit can be modified on
+the server side. Furthermore, cutting off column names could lead to collisions
+if the columns are only different after the cut-off.
+
+> [!WARNING]
+> Make sure you will not cause column name collisions when setting
+> `column_name_length_limit`! If in doubt, explicitly shorten the field and tag
+> names using e.g. the regexp processor.
 
 ### Samples
 

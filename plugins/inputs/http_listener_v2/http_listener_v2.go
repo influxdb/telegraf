@@ -197,7 +197,7 @@ func (h *HTTPListenerV2) Start(acc telegraf.Accumulator) error {
 	return nil
 }
 
-func (h *HTTPListenerV2) Gather(_ telegraf.Accumulator) error {
+func (*HTTPListenerV2) Gather(telegraf.Accumulator) error {
 	return nil
 }
 

@@ -44,6 +44,7 @@ type AMQPConsumer struct {
 	Queue                  string            `toml:"queue"`
 	QueueDurability        string            `toml:"queue_durability"`
 	QueuePassive           bool              `toml:"queue_passive"`
+	QueueArguments         map[string]int    `toml:"queue_arguments"`
 	QueueConsumeArguments  map[string]string `toml:"queue_consume_arguments"`
 	BindingKey             string            `toml:"binding_key"`
 	PrefetchCount          int               `toml:"prefetch_count"`
@@ -63,11 +64,11 @@ type AMQPConsumer struct {
 	decoder internal.ContentDecoder
 }
 
-func (a *externalAuth) Mechanism() string {
+func (*externalAuth) Mechanism() string {
 	return "EXTERNAL"
 }
 
-func (a *externalAuth) Response() string {
+func (*externalAuth) Response() string {
 	return "\000"
 }
 
@@ -174,7 +175,7 @@ func (a *AMQPConsumer) Start(acc telegraf.Accumulator) error {
 	return nil
 }
 
-func (a *AMQPConsumer) Gather(_ telegraf.Accumulator) error {
+func (*AMQPConsumer) Gather(_ telegraf.Accumulator) error {
 	return nil
 }
 
@@ -369,6 +370,11 @@ func (a *AMQPConsumer) declareQueue(channel *amqp.Channel) (*amqp.Queue, error) 
 		queueDurable = false
 	}
 
+	queueArgs := make(amqp.Table, len(a.QueueArguments))
+	for k, v := range a.QueueArguments {
+		queueArgs[k] = v
+	}
+
 	if a.QueuePassive {
 		queue, err = channel.QueueDeclarePassive(
 			a.Queue,      // queue
@@ -376,7 +382,7 @@ func (a *AMQPConsumer) declareQueue(channel *amqp.Channel) (*amqp.Queue, error) 
 			false,        // delete when unused
 			false,        // exclusive
 			false,        // no-wait
-			nil,          // arguments
+			queueArgs,    // arguments
 		)
 	} else {
 		queue, err = channel.QueueDeclare(
@@ -385,7 +391,7 @@ func (a *AMQPConsumer) declareQueue(channel *amqp.Channel) (*amqp.Queue, error) 
 			false,        // delete when unused
 			false,        // exclusive
 			false,        // no-wait
-			nil,          // arguments
+			queueArgs,    // arguments
 		)
 	}
 	if err != nil {

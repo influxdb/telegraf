@@ -6,6 +6,7 @@ import (
 	"fmt"
 
 	"github.com/influxdata/telegraf"
+	"github.com/influxdata/telegraf/metric"
 	"github.com/influxdata/telegraf/plugins/processors"
 )
 
@@ -18,30 +19,15 @@ type Unpivot struct {
 	ValueKey    string `toml:"value_key"`
 }
 
-func copyWithoutFields(metric telegraf.Metric) telegraf.Metric {
-	m := metric.Copy()
-
-	fieldKeys := make([]string, 0, len(m.FieldList()))
-	for _, field := range m.FieldList() {
-		fieldKeys = append(fieldKeys, field.Key)
-	}
-
-	for _, fk := range fieldKeys {
-		m.RemoveField(fk)
-	}
-
-	return m
-}
-
 func (*Unpivot) SampleConfig() string {
 	return sampleConfig
 }
 
 func (p *Unpivot) Init() error {
 	switch p.FieldNameAs {
-	case "metric":
 	case "", "tag":
 		p.FieldNameAs = "tag"
+	case "metric":
 	default:
 		return fmt.Errorf("unrecognized metric mode: %q", p.FieldNameAs)
 	}
@@ -63,27 +49,28 @@ func (p *Unpivot) Apply(metrics ...telegraf.Metric) []telegraf.Metric {
 	}
 	results := make([]telegraf.Metric, 0, fieldCount)
 
-	for _, m := range metrics {
-		base := m
-		if wm, ok := m.(telegraf.UnwrappableMetric); ok {
-			base = wm.Unwrap()
+	for _, src := range metrics {
+		// Create a copy without fields and tracking information
+		base := metric.New(src.Name(), make(map[string]string), make(map[string]interface{}), src.Time())
+		for _, t := range src.TagList() {
+			base.AddTag(t.Key, t.Value)
 		}
-		base = copyWithoutFields(base)
 
-		for _, field := range m.FieldList() {
-			newMetric := base.Copy()
-			newMetric.AddField(p.ValueKey, field.Value)
+		// Create a new metric per field and add it to the output
+		for _, field := range src.FieldList() {
+			m := base.Copy()
+			m.AddField(p.ValueKey, field.Value)
 
 			switch p.FieldNameAs {
 			case "metric":
-				newMetric.SetName(field.Key)
-			case "", "tag":
-				newMetric.AddTag(p.TagKey, field.Key)
+				m.SetName(field.Key)
+			case "tag":
+				m.AddTag(p.TagKey, field.Key)
 			}
 
-			results = append(results, newMetric)
+			results = append(results, m)
 		}
-		m.Accept()
+		src.Accept()
 	}
 	return results
 }

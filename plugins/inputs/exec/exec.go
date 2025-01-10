@@ -59,7 +59,7 @@ func (*Exec) SampleConfig() string {
 	return sampleConfig
 }
 
-func (e *Exec) Init() error {
+func (*Exec) Init() error {
 	return nil
 }
 
@@ -121,7 +121,7 @@ func (e *Exec) Gather(acc telegraf.Accumulator) error {
 	return nil
 }
 
-func (c commandRunner) truncate(buf bytes.Buffer) bytes.Buffer {
+func truncate(buf bytes.Buffer) bytes.Buffer {
 	// Limit the number of bytes.
 	didTruncate := false
 	if buf.Len() > maxStderrBytes {

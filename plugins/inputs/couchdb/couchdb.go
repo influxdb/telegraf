@@ -207,43 +207,43 @@ func (c *CouchDB) fetchAndInsertData(accumulator telegraf.Accumulator, host stri
 
 	fields := make(map[string]interface{}, 31)
 	// CouchDB meta stats:
-	c.generateFields(fields, "couchdb_auth_cache_misses", stats.Couchdb.AuthCacheMisses)
-	c.generateFields(fields, "couchdb_database_writes", stats.Couchdb.DatabaseWrites)
-	c.generateFields(fields, "couchdb_open_databases", stats.Couchdb.OpenDatabases)
-	c.generateFields(fields, "couchdb_auth_cache_hits", stats.Couchdb.AuthCacheHits)
-	c.generateFields(fields, "couchdb_request_time", requestTime)
-	c.generateFields(fields, "couchdb_database_reads", stats.Couchdb.DatabaseReads)
-	c.generateFields(fields, "couchdb_open_os_files", stats.Couchdb.OpenOsFiles)
+	generateFields(fields, "couchdb_auth_cache_misses", stats.Couchdb.AuthCacheMisses)
+	generateFields(fields, "couchdb_database_writes", stats.Couchdb.DatabaseWrites)
+	generateFields(fields, "couchdb_open_databases", stats.Couchdb.OpenDatabases)
+	generateFields(fields, "couchdb_auth_cache_hits", stats.Couchdb.AuthCacheHits)
+	generateFields(fields, "couchdb_request_time", requestTime)
+	generateFields(fields, "couchdb_database_reads", stats.Couchdb.DatabaseReads)
+	generateFields(fields, "couchdb_open_os_files", stats.Couchdb.OpenOsFiles)
 
 	// http request methods stats:
-	c.generateFields(fields, "httpd_request_methods_put", httpdRequestMethodsPut)
-	c.generateFields(fields, "httpd_request_methods_get", httpdRequestMethodsGet)
-	c.generateFields(fields, "httpd_request_methods_copy", httpdRequestMethodsCopy)
-	c.generateFields(fields, "httpd_request_methods_delete", httpdRequestMethodsDelete)
-	c.generateFields(fields, "httpd_request_methods_post", httpdRequestMethodsPost)
-	c.generateFields(fields, "httpd_request_methods_head", httpdRequestMethodsHead)
+	generateFields(fields, "httpd_request_methods_put", httpdRequestMethodsPut)
+	generateFields(fields, "httpd_request_methods_get", httpdRequestMethodsGet)
+	generateFields(fields, "httpd_request_methods_copy", httpdRequestMethodsCopy)
+	generateFields(fields, "httpd_request_methods_delete", httpdRequestMethodsDelete)
+	generateFields(fields, "httpd_request_methods_post", httpdRequestMethodsPost)
+	generateFields(fields, "httpd_request_methods_head", httpdRequestMethodsHead)
 
 	// status code stats:
-	c.generateFields(fields, "httpd_status_codes_200", httpdStatusCodesStatus200)
-	c.generateFields(fields, "httpd_status_codes_201", httpdStatusCodesStatus201)
-	c.generateFields(fields, "httpd_status_codes_202", httpdStatusCodesStatus202)
-	c.generateFields(fields, "httpd_status_codes_301", httpdStatusCodesStatus301)
-	c.generateFields(fields, "httpd_status_codes_304", httpdStatusCodesStatus304)
-	c.generateFields(fields, "httpd_status_codes_400", httpdStatusCodesStatus400)
-	c.generateFields(fields, "httpd_status_codes_401", httpdStatusCodesStatus401)
-	c.generateFields(fields, "httpd_status_codes_403", httpdStatusCodesStatus403)
-	c.generateFields(fields, "httpd_status_codes_404", httpdStatusCodesStatus404)
-	c.generateFields(fields, "httpd_status_codes_405", httpdStatusCodesStatus405)
-	c.generateFields(fields, "httpd_status_codes_409", httpdStatusCodesStatus409)
-	c.generateFields(fields, "httpd_status_codes_412", httpdStatusCodesStatus412)
-	c.generateFields(fields, "httpd_status_codes_500", httpdStatusCodesStatus500)
+	generateFields(fields, "httpd_status_codes_200", httpdStatusCodesStatus200)
+	generateFields(fields, "httpd_status_codes_201", httpdStatusCodesStatus201)
+	generateFields(fields, "httpd_status_codes_202", httpdStatusCodesStatus202)
+	generateFields(fields, "httpd_status_codes_301", httpdStatusCodesStatus301)
+	generateFields(fields, "httpd_status_codes_304", httpdStatusCodesStatus304)
+	generateFields(fields, "httpd_status_codes_400", httpdStatusCodesStatus400)
+	generateFields(fields, "httpd_status_codes_401", httpdStatusCodesStatus401)
+	generateFields(fields, "httpd_status_codes_403", httpdStatusCodesStatus403)
+	generateFields(fields, "httpd_status_codes_404", httpdStatusCodesStatus404)
+	generateFields(fields, "httpd_status_codes_405", httpdStatusCodesStatus405)
+	generateFields(fields, "httpd_status_codes_409", httpdStatusCodesStatus409)
+	generateFields(fields, "httpd_status_codes_412", httpdStatusCodesStatus412)
+	generateFields(fields, "httpd_status_codes_500", httpdStatusCodesStatus500)
 
 	// httpd stats:
-	c.generateFields(fields, "httpd_clients_requesting_changes", stats.Httpd.ClientsRequestingChanges)
-	c.generateFields(fields, "httpd_temporary_view_reads", stats.Httpd.TemporaryViewReads)
-	c.generateFields(fields, "httpd_requests", stats.Httpd.Requests)
-	c.generateFields(fields, "httpd_bulk_requests", stats.Httpd.BulkRequests)
-	c.generateFields(fields, "httpd_view_reads", stats.Httpd.ViewReads)
+	generateFields(fields, "httpd_clients_requesting_changes", stats.Httpd.ClientsRequestingChanges)
+	generateFields(fields, "httpd_temporary_view_reads", stats.Httpd.TemporaryViewReads)
+	generateFields(fields, "httpd_requests", stats.Httpd.Requests)
+	generateFields(fields, "httpd_bulk_requests", stats.Httpd.BulkRequests)
+	generateFields(fields, "httpd_view_reads", stats.Httpd.ViewReads)
 
 	tags := map[string]string{
 		"server": host,
@@ -252,7 +252,7 @@ func (c *CouchDB) fetchAndInsertData(accumulator telegraf.Accumulator, host stri
 	return nil
 }
 
-func (c *CouchDB) generateFields(fields map[string]interface{}, prefix string, obj metaData) {
+func generateFields(fields map[string]interface{}, prefix string, obj metaData) {
 	if obj.Value != nil {
 		fields[prefix+"_value"] = *obj.Value
 	}

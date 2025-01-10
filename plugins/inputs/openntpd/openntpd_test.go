@@ -10,7 +10,7 @@ import (
 	"github.com/influxdata/telegraf/testutil"
 )
 
-func OpenntpdCTL(output string) func(string, config.Duration, bool) (*bytes.Buffer, error) {
+func openntpdCTL(output string) func(string, config.Duration, bool) (*bytes.Buffer, error) {
 	return func(string, config.Duration, bool) (*bytes.Buffer, error) {
 		return bytes.NewBufferString(output), nil
 	}
@@ -19,7 +19,7 @@ func OpenntpdCTL(output string) func(string, config.Duration, bool) (*bytes.Buff
 func TestParseSimpleOutput(t *testing.T) {
 	acc := &testutil.Accumulator{}
 	v := &Openntpd{
-		run: OpenntpdCTL(simpleOutput),
+		run: openntpdCTL(simpleOutput),
 	}
 	err := v.Gather(acc)
 
@@ -50,7 +50,7 @@ func TestParseSimpleOutput(t *testing.T) {
 func TestParseSimpleOutputwithStatePrefix(t *testing.T) {
 	acc := &testutil.Accumulator{}
 	v := &Openntpd{
-		run: OpenntpdCTL(simpleOutputwithStatePrefix),
+		run: openntpdCTL(simpleOutputwithStatePrefix),
 	}
 	err := v.Gather(acc)
 
@@ -82,7 +82,7 @@ func TestParseSimpleOutputwithStatePrefix(t *testing.T) {
 func TestParseSimpleOutputInvalidPeer(t *testing.T) {
 	acc := &testutil.Accumulator{}
 	v := &Openntpd{
-		run: OpenntpdCTL(simpleOutputInvalidPeer),
+		run: openntpdCTL(simpleOutputInvalidPeer),
 	}
 	err := v.Gather(acc)
 
@@ -110,7 +110,7 @@ func TestParseSimpleOutputInvalidPeer(t *testing.T) {
 func TestParseSimpleOutputServersDNSError(t *testing.T) {
 	acc := &testutil.Accumulator{}
 	v := &Openntpd{
-		run: OpenntpdCTL(simpleOutputServersDNSError),
+		run: openntpdCTL(simpleOutputServersDNSError),
 	}
 	err := v.Gather(acc)
 
@@ -152,7 +152,7 @@ func TestParseSimpleOutputServersDNSError(t *testing.T) {
 func TestParseSimpleOutputServerDNSError(t *testing.T) {
 	acc := &testutil.Accumulator{}
 	v := &Openntpd{
-		run: OpenntpdCTL(simpleOutputServerDNSError),
+		run: openntpdCTL(simpleOutputServerDNSError),
 	}
 	err := v.Gather(acc)
 
@@ -180,7 +180,7 @@ func TestParseSimpleOutputServerDNSError(t *testing.T) {
 func TestParseFullOutput(t *testing.T) {
 	acc := &testutil.Accumulator{}
 	v := &Openntpd{
-		run: OpenntpdCTL(fullOutput),
+		run: openntpdCTL(fullOutput),
 	}
 	err := v.Gather(acc)
 

@@ -31,11 +31,17 @@ func TestWrite(t *testing.T) {
 					ExpiresIn:   123,
 				}
 				w.Header().Set("Content-Type", "application/json; charset=utf-8")
-				err := json.NewEncoder(w).Encode(token)
-				require.NoError(t, err)
+				if err := json.NewEncoder(w).Encode(token); err != nil {
+					w.WriteHeader(http.StatusInternalServerError)
+					t.Error(err)
+					return
+				}
 			} else if strings.HasSuffix(r.URL.Path, "/folder") {
-				_, err := io.WriteString(w, "folder1")
-				require.NoError(t, err)
+				if _, err := io.WriteString(w, "folder1"); err != nil {
+					w.WriteHeader(http.StatusInternalServerError)
+					t.Error(err)
+					return
+				}
 			}
 			w.WriteHeader(http.StatusOK)
 		}),

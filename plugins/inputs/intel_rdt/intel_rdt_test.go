@@ -12,7 +12,7 @@ import (
 
 type mockProc struct{}
 
-func (m *mockProc) getAllProcesses() ([]process, error) {
+func (*mockProc) getAllProcesses() ([]process, error) {
 	procs := []process{
 		{Name: "process", PID: 1000},
 		{Name: "process2", PID: 1002},
@@ -62,8 +62,8 @@ func TestSplitCSVLineIntoValues(t *testing.T) {
 	splitCSV, err = splitCSVLineIntoValues(wrongLine)
 	require.Error(t, err)
 	require.Equal(t, "", splitCSV.timeValue)
-	require.Nil(t, nil, splitCSV.metricsValues)
-	require.Nil(t, nil, splitCSV.coreOrPIDsValues)
+	require.Nil(t, splitCSV.metricsValues)
+	require.Nil(t, splitCSV.coreOrPIDsValues)
 }
 
 func TestFindPIDsInMeasurement(t *testing.T) {

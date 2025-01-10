@@ -17,12 +17,7 @@ type Ordered struct {
 	queue chan futureMetric
 }
 
-func NewOrdered(
-	acc telegraf.Accumulator,
-	fn func(telegraf.Metric) []telegraf.Metric,
-	orderedQueueSize int,
-	workerCount int,
-) *Ordered {
+func NewOrdered(acc telegraf.Accumulator, fn func(telegraf.Metric) []telegraf.Metric, orderedQueueSize, workerCount int) *Ordered {
 	p := &Ordered{
 		fn:          fn,
 		workerQueue: make(chan job, workerCount),

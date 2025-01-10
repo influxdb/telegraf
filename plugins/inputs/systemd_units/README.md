@@ -94,6 +94,7 @@ The following *additional* metrics are available with `details = true`:
     - swap_current (uint, current swap usage)
     - swap_peak (uint, peak swap usage)
     - mem_avail (uint, available memory for this unit)
+    - active_enter_timestamp_us (uint, timestamp in us when entered the state)
 
 ### Load
 

@@ -59,14 +59,14 @@ func (c *tokenCreds) token(_ context.Context, _ client) (string, error) {
 	return token, nil
 }
 
-func (c *tokenCreds) isExpired() bool {
+func (*tokenCreds) isExpired() bool {
 	return true
 }
 
-func (c *nullCreds) token(_ context.Context, _ client) (string, error) {
+func (*nullCreds) token(context.Context, client) (string, error) {
 	return "", nil
 }
 
-func (c *nullCreds) isExpired() bool {
+func (*nullCreds) isExpired() bool {
 	return true
 }

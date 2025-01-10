@@ -7,13 +7,13 @@ import (
 	"math"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"testing"
 
 	corev2 "github.com/sensu/sensu-go/api/core/v2"
 	"github.com/stretchr/testify/require"
 
 	"github.com/influxdata/telegraf"
-	"github.com/influxdata/telegraf/internal/choice"
 	"github.com/influxdata/telegraf/testutil"
 )
 
@@ -116,25 +116,67 @@ func TestConnectAndWrite(t *testing.T) {
 
 	t.Run("write", func(t *testing.T) {
 		ts.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			require.Equal(t, expectedURL, r.URL.String())
-			require.Equal(t, expectedAuthHeader, r.Header.Get("Authorization"))
+			if urlString := r.URL.String(); urlString != expectedURL {
+				w.WriteHeader(http.StatusInternalServerError)
+				t.Errorf("Not equal, expected: %q, actual: %q", expectedURL, urlString)
+				return
+			}
+			if authHeader := r.Header.Get("Authorization"); authHeader != expectedAuthHeader {
+				w.WriteHeader(http.StatusInternalServerError)
+				t.Errorf("Not equal, expected: %q, actual: %q", expectedAuthHeader, authHeader)
+				return
+			}
+
 			// let's make sure what we received is a valid Sensu event that contains all of the expected data
 			body, err := io.ReadAll(r.Body)
-			require.NoError(t, err)
+			if err != nil {
+				w.WriteHeader(http.StatusInternalServerError)
+				t.Error(err)
+				return
+			}
 			receivedEvent := &corev2.Event{}
-			err = json.Unmarshal(body, receivedEvent)
-			require.NoError(t, err)
-			require.Equal(t, testCheck, receivedEvent.Check.Name)
-			require.Equal(t, testEntity, receivedEvent.Entity.Name)
-			require.NotEmpty(t, receivedEvent.Metrics)
-			require.True(t, choice.Contains(testHandler, receivedEvent.Metrics.Handlers))
-			require.NotEmpty(t, receivedEvent.Metrics.Points)
+
+			if err = json.Unmarshal(body, receivedEvent); err != nil {
+				w.WriteHeader(http.StatusInternalServerError)
+				t.Error(err)
+				return
+			}
+			if receivedEvent.Check.Name != testCheck {
+				w.WriteHeader(http.StatusInternalServerError)
+				t.Errorf("Not equal, expected: %q, actual: %q", testCheck, receivedEvent.Check.Name)
+				return
+			}
+			if receivedEvent.Entity.Name != testEntity {
+				w.WriteHeader(http.StatusInternalServerError)
+				t.Errorf("Not equal, expected: %q, actual: %q", testEntity, receivedEvent.Entity.Name)
+				return
+			}
+			if receivedEvent.Metrics == nil {
+				w.WriteHeader(http.StatusInternalServerError)
+				t.Errorf("'receivedEvent.Metrics' should not be nil")
+				return
+			}
+			if !slices.Contains(receivedEvent.Metrics.Handlers, testHandler) {
+				w.WriteHeader(http.StatusInternalServerError)
+				t.Errorf("'receivedEvent.Metrics.Handlers' should contain %q", testHandler)
+				return
+			}
+			if len(receivedEvent.Metrics.Points) == 0 {
+				w.WriteHeader(http.StatusInternalServerError)
+				t.Errorf("'receivedEvent.Metrics.Points' should not be empty")
+				return
+			}
 			pointFound := false
 			tagFound := false
 			for _, p := range receivedEvent.Metrics.Points {
 				if p.Name == expectedPointName+".value" && p.Value == expectedPointValue {
 					pointFound = true
-					require.NotEmpty(t, p.Tags)
+					if len(p.Tags) == 0 {
+						w.WriteHeader(http.StatusInternalServerError)
+						t.Errorf("'p.Tags' should not be empty")
+						return
+					}
+
 					for _, t := range p.Tags {
 						if t.Name == testTagName && t.Value == testTagValue {
 							tagFound = true
@@ -142,8 +184,17 @@ func TestConnectAndWrite(t *testing.T) {
 					}
 				}
 			}
-			require.True(t, pointFound)
-			require.True(t, tagFound)
+
+			if !pointFound {
+				w.WriteHeader(http.StatusInternalServerError)
+				t.Errorf("'pointFound' should be true")
+				return
+			}
+			if !tagFound {
+				w.WriteHeader(http.StatusInternalServerError)
+				t.Errorf("'tagFound' should be true")
+				return
+			}
 			w.WriteHeader(http.StatusCreated)
 		})
 		err := plugin.Write([]telegraf.Metric{testutil.TestMetric(expectedPointValue, expectedPointName)})

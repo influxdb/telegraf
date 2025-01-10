@@ -28,7 +28,7 @@ func TestStartStop(t *testing.T) {
 	require.NoError(t, container.Start(), "failed to start container")
 	defer container.Terminate()
 
-	plugin := &natsConsumer{
+	plugin := &NatsConsumer{
 		Servers:                []string{fmt.Sprintf("nats://%s:%s", container.Address, container.Ports["4222"])},
 		Subjects:               []string{"telegraf"},
 		QueueGroup:             "telegraf_consumers",
@@ -140,7 +140,7 @@ func TestSendReceive(t *testing.T) {
 			}
 
 			// Setup the plugin
-			plugin := &natsConsumer{
+			plugin := &NatsConsumer{
 				Servers:                []string{addr},
 				Subjects:               subjects,
 				QueueGroup:             "telegraf_consumers",
@@ -161,15 +161,15 @@ func TestSendReceive(t *testing.T) {
 			defer plugin.Stop()
 
 			// Send all messages to the topics (random order due to Golang map)
-			publisher := &sender{Addr: addr}
-			require.NoError(t, publisher.Connect())
-			defer publisher.Disconnect()
+			publisher := &sender{addr: addr}
+			require.NoError(t, publisher.connect())
+			defer publisher.disconnect()
 			for topic, msgs := range tt.msgs {
 				for _, msg := range msgs {
-					require.NoError(t, publisher.Send(topic, msg))
+					require.NoError(t, publisher.send(topic, msg))
 				}
 			}
-			publisher.Disconnect()
+			publisher.disconnect()
 
 			// Wait for the metrics to be collected
 			require.Eventually(t, func() bool {
@@ -185,16 +185,12 @@ func TestSendReceive(t *testing.T) {
 }
 
 type sender struct {
-	Addr string
-
-	Username string
-	Password string
-
+	addr string
 	conn *nats.Conn
 }
 
-func (s *sender) Connect() error {
-	conn, err := nats.Connect(s.Addr)
+func (s *sender) connect() error {
+	conn, err := nats.Connect(s.addr)
 	if err != nil {
 		return err
 	}
@@ -203,7 +199,7 @@ func (s *sender) Connect() error {
 	return nil
 }
 
-func (s *sender) Disconnect() {
+func (s *sender) disconnect() {
 	if s.conn != nil && !s.conn.IsClosed() {
 		_ = s.conn.Flush()
 		s.conn.Close()
@@ -211,6 +207,6 @@ func (s *sender) Disconnect() {
 	s.conn = nil
 }
 
-func (s *sender) Send(topic, msg string) error {
+func (s *sender) send(topic, msg string) error {
 	return s.conn.Publish(topic, []byte(msg))
 }

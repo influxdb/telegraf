@@ -12,9 +12,6 @@ import (
 )
 
 func TestWireguard_gatherDeviceMetrics(t *testing.T) {
-	var acc testutil.Accumulator
-
-	wg := &Wireguard{}
 	device := &wgtypes.Device{
 		Name:         "wg0",
 		Type:         wgtypes.LinuxKernel,
@@ -22,7 +19,6 @@ func TestWireguard_gatherDeviceMetrics(t *testing.T) {
 		FirewallMark: 2,
 		Peers:        []wgtypes.Peer{{}, {}},
 	}
-
 	expectFields := map[string]interface{}{
 		"listen_port":   1,
 		"firewall_mark": 2,
@@ -35,7 +31,8 @@ func TestWireguard_gatherDeviceMetrics(t *testing.T) {
 		"type": "linux_kernel",
 	}
 
-	wg.gatherDeviceMetrics(&acc, device)
+	var acc testutil.Accumulator
+	gatherDeviceMetrics(&acc, device)
 
 	require.Equal(t, 3, acc.NFields())
 	acc.AssertDoesNotContainMeasurement(t, measurementPeer)
@@ -44,11 +41,9 @@ func TestWireguard_gatherDeviceMetrics(t *testing.T) {
 }
 
 func TestWireguard_gatherDevicePeerMetrics(t *testing.T) {
-	var acc testutil.Accumulator
 	pubkey, err := wgtypes.ParseKey("NZTRIrv/ClTcQoNAnChEot+WL7OH7uEGQmx8oAN9rWE=")
 	require.NoError(t, err)
 
-	wg := &Wireguard{}
 	device := &wgtypes.Device{
 		Name: "wg0",
 	}
@@ -61,7 +56,6 @@ func TestWireguard_gatherDevicePeerMetrics(t *testing.T) {
 		AllowedIPs:                  []net.IPNet{{}, {}},
 		ProtocolVersion:             0,
 	}
-
 	expectFields := map[string]interface{}{
 		"persistent_keepalive_interval_ns": int64(60000000000),
 		"protocol_version":                 0,
@@ -78,7 +72,8 @@ func TestWireguard_gatherDevicePeerMetrics(t *testing.T) {
 		"public_key": pubkey.String(),
 	}
 
-	wg.gatherDevicePeerMetrics(&acc, device, peer)
+	var acc testutil.Accumulator
+	gatherDevicePeerMetrics(&acc, device, peer)
 
 	require.Equal(t, 7, acc.NFields())
 	acc.AssertDoesNotContainMeasurement(t, measurementDevice)
@@ -117,15 +112,12 @@ func TestWireguard_allowedPeerCIDR(t *testing.T) {
 	}
 	for _, tc := range testcases {
 		t.Run(tc.name, func(t *testing.T) {
-			var acc testutil.Accumulator
 			pubkey, err := wgtypes.ParseKey("NZTRIrv/ClTcQoNAnChEot+WL7OH7uEGQmx8oAN9rWE=")
 			require.NoError(t, err)
 
-			wg := &Wireguard{}
 			device := &wgtypes.Device{
 				Name: "wg0",
 			}
-
 			peer := wgtypes.Peer{
 				PublicKey:                   pubkey,
 				PersistentKeepaliveInterval: 1 * time.Minute,
@@ -146,7 +138,8 @@ func TestWireguard_allowedPeerCIDR(t *testing.T) {
 				"public_key": pubkey.String(),
 			}
 
-			wg.gatherDevicePeerMetrics(&acc, device, peer)
+			var acc testutil.Accumulator
+			gatherDevicePeerMetrics(&acc, device, peer)
 			acc.AssertDoesNotContainMeasurement(t, measurementDevice)
 			acc.AssertContainsFields(t, measurementPeer, expectFields)
 		})

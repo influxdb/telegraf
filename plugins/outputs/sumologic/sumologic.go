@@ -15,7 +15,6 @@ import (
 	"github.com/influxdata/telegraf/internal"
 	"github.com/influxdata/telegraf/models"
 	"github.com/influxdata/telegraf/plugins/outputs"
-	"github.com/influxdata/telegraf/plugins/serializers"
 	"github.com/influxdata/telegraf/plugins/serializers/carbon2"
 	"github.com/influxdata/telegraf/plugins/serializers/graphite"
 	"github.com/influxdata/telegraf/plugins/serializers/prometheus"
@@ -57,7 +56,7 @@ type SumoLogic struct {
 	Log telegraf.Logger `toml:"-"`
 
 	client     *http.Client
-	serializer serializers.Serializer
+	serializer telegraf.Serializer
 
 	headers map[string]string
 }
@@ -66,7 +65,7 @@ func (*SumoLogic) SampleConfig() string {
 	return sampleConfig
 }
 
-func (s *SumoLogic) SetSerializer(serializer serializers.Serializer) {
+func (s *SumoLogic) SetSerializer(serializer telegraf.Serializer) {
 	s.serializer = serializer
 }
 
@@ -82,7 +81,7 @@ func (s *SumoLogic) createClient() *http.Client {
 func (s *SumoLogic) Connect() error {
 	s.headers = make(map[string]string)
 
-	var serializer serializers.Serializer
+	var serializer telegraf.Serializer
 	if unwrapped, ok := s.serializer.(*models.RunningSerializer); ok {
 		serializer = unwrapped.Serializer
 	} else {

@@ -6,8 +6,9 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/influxdata/telegraf/testutil"
 	"github.com/stretchr/testify/require"
+
+	"github.com/influxdata/telegraf/testutil"
 )
 
 var fakeSNMP4Manager = `
@@ -123,7 +124,7 @@ func main() {
 }
 `
 
-func testMain(t *testing.T, code, endpoint string, serverType ServerType) {
+func testMain(t *testing.T, code, endpoint string, serverType serverType) {
 	executable := "snmpwalk"
 	if runtime.GOOS == "windows" {
 		executable = "snmpwalk.exe"
@@ -153,7 +154,7 @@ func testMain(t *testing.T, code, endpoint string, serverType ServerType) {
 	err = acc.GatherError(l.Gather)
 	require.NoError(t, err)
 
-	floatMetrics := KeyMapping[serverType]
+	floatMetrics := keyMapping[serverType]
 
 	for _, metric := range floatMetrics {
 		require.True(t, acc.HasFloatField("leofs", metric), metric)
@@ -165,7 +166,7 @@ func TestLeoFSManagerMasterMetricsIntegration(t *testing.T) {
 		t.Skip("Skipping integration test in short mode")
 	}
 
-	testMain(t, fakeSNMP4Manager, "localhost:4020", ServerTypeManagerMaster)
+	testMain(t, fakeSNMP4Manager, "localhost:4020", serverTypeManagerMaster)
 }
 
 func TestLeoFSManagerSlaveMetricsIntegration(t *testing.T) {
@@ -173,7 +174,7 @@ func TestLeoFSManagerSlaveMetricsIntegration(t *testing.T) {
 		t.Skip("Skipping integration test in short mode")
 	}
 
-	testMain(t, fakeSNMP4Manager, "localhost:4021", ServerTypeManagerSlave)
+	testMain(t, fakeSNMP4Manager, "localhost:4021", serverTypeManagerSlave)
 }
 
 func TestLeoFSStorageMetricsIntegration(t *testing.T) {
@@ -181,7 +182,7 @@ func TestLeoFSStorageMetricsIntegration(t *testing.T) {
 		t.Skip("Skipping integration test in short mode")
 	}
 
-	testMain(t, fakeSNMP4Storage, "localhost:4010", ServerTypeStorage)
+	testMain(t, fakeSNMP4Storage, "localhost:4010", serverTypeStorage)
 }
 
 func TestLeoFSGatewayMetricsIntegration(t *testing.T) {
@@ -189,5 +190,5 @@ func TestLeoFSGatewayMetricsIntegration(t *testing.T) {
 		t.Skip("Skipping integration test in short mode")
 	}
 
-	testMain(t, fakeSNMP4Gateway, "localhost:4000", ServerTypeGateway)
+	testMain(t, fakeSNMP4Gateway, "localhost:4000", serverTypeGateway)
 }

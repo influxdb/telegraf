@@ -40,7 +40,7 @@ type response struct {
 	io.Reader
 }
 
-func (r *response) Close() error {
+func (*response) Close() error {
 	return nil
 }
 

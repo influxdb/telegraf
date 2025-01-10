@@ -10,7 +10,7 @@ import (
 	"github.com/influxdata/telegraf/testutil"
 )
 
-func SMTPCTL(output string) func(string, config.Duration, bool) (*bytes.Buffer, error) {
+func smtpCTL(output string) func(string, config.Duration, bool) (*bytes.Buffer, error) {
 	return func(string, config.Duration, bool) (*bytes.Buffer, error) {
 		return bytes.NewBufferString(output), nil
 	}
@@ -19,7 +19,7 @@ func SMTPCTL(output string) func(string, config.Duration, bool) (*bytes.Buffer, 
 func TestFilterSomeStats(t *testing.T) {
 	acc := &testutil.Accumulator{}
 	v := &Opensmtpd{
-		run: SMTPCTL(fullOutput),
+		run: smtpCTL(fullOutput),
 	}
 	err := v.Gather(acc)
 

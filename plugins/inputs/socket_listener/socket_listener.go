@@ -44,7 +44,7 @@ func (sl *SocketListener) Init() error {
 	return nil
 }
 
-func (sl *SocketListener) Gather(_ telegraf.Accumulator) error {
+func (*SocketListener) Gather(telegraf.Accumulator) error {
 	return nil
 }
 

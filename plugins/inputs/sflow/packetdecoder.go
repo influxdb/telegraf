@@ -372,9 +372,9 @@ func (d *packetDecoder) decodeIPv4Header(r io.Reader) (h ipV4Header, err error) 
 	}
 	switch h.Protocol {
 	case ipProtocolTCP:
-		h.ProtocolHeader, err = d.decodeTCPHeader(r)
+		h.ProtocolHeader, err = decodeTCPHeader(r)
 	case ipProtocolUDP:
-		h.ProtocolHeader, err = d.decodeUDPHeader(r)
+		h.ProtocolHeader, err = decodeUDPHeader(r)
 	default:
 		d.debug("Unknown IP protocol: ", h.Protocol)
 	}
@@ -412,9 +412,9 @@ func (d *packetDecoder) decodeIPv6Header(r io.Reader) (h ipV6Header, err error) 
 	}
 	switch h.NextHeaderProto {
 	case ipProtocolTCP:
-		h.ProtocolHeader, err = d.decodeTCPHeader(r)
+		h.ProtocolHeader, err = decodeTCPHeader(r)
 	case ipProtocolUDP:
-		h.ProtocolHeader, err = d.decodeUDPHeader(r)
+		h.ProtocolHeader, err = decodeUDPHeader(r)
 	default:
 		// not handled
 		d.debug("Unknown IP protocol: ", h.NextHeaderProto)
@@ -423,7 +423,7 @@ func (d *packetDecoder) decodeIPv6Header(r io.Reader) (h ipV6Header, err error) 
 }
 
 // https://en.wikipedia.org/wiki/Transmission_Control_Protocol#TCP_segment_structure
-func (d *packetDecoder) decodeTCPHeader(r io.Reader) (h tcpHeader, err error) {
+func decodeTCPHeader(r io.Reader) (h tcpHeader, err error) {
 	if err := read(r, &h.SourcePort, "SourcePort"); err != nil {
 		return h, err
 	}
@@ -461,7 +461,7 @@ func (d *packetDecoder) decodeTCPHeader(r io.Reader) (h tcpHeader, err error) {
 	return h, err
 }
 
-func (d *packetDecoder) decodeUDPHeader(r io.Reader) (h udpHeader, err error) {
+func decodeUDPHeader(r io.Reader) (h udpHeader, err error) {
 	if err := read(r, &h.SourcePort, "SourcePort"); err != nil {
 		return h, err
 	}

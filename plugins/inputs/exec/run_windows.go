@@ -46,7 +46,7 @@ func (c commandRunner) run(
 	out = removeWindowsCarriageReturns(out)
 	if stderr.Len() > 0 && !c.debug {
 		stderr = removeWindowsCarriageReturns(stderr)
-		stderr = c.truncate(stderr)
+		stderr = truncate(stderr)
 	}
 
 	return out.Bytes(), stderr.Bytes(), runErr

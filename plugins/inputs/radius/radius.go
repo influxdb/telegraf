@@ -32,7 +32,7 @@ type Radius struct {
 //go:embed sample.conf
 var sampleConfig string
 
-func (r *Radius) SampleConfig() string {
+func (*Radius) SampleConfig() string {
 	return sampleConfig
 }
 

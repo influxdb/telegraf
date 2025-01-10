@@ -195,6 +195,8 @@ type Config struct {
 	LogWithTimezone string
 	// Logger instance name
 	InstanceName string
+	// Structured logging message key
+	StructuredLogMessageKey string
 
 	// internal  log-level
 	logLevel telegraf.LogLevel

@@ -33,16 +33,19 @@ func (p *Parser) SetDefaultTags(tags map[string]string) {
 func (p *Parser) Parse(data []byte) ([]telegraf.Metric, error) {
 	// Determine the metric transport-type derived from the response header and
 	// create a matching decoder.
-	format := expfmt.ResponseFormat(p.Header)
-	switch format.FormatType() {
-	case expfmt.TypeProtoText:
-		// Make sure we have a finishing newline but no trailing one
-		data = bytes.TrimPrefix(data, []byte("\n"))
-		if !bytes.HasSuffix(data, []byte("\n")) {
-			data = append(data, []byte("\n")...)
+	format := expfmt.NewFormat(expfmt.TypeProtoCompact)
+	if len(p.Header) > 0 {
+		format = expfmt.ResponseFormat(p.Header)
+		switch format.FormatType() {
+		case expfmt.TypeProtoText:
+			// Make sure we have a finishing newline but no trailing one
+			data = bytes.TrimPrefix(data, []byte("\n"))
+			if !bytes.HasSuffix(data, []byte("\n")) {
+				data = append(data, []byte("\n")...)
+			}
+		case expfmt.TypeUnknown:
+			p.Log.Debugf("Unknown format %q... Trying to continue...", p.Header.Get("Content-Type"))
 		}
-	case expfmt.TypeUnknown:
-		p.Log.Debugf("Unknown format %q... Trying to continue...", p.Header.Get("Content-Type"))
 	}
 	buf := bytes.NewBuffer(data)
 	decoder := expfmt.NewDecoder(buf, format)

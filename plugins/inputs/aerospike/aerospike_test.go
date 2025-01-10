@@ -309,9 +309,6 @@ func TestDisableObjectSizeLinearHistogramIntegration(t *testing.T) {
 }
 
 func TestParseNodeInfo(t *testing.T) {
-	a := &Aerospike{}
-	var acc testutil.Accumulator
-
 	stats := map[string]string{
 		"statistics": "early_tsvc_from_proxy_error=0;cluster_principal=BB9020012AC4202;cluster_is_member=true",
 	}
@@ -327,14 +324,12 @@ func TestParseNodeInfo(t *testing.T) {
 		"node_name":      "TestNodeName",
 	}
 
-	a.parseNodeInfo(&acc, stats, "127.0.0.1:3000", "TestNodeName")
+	var acc testutil.Accumulator
+	parseNodeInfo(&acc, stats, "127.0.0.1:3000", "TestNodeName")
 	acc.AssertContainsTaggedFields(t, "aerospike_node", expectedFields, expectedTags)
 }
 
 func TestParseNamespaceInfo(t *testing.T) {
-	a := &Aerospike{}
-	var acc testutil.Accumulator
-
 	stats := map[string]string{
 		"namespace/test": "ns_cluster_size=1;effective_replication_factor=1;objects=2;tombstones=0;master_objects=2",
 	}
@@ -353,15 +348,12 @@ func TestParseNamespaceInfo(t *testing.T) {
 		"namespace":      "test",
 	}
 
-	a.parseNamespaceInfo(&acc, stats, "127.0.0.1:3000", "test", "TestNodeName")
+	var acc testutil.Accumulator
+	parseNamespaceInfo(&acc, stats, "127.0.0.1:3000", "test", "TestNodeName")
 	acc.AssertContainsTaggedFields(t, "aerospike_namespace", expectedFields, expectedTags)
 }
 
 func TestParseSetInfo(t *testing.T) {
-	a := &Aerospike{}
-
-	var acc testutil.Accumulator
-
 	stats := map[string]string{
 		"sets/test/foo": "objects=1:tombstones=0:memory_data_bytes=26;",
 	}
@@ -377,7 +369,9 @@ func TestParseSetInfo(t *testing.T) {
 		"node_name":      "TestNodeName",
 		"set":            "test/foo",
 	}
-	a.parseSetInfo(&acc, stats, "127.0.0.1:3000", "test/foo", "TestNodeName")
+
+	var acc testutil.Accumulator
+	parseSetInfo(&acc, stats, "127.0.0.1:3000", "test/foo", "TestNodeName")
 	acc.AssertContainsTaggedFields(t, "aerospike_set", expectedFields, expectedTags)
 }
 

@@ -15,14 +15,14 @@ func collectNodes(ctx context.Context, acc telegraf.Accumulator, ki *KubernetesI
 		return
 	}
 
-	ki.gatherNodeCount(len(list.Items), acc)
+	gatherNodeCount(len(list.Items), acc)
 
 	for i := range list.Items {
 		ki.gatherNode(&list.Items[i], acc)
 	}
 }
 
-func (ki *KubernetesInventory) gatherNodeCount(count int, acc telegraf.Accumulator) {
+func gatherNodeCount(count int, acc telegraf.Accumulator) {
 	fields := map[string]interface{}{"node_count": count}
 	tags := make(map[string]string)
 

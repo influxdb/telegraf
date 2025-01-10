@@ -237,7 +237,7 @@ func (p *PowerStat) parseCPUMetrics() error {
 	if slices.Contains(p.CPUMetrics, cpuBusyCycles) {
 		config.PrintOptionValueDeprecationNotice("inputs.intel_powerstat", "cpu_metrics", cpuBusyCycles, telegraf.DeprecationInfo{
 			Since:     "1.23.0",
-			RemovalIn: "1.35.0;",
+			RemovalIn: "1.35.0",
 			Notice:    "'cpu_c0_state_residency' metric name should be used instead.",
 		})
 	}

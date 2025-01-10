@@ -32,7 +32,7 @@ func TestNetStats(t *testing.T) {
 	}, nil)
 
 	var acc testutil.Accumulator
-	require.NoError(t, (&NetStats{PS: &mps}).Gather(&acc))
+	require.NoError(t, (&NetStat{ps: &mps}).Gather(&acc))
 
 	expected := []telegraf.Metric{
 		metric.New(

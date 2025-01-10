@@ -10,27 +10,27 @@ import (
 	"github.com/influxdata/telegraf/plugins/common/tls"
 )
 
+var (
+	qemu resourceType = "qemu"
+	lxc  resourceType = "lxc"
+)
+
 type Proxmox struct {
 	BaseURL         string          `toml:"base_url"`
 	APIToken        string          `toml:"api_token"`
 	ResponseTimeout config.Duration `toml:"response_timeout"`
 	NodeName        string          `toml:"node_name"`
-
 	tls.ClientConfig
 
-	httpClient       *http.Client
-	nodeSearchDomain string
+	Log telegraf.Logger `toml:"-"`
 
-	requestFunction func(px *Proxmox, apiUrl string, method string, data url.Values) ([]byte, error)
-	Log             telegraf.Logger `toml:"-"`
+	httpClient *http.Client
+
+	nodeSearchDomain string
+	requestFunction  func(px *Proxmox, apiUrl string, method string, data url.Values) ([]byte, error)
 }
 
 type resourceType string
-
-var (
-	qemu resourceType = "qemu"
-	lxc  resourceType = "lxc"
-)
 
 type vmStats struct {
 	Data []vmStat `json:"data"`

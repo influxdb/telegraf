@@ -2,9 +2,9 @@ package opensearch_query
 
 import "fmt"
 
-type MetricAggregationRequest map[string]*aggregationFunction
+type metricAggregationRequest map[string]*aggregationFunction
 
-func (m MetricAggregationRequest) AddAggregation(name, aggType, field string) error {
+func (m metricAggregationRequest) addAggregation(name, aggType, field string) error {
 	if t := getAggregationFunctionType(aggType); t != "metric" {
 		return fmt.Errorf("aggregation function %q not supported", aggType)
 	}

@@ -21,17 +21,35 @@ import (
 //go:embed sample.conf
 var sampleConfig string
 
-const (
-	defaultWatchMethod = "inotify"
-)
-
 var (
 	offsets      = make(map[string]int64)
 	offsetsMutex = new(sync.Mutex)
 )
 
-// LogParser in the primary interface for the plugin
-type GrokConfig struct {
+const (
+	defaultWatchMethod = "inotify"
+)
+
+type LogParser struct {
+	Files         []string        `toml:"files"`
+	FromBeginning bool            `toml:"from_beginning"`
+	WatchMethod   string          `toml:"watch_method"`
+	GrokConfig    grokConfig      `toml:"grok"`
+	Log           telegraf.Logger `toml:"-"`
+
+	tailers map[string]*tail.Tail
+	offsets map[string]int64
+	lines   chan logEntry
+	done    chan struct{}
+	wg      sync.WaitGroup
+
+	acc telegraf.Accumulator
+
+	sync.Mutex
+	grokParser telegraf.Parser
+}
+
+type grokConfig struct {
 	MeasurementName    string `toml:"measurement"`
 	Patterns           []string
 	NamedPatterns      []string
@@ -46,63 +64,16 @@ type logEntry struct {
 	line string
 }
 
-// LogParserPlugin is the primary struct to implement the interface for logparser plugin
-type LogParserPlugin struct {
-	Files         []string
-	FromBeginning bool
-	WatchMethod   string
-
-	Log telegraf.Logger
-
-	tailers map[string]*tail.Tail
-	offsets map[string]int64
-	lines   chan logEntry
-	done    chan struct{}
-	wg      sync.WaitGroup
-	acc     telegraf.Accumulator
-
-	sync.Mutex
-
-	GrokParser telegraf.Parser
-	GrokConfig GrokConfig `toml:"grok"`
-}
-
-func NewLogParser() *LogParserPlugin {
-	offsetsMutex.Lock()
-	offsetsCopy := make(map[string]int64, len(offsets))
-	for k, v := range offsets {
-		offsetsCopy[k] = v
-	}
-	offsetsMutex.Unlock()
-
-	return &LogParserPlugin{
-		WatchMethod: defaultWatchMethod,
-		offsets:     offsetsCopy,
-	}
-}
-
-func (*LogParserPlugin) SampleConfig() string {
+func (*LogParser) SampleConfig() string {
 	return sampleConfig
 }
 
-func (l *LogParserPlugin) Init() error {
+func (l *LogParser) Init() error {
 	l.Log.Warnf(`The logparser plugin is deprecated; please use the 'tail' input with the 'grok' data_format`)
 	return nil
 }
 
-// Gather is the primary function to collect the metrics for the plugin
-func (l *LogParserPlugin) Gather(_ telegraf.Accumulator) error {
-	l.Lock()
-	defer l.Unlock()
-
-	// always start from the beginning of files that appear while we're running
-	l.tailNewFiles(true)
-
-	return nil
-}
-
-// Start kicks off collection of stats for the plugin
-func (l *LogParserPlugin) Start(acc telegraf.Accumulator) error {
+func (l *LogParser) Start(acc telegraf.Accumulator) error {
 	l.Lock()
 	defer l.Unlock()
 
@@ -130,8 +101,8 @@ func (l *LogParserPlugin) Start(acc telegraf.Accumulator) error {
 	if err != nil {
 		return err
 	}
-	l.GrokParser = &parser
-	models.SetLoggerOnPlugin(l.GrokParser, l.Log)
+	l.grokParser = &parser
+	models.SetLoggerOnPlugin(l.grokParser, l.Log)
 
 	l.wg.Add(1)
 	go l.parser()
@@ -148,9 +119,54 @@ func (l *LogParserPlugin) Start(acc telegraf.Accumulator) error {
 	return nil
 }
 
+func (l *LogParser) Gather(_ telegraf.Accumulator) error {
+	l.Lock()
+	defer l.Unlock()
+
+	// always start from the beginning of files that appear while we're running
+	l.tailNewFiles(true)
+
+	return nil
+}
+
+func (l *LogParser) Stop() {
+	l.Lock()
+	defer l.Unlock()
+
+	for _, t := range l.tailers {
+		if !l.FromBeginning {
+			// store offset for resume
+			offset, err := t.Tell()
+			if err == nil {
+				l.offsets[t.Filename] = offset
+				l.Log.Debugf("Recording offset %d for file: %v", offset, t.Filename)
+			} else {
+				l.acc.AddError(fmt.Errorf("error recording offset for file %s", t.Filename))
+			}
+		}
+		err := t.Stop()
+
+		// message for a stopped tailer
+		l.Log.Debugf("Tail dropped for file: %v", t.Filename)
+
+		if err != nil {
+			l.Log.Errorf("Error stopping tail on file %s", t.Filename)
+		}
+	}
+	close(l.done)
+	l.wg.Wait()
+
+	// persist offsets
+	offsetsMutex.Lock()
+	for k, v := range l.offsets {
+		offsets[k] = v
+	}
+	offsetsMutex.Unlock()
+}
+
 // check the globs against files on disk, and start tailing any new files.
 // Assumes l's lock is held!
-func (l *LogParserPlugin) tailNewFiles(fromBeginning bool) {
+func (l *LogParser) tailNewFiles(fromBeginning bool) {
 	var poll bool
 	if l.WatchMethod == "poll" {
 		poll = true
@@ -213,7 +229,7 @@ func (l *LogParserPlugin) tailNewFiles(fromBeginning bool) {
 
 // receiver is launched as a goroutine to continuously watch a tailed logfile
 // for changes and send any log lines down the l.lines channel.
-func (l *LogParserPlugin) receiver(tailer *tail.Tail) {
+func (l *LogParser) receiver(tailer *tail.Tail) {
 	defer l.wg.Done()
 
 	var line *tail.Line
@@ -242,7 +258,7 @@ func (l *LogParserPlugin) receiver(tailer *tail.Tail) {
 // parse is launched as a goroutine to watch the l.lines channel.
 // when a line is available, parse parses it and adds the metric(s) to the
 // accumulator.
-func (l *LogParserPlugin) parser() {
+func (l *LogParser) parser() {
 	defer l.wg.Done()
 
 	var m telegraf.Metric
@@ -257,7 +273,7 @@ func (l *LogParserPlugin) parser() {
 				continue
 			}
 		}
-		m, err = l.GrokParser.ParseLine(entry.line)
+		m, err = l.grokParser.ParseLine(entry.line)
 		if err == nil {
 			if m != nil {
 				tags := m.Tags()
@@ -270,44 +286,22 @@ func (l *LogParserPlugin) parser() {
 	}
 }
 
-// Stop will end the metrics collection process on file tailers
-func (l *LogParserPlugin) Stop() {
-	l.Lock()
-	defer l.Unlock()
-
-	for _, t := range l.tailers {
-		if !l.FromBeginning {
-			// store offset for resume
-			offset, err := t.Tell()
-			if err == nil {
-				l.offsets[t.Filename] = offset
-				l.Log.Debugf("Recording offset %d for file: %v", offset, t.Filename)
-			} else {
-				l.acc.AddError(fmt.Errorf("error recording offset for file %s", t.Filename))
-			}
-		}
-		err := t.Stop()
-
-		// message for a stopped tailer
-		l.Log.Debugf("Tail dropped for file: %v", t.Filename)
-
-		if err != nil {
-			l.Log.Errorf("Error stopping tail on file %s", t.Filename)
-		}
-	}
-	close(l.done)
-	l.wg.Wait()
-
-	// persist offsets
+func newLogParser() *LogParser {
 	offsetsMutex.Lock()
-	for k, v := range l.offsets {
-		offsets[k] = v
+	offsetsCopy := make(map[string]int64, len(offsets))
+	for k, v := range offsets {
+		offsetsCopy[k] = v
 	}
 	offsetsMutex.Unlock()
+
+	return &LogParser{
+		WatchMethod: defaultWatchMethod,
+		offsets:     offsetsCopy,
+	}
 }
 
 func init() {
 	inputs.Add("logparser", func() telegraf.Input {
-		return NewLogParser()
+		return newLogParser()
 	})
 }

@@ -174,7 +174,7 @@ func (n *OpenWeatherMap) gatherWeather(acc telegraf.Accumulator, city string) er
 		return fmt.Errorf("querying %q failed: %w", addr, err)
 	}
 
-	var e WeatherEntry
+	var e weatherEntry
 	if err := json.Unmarshal(buf, &e); err != nil {
 		return fmt.Errorf("parsing JSON response failed: %w", err)
 	}
@@ -223,7 +223,7 @@ func (n *OpenWeatherMap) gatherWeatherBatch(acc telegraf.Accumulator, cities str
 		return fmt.Errorf("querying %q failed: %w", addr, err)
 	}
 
-	var status Status
+	var status status
 	if err := json.Unmarshal(buf, &status); err != nil {
 		return fmt.Errorf("parsing JSON response failed: %w", err)
 	}
@@ -274,7 +274,7 @@ func (n *OpenWeatherMap) gatherForecast(acc telegraf.Accumulator, city string) e
 		return fmt.Errorf("querying %q failed: %w", addr, err)
 	}
 
-	var status Status
+	var status status
 	if err := json.Unmarshal(buf, &status); err != nil {
 		return fmt.Errorf("parsing JSON response failed: %w", err)
 	}

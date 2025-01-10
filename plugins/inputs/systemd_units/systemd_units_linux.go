@@ -123,17 +123,18 @@ type client interface {
 	ListUnitFilesByPatternsContext(ctx context.Context, states, pattern []string) ([]dbus.UnitFile, error)
 	ListUnitsByNamesContext(ctx context.Context, units []string) ([]dbus.UnitStatus, error)
 	GetUnitTypePropertiesContext(ctx context.Context, unit, unitType string) (map[string]interface{}, error)
-	GetUnitPropertyContext(ctx context.Context, unit, propertyName string) (*dbus.Property, error)
+	GetUnitPropertiesContext(ctx context.Context, unit string) (map[string]interface{}, error)
 	ListUnitsContext(ctx context.Context) ([]dbus.UnitStatus, error)
 }
 
 type archParams struct {
-	client       client
-	pattern      []string
-	filter       filter.Filter
-	unitTypeDBus string
-	scope        string
-	user         string
+	client        client
+	pattern       []string
+	filter        filter.Filter
+	unitTypeDBus  string
+	scope         string
+	user          string
+	warnUnitProps map[string]bool
 }
 
 func (s *SystemdUnits) Init() error {
@@ -175,6 +176,8 @@ func (s *SystemdUnits) Init() error {
 	default:
 		return fmt.Errorf("invalid 'scope' %q", s.Scope)
 	}
+
+	s.warnUnitProps = make(map[string]bool)
 
 	return nil
 }
@@ -374,26 +377,35 @@ func (s *SystemdUnits) Gather(acc telegraf.Accumulator) error {
 			}
 
 			// Get required unit file properties
-			var unitFileState string
-			if v, err := s.client.GetUnitPropertyContext(ctx, state.Name, "UnitFileState"); err == nil {
-				unitFileState = strings.Trim(v.Value.String(), `'"`)
-			}
-			var unitFilePreset string
-			if v, err := s.client.GetUnitPropertyContext(ctx, state.Name, "UnitFilePreset"); err == nil {
-				unitFilePreset = strings.Trim(v.Value.String(), `'"`)
+			unitProperties, err := s.client.GetUnitPropertiesContext(ctx, state.Name)
+			if err != nil && !s.warnUnitProps[state.Name] {
+				s.Log.Warnf("Cannot read unit properties for %q: %v", state.Name, err)
+				s.warnUnitProps[state.Name] = true
 			}
 
-			tags["state"] = unitFileState
-			tags["preset"] = unitFilePreset
+			// Set tags
+			if v, found := unitProperties["UnitFileState"]; found {
+				tags["state"] = v.(string)
+			}
+			if v, found := unitProperties["UnitFilePreset"]; found {
+				tags["preset"] = v.(string)
+			}
+
+			// Set fields
+			if v, found := unitProperties["ActiveEnterTimestamp"]; found {
+				fields["active_enter_timestamp_us"] = v
+			}
 
 			fields["status_errno"] = properties["StatusErrno"]
 			fields["restarts"] = properties["NRestarts"]
 			fields["pid"] = properties["MainPID"]
+
 			fields["mem_current"] = properties["MemoryCurrent"]
 			fields["mem_peak"] = properties["MemoryPeak"]
+			fields["mem_avail"] = properties["MemoryAvailable"]
+
 			fields["swap_current"] = properties["MemorySwapCurrent"]
 			fields["swap_peak"] = properties["MemorySwapPeak"]
-			fields["mem_avail"] = properties["MemoryAvailable"]
 
 			// Sanitize unset memory fields
 			for k, value := range fields {

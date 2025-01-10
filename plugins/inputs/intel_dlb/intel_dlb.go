@@ -50,7 +50,7 @@ type IntelDLB struct {
 	maxInitMessageLength uint32
 }
 
-func (d *IntelDLB) SampleConfig() string {
+func (*IntelDLB) SampleConfig() string {
 	return sampleConfig
 }
 

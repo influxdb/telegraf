@@ -23,7 +23,7 @@ import (
 func NewSeriesGrouper() *SeriesGrouper {
 	return &SeriesGrouper{
 		metrics:  make(map[uint64]telegraf.Metric),
-		ordered:  []telegraf.Metric{},
+		ordered:  make([]telegraf.Metric, 0),
 		hashSeed: maphash.MakeSeed(),
 	}
 }

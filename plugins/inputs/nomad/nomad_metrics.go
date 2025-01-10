@@ -37,6 +37,7 @@ type sampledValue struct {
 	DisplayLabels map[string]string `json:"Labels"`
 }
 
+// AggregateSample needs to be exported, because JSON decode cannot set embedded pointer to unexported struct
 type AggregateSample struct {
 	Count       int       `json:"count"`
 	Rate        float64   `json:"rate"`

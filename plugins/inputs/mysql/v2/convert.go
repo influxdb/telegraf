@@ -8,7 +8,7 @@ import (
 	"strconv"
 )
 
-type ConversionFunc func(value sql.RawBytes) (interface{}, error)
+type conversionFunc func(value sql.RawBytes) (interface{}, error)
 
 func ParseInt(value sql.RawBytes) (interface{}, error) {
 	v, err := strconv.ParseInt(string(value), 10, 64)
@@ -86,7 +86,7 @@ func ParseValue(value sql.RawBytes) (interface{}, error) {
 	return nil, fmt.Errorf("unconvertible value: %q", string(value))
 }
 
-var GlobalStatusConversions = map[string]ConversionFunc{
+var globalStatusConversions = map[string]conversionFunc{
 	"innodb_available_undo_logs":    ParseUint,
 	"innodb_buffer_pool_pages_misc": ParseUint,
 	"innodb_data_pending_fsyncs":    ParseUint,
@@ -108,7 +108,7 @@ var GlobalStatusConversions = map[string]ConversionFunc{
 	"wsrep_local_send_queue_avg": ParseFloat,
 }
 
-var GlobalVariableConversions = map[string]ConversionFunc{
+var globalVariableConversions = map[string]conversionFunc{
 	// see https://dev.mysql.com/doc/refman/5.7/en/server-system-variables.html
 	// see https://dev.mysql.com/doc/refman/8.0/en/server-system-variables.html
 	"delay_key_write":                ParseString,        // ON, OFF, ALL
@@ -140,7 +140,7 @@ func ConvertGlobalStatus(key string, value sql.RawBytes) (interface{}, error) {
 		return nil, nil
 	}
 
-	if conv, ok := GlobalStatusConversions[key]; ok {
+	if conv, ok := globalStatusConversions[key]; ok {
 		return conv(value)
 	}
 
@@ -152,7 +152,7 @@ func ConvertGlobalVariables(key string, value sql.RawBytes) (interface{}, error)
 		return nil, nil
 	}
 
-	if conv, ok := GlobalVariableConversions[key]; ok {
+	if conv, ok := globalVariableConversions[key]; ok {
 		return conv(value)
 	}
 

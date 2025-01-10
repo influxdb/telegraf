@@ -72,17 +72,17 @@ func (f *File) Init() error {
 	}
 
 	// Prepare VFS options
-	f.vfsopts = vfscommon.DefaultOpt
+	f.vfsopts = vfscommon.Opt
 	f.vfsopts.CacheMode = vfscommon.CacheModeWrites // required for appends
 	if f.WriteBackInterval > 0 {
-		f.vfsopts.WriteBack = time.Duration(f.WriteBackInterval)
+		f.vfsopts.WriteBack = fs.Duration(f.WriteBackInterval)
 	}
 	if f.MaxCacheSize > 0 {
 		f.vfsopts.CacheMaxSize = fs.SizeSuffix(f.MaxCacheSize)
 	}
 
 	// Redirect logging
-	fs.LogPrint = func(level fs.LogLevel, text string) {
+	fs.LogOutput = func(level fs.LogLevel, text string) {
 		if f.Trace {
 			f.Log.Debugf("[%s] %s", level.String(), text)
 		} else {
@@ -129,7 +129,7 @@ func (f *File) Connect() error {
 
 	// Setup the remote virtual filesystem
 	ctx, cancel := context.WithCancel(context.Background())
-	rootfs, err := info.NewFs(ctx, parsed.Name, parsed.Path, fs.ConfigMap(info, parsed.Name, parsed.Config))
+	rootfs, err := info.NewFs(ctx, parsed.Name, parsed.Path, fs.ConfigMap(info.Prefix, info.Options, parsed.Name, parsed.Config))
 	if err != nil {
 		cancel()
 		return fmt.Errorf("creating remote failed: %w", err)
@@ -177,7 +177,12 @@ func (f *File) Write(metrics []telegraf.Metric) error {
 
 	// Group the metrics per output file
 	groups := make(map[string][]telegraf.Metric)
-	for _, m := range metrics {
+	for _, raw := range metrics {
+		m := raw
+		if wm, ok := raw.(telegraf.UnwrappableMetric); ok {
+			m = wm.Unwrap()
+		}
+
 		for _, tmpl := range f.templates {
 			buf.Reset()
 			if err := tmpl.Execute(&buf, m); err != nil {
@@ -229,13 +234,13 @@ func (f *File) Write(metrics []telegraf.Metric) error {
 			if filepath.ToSlash(fn) != fn {
 				dir = filepath.FromSlash(dir)
 			}
-			if err := f.root.MkdirAll(dir, f.root.Opt.DirPerms); err != nil {
+			if err := f.root.MkdirAll(dir, os.FileMode(f.root.Opt.DirPerms)); err != nil {
 				return fmt.Errorf("creating dir %q failed: %w", dir, err)
 			}
 		}
 
 		// Open the file for appending or create a new one
-		file, err := f.root.OpenFile(fn, os.O_APPEND|os.O_RDWR|os.O_CREATE, f.root.Opt.FilePerms)
+		file, err := f.root.OpenFile(fn, os.O_APPEND|os.O_RDWR|os.O_CREATE, os.FileMode(f.root.Opt.FilePerms))
 		if err != nil {
 			return fmt.Errorf("opening file %q: %w", fn, err)
 		}

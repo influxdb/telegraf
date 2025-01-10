@@ -547,9 +547,9 @@ type fakeFileInfo struct {
 	fileMode os.FileMode
 }
 
-func (f fakeFileInfo) Name() string       { return "" }
-func (f fakeFileInfo) Size() int64        { return 0 }
-func (f fakeFileInfo) Mode() os.FileMode  { return f.fileMode }
-func (f fakeFileInfo) ModTime() time.Time { return time.Time{} }
-func (f fakeFileInfo) IsDir() bool        { return false }
-func (f fakeFileInfo) Sys() interface{}   { return nil }
+func (fakeFileInfo) Name() string        { return "" }
+func (fakeFileInfo) Size() int64         { return 0 }
+func (f fakeFileInfo) Mode() os.FileMode { return f.fileMode }
+func (fakeFileInfo) ModTime() time.Time  { return time.Time{} }
+func (fakeFileInfo) IsDir() bool         { return false }
+func (fakeFileInfo) Sys() interface{}    { return nil }

@@ -27,7 +27,45 @@ var sampleConfigEnd string
 
 var errAddressOverflow = errors.New("address overflow")
 
-type ModbusWorkarounds struct {
+const (
+	cDiscreteInputs   = "discrete_input"
+	cCoils            = "coil"
+	cHoldingRegisters = "holding_register"
+	cInputRegisters   = "input_register"
+)
+
+type Modbus struct {
+	Name                   string          `toml:"name"`
+	Controller             string          `toml:"controller"`
+	TransmissionMode       string          `toml:"transmission_mode"`
+	BaudRate               int             `toml:"baud_rate"`
+	DataBits               int             `toml:"data_bits"`
+	Parity                 string          `toml:"parity"`
+	StopBits               int             `toml:"stop_bits"`
+	RS485                  *rs485Config    `toml:"rs485"`
+	Timeout                config.Duration `toml:"timeout"`
+	Retries                int             `toml:"busy_retries"`
+	RetriesWaitTime        config.Duration `toml:"busy_retries_wait"`
+	DebugConnection        bool            `toml:"debug_connection" deprecated:"1.35.0;use 'log_level' 'trace' instead"`
+	Workarounds            workarounds     `toml:"workarounds"`
+	ConfigurationType      string          `toml:"configuration_type"`
+	ExcludeRegisterTypeTag bool            `toml:"exclude_register_type_tag"`
+	Log                    telegraf.Logger `toml:"-"`
+
+	// configuration type specific settings
+	configurationOriginal
+	configurationPerRequest
+	configurationPerMetric
+
+	// Connection handling
+	client      mb.Client
+	handler     mb.ClientHandler
+	isConnected bool
+	// Request handling
+	requests map[byte]requestSet
+}
+
+type workarounds struct {
 	AfterConnectPause       config.Duration `toml:"pause_after_connect"`
 	PollPause               config.Duration `toml:"pause_between_requests"`
 	CloseAfterGather        bool            `toml:"close_connection_after_gather"`
@@ -37,44 +75,12 @@ type ModbusWorkarounds struct {
 }
 
 // According to github.com/grid-x/serial
-type RS485Config struct {
+type rs485Config struct {
 	DelayRtsBeforeSend config.Duration `toml:"delay_rts_before_send"`
 	DelayRtsAfterSend  config.Duration `toml:"delay_rts_after_send"`
 	RtsHighDuringSend  bool            `toml:"rts_high_during_send"`
 	RtsHighAfterSend   bool            `toml:"rts_high_after_send"`
 	RxDuringTx         bool            `toml:"rx_during_tx"`
-}
-
-// Modbus holds all data relevant to the plugin
-type Modbus struct {
-	Name                   string            `toml:"name"`
-	Controller             string            `toml:"controller"`
-	TransmissionMode       string            `toml:"transmission_mode"`
-	BaudRate               int               `toml:"baud_rate"`
-	DataBits               int               `toml:"data_bits"`
-	Parity                 string            `toml:"parity"`
-	StopBits               int               `toml:"stop_bits"`
-	RS485                  *RS485Config      `toml:"rs485"`
-	Timeout                config.Duration   `toml:"timeout"`
-	Retries                int               `toml:"busy_retries"`
-	RetriesWaitTime        config.Duration   `toml:"busy_retries_wait"`
-	DebugConnection        bool              `toml:"debug_connection" deprecated:"1.35.0;use 'log_level' 'trace' instead"`
-	Workarounds            ModbusWorkarounds `toml:"workarounds"`
-	ConfigurationType      string            `toml:"configuration_type"`
-	ExcludeRegisterTypeTag bool              `toml:"exclude_register_type_tag"`
-	Log                    telegraf.Logger   `toml:"-"`
-
-	// Configuration type specific settings
-	ConfigurationOriginal
-	ConfigurationPerRequest
-	ConfigurationPerMetric
-
-	// Connection handling
-	client      mb.Client
-	handler     mb.ClientHandler
-	isConnected bool
-	// Request handling
-	requests map[byte]requestSet
 }
 
 type fieldConverterFunc func(bytes []byte) interface{}
@@ -86,7 +92,7 @@ type requestSet struct {
 	input    []request
 }
 
-func (r requestSet) Empty() bool {
+func (r requestSet) empty() bool {
 	l := len(r.coil)
 	l += len(r.discrete)
 	l += len(r.holding)
@@ -105,24 +111,16 @@ type field struct {
 	tags        map[string]string
 }
 
-const (
-	cDiscreteInputs   = "discrete_input"
-	cCoils            = "coil"
-	cHoldingRegisters = "holding_register"
-	cInputRegisters   = "input_register"
-)
-
-// SampleConfig returns a basic configuration for the plugin
 func (m *Modbus) SampleConfig() string {
-	configs := []Configuration{
-		&m.ConfigurationOriginal,
-		&m.ConfigurationPerRequest,
-		&m.ConfigurationPerMetric,
+	configs := []configuration{
+		&m.configurationOriginal,
+		&m.configurationPerRequest,
+		&m.configurationPerMetric,
 	}
 
 	totalConfig := sampleConfigStart
 	for _, c := range configs {
-		totalConfig += c.SampleConfigPart() + "\n"
+		totalConfig += c.sampleConfigPart() + "\n"
 	}
 	totalConfig += "\n"
 	totalConfig += sampleConfigEnd
@@ -140,32 +138,32 @@ func (m *Modbus) Init() error {
 	}
 
 	// Determine the configuration style
-	var cfg Configuration
+	var cfg configuration
 	switch m.ConfigurationType {
 	case "", "register":
-		m.ConfigurationOriginal.workarounds = m.Workarounds
-		m.ConfigurationOriginal.logger = m.Log
-		cfg = &m.ConfigurationOriginal
+		m.configurationOriginal.workarounds = m.Workarounds
+		m.configurationOriginal.logger = m.Log
+		cfg = &m.configurationOriginal
 	case "request":
-		m.ConfigurationPerRequest.workarounds = m.Workarounds
-		m.ConfigurationPerRequest.excludeRegisterType = m.ExcludeRegisterTypeTag
-		m.ConfigurationPerRequest.logger = m.Log
-		cfg = &m.ConfigurationPerRequest
+		m.configurationPerRequest.workarounds = m.Workarounds
+		m.configurationPerRequest.excludeRegisterType = m.ExcludeRegisterTypeTag
+		m.configurationPerRequest.logger = m.Log
+		cfg = &m.configurationPerRequest
 	case "metric":
-		m.ConfigurationPerMetric.workarounds = m.Workarounds
-		m.ConfigurationPerMetric.excludeRegisterType = m.ExcludeRegisterTypeTag
-		m.ConfigurationPerMetric.logger = m.Log
-		cfg = &m.ConfigurationPerMetric
+		m.configurationPerMetric.workarounds = m.Workarounds
+		m.configurationPerMetric.excludeRegisterType = m.ExcludeRegisterTypeTag
+		m.configurationPerMetric.logger = m.Log
+		cfg = &m.configurationPerMetric
 	default:
 		return fmt.Errorf("unknown configuration type %q in device %q", m.ConfigurationType, m.Name)
 	}
 
 	// Check and process the configuration
-	if err := cfg.Check(); err != nil {
+	if err := cfg.check(); err != nil {
 		return fmt.Errorf("configuration invalid for device %q: %w", m.Name, err)
 	}
 
-	r, err := cfg.Process()
+	r, err := cfg.process()
 	if err != nil {
 		return fmt.Errorf("cannot process configuration for device %q: %w", m.Name, err)
 	}
@@ -219,7 +217,6 @@ func (m *Modbus) Init() error {
 	return nil
 }
 
-// Gather implements the telegraf plugin interface method for data accumulation
 func (m *Modbus) Gather(acc telegraf.Accumulator) error {
 	if !m.isConnected {
 		if err := m.connect(); err != nil {
@@ -254,22 +251,22 @@ func (m *Modbus) Gather(acc telegraf.Accumulator) error {
 		if !m.ExcludeRegisterTypeTag {
 			tags["type"] = cCoils
 		}
-		m.collectFields(grouper, timestamp, tags, requests.coil)
+		collectFields(grouper, timestamp, tags, requests.coil)
 
 		if !m.ExcludeRegisterTypeTag {
 			tags["type"] = cDiscreteInputs
 		}
-		m.collectFields(grouper, timestamp, tags, requests.discrete)
+		collectFields(grouper, timestamp, tags, requests.discrete)
 
 		if !m.ExcludeRegisterTypeTag {
 			tags["type"] = cHoldingRegisters
 		}
-		m.collectFields(grouper, timestamp, tags, requests.holding)
+		collectFields(grouper, timestamp, tags, requests.holding)
 
 		if !m.ExcludeRegisterTypeTag {
 			tags["type"] = cInputRegisters
 		}
-		m.collectFields(grouper, timestamp, tags, requests.input)
+		collectFields(grouper, timestamp, tags, requests.input)
 
 		// Add the metrics grouped by series to the accumulator
 		for _, x := range grouper.Metrics() {
@@ -535,7 +532,7 @@ func (m *Modbus) gatherRequestsInput(requests []request) error {
 	return nil
 }
 
-func (m *Modbus) collectFields(grouper *metric.SeriesGrouper, timestamp time.Time, tags map[string]string, requests []request) {
+func collectFields(grouper *metric.SeriesGrouper, timestamp time.Time, tags map[string]string, requests []request) {
 	for _, request := range requests {
 		for _, field := range request.fields {
 			// Collect tags from global and per-request
@@ -558,7 +555,7 @@ func (m *Modbus) collectFields(grouper *metric.SeriesGrouper, timestamp time.Tim
 	}
 }
 
-// Implement the logger interface of the modbus client
+// Printf implements the logger interface of the modbus client
 func (m *Modbus) Printf(format string, v ...interface{}) {
 	m.Log.Tracef(format, v...)
 }

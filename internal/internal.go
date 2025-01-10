@@ -359,7 +359,7 @@ func sanitizeTimestamp(timestamp string, decimalSeparator []string) string {
 }
 
 // parseTime parses a string timestamp according to the format string.
-func parseTime(format string, timestamp string, location *time.Location) (time.Time, error) {
+func parseTime(format, timestamp string, location *time.Location) (time.Time, error) {
 	loc := location
 	if loc == nil {
 		loc = time.UTC

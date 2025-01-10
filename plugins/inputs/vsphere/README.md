@@ -551,6 +551,8 @@ override the default query interval in the vSphere plugin.
   * Power: energy, usage
 * Datastore stats:
   * Disk: Capacity, provisioned, used
+* Numeric Sensor stats:
+  * CPU: temperature
 
 For a detailed list of commonly available metrics, please refer to
 [METRICS.md](METRICS.md)

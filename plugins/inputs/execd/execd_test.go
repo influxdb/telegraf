@@ -362,7 +362,7 @@ func readChanWithTimeout(t *testing.T, metrics chan telegraf.Metric, timeout tim
 
 type TestMetricMaker struct{}
 
-func (tm *TestMetricMaker) Name() string {
+func (*TestMetricMaker) Name() string {
 	return "TestPlugin"
 }
 
@@ -370,11 +370,11 @@ func (tm *TestMetricMaker) LogName() string {
 	return tm.Name()
 }
 
-func (tm *TestMetricMaker) MakeMetric(aMetric telegraf.Metric) telegraf.Metric {
+func (*TestMetricMaker) MakeMetric(aMetric telegraf.Metric) telegraf.Metric {
 	return aMetric
 }
 
-func (tm *TestMetricMaker) Log() telegraf.Logger {
+func (*TestMetricMaker) Log() telegraf.Logger {
 	return logger.New("TestPlugin", "test", "")
 }
 

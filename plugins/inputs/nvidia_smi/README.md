@@ -37,12 +37,6 @@ using the `startup_error_behavior` setting. Available values are:
 
   ## Optional: timeout for GPU polling
   # timeout = "5s"
-
-  ## Optional: Attempt to run nvidia-smi once on startup. If nvidia-smi returns a non-zero
-  ## exit code, the plugin will return an error. This is particularly useful
-  ## if used in conjunction with `startup_error_behavior` to allow the plugin to be 
-  ## disabled if nvidia-smi cannot run successfully.
-  # probe_on_startup = false
 ```
 
 ### Linux

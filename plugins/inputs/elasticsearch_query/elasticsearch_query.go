@@ -89,7 +89,7 @@ func (e *ElasticsearchQuery) Init() error {
 	return nil
 }
 
-func (e *ElasticsearchQuery) Start(_ telegraf.Accumulator) error {
+func (*ElasticsearchQuery) Start(telegraf.Accumulator) error {
 	return nil
 }
 

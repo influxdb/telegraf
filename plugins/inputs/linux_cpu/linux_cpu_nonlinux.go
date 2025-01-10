@@ -16,11 +16,13 @@ type LinuxCPU struct {
 	Log telegraf.Logger `toml:"-"`
 }
 
+func (*LinuxCPU) SampleConfig() string { return sampleConfig }
+
 func (l *LinuxCPU) Init() error {
-	l.Log.Warn("current platform is not supported")
+	l.Log.Warn("Current platform is not supported")
 	return nil
 }
-func (*LinuxCPU) SampleConfig() string                { return sampleConfig }
+
 func (*LinuxCPU) Gather(_ telegraf.Accumulator) error { return nil }
 
 func init() {

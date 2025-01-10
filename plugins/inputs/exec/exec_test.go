@@ -302,10 +302,9 @@ func TestTruncate(t *testing.T) {
 		},
 	}
 
-	c := commandRunner{}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			res := c.truncate(*tt.bufF())
+			res := truncate(*tt.bufF())
 			require.Equal(t, tt.expF().Bytes(), res.Bytes())
 		})
 	}

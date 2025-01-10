@@ -19,7 +19,6 @@ import (
 	"github.com/influxdata/telegraf/internal"
 	common_tls "github.com/influxdata/telegraf/plugins/common/tls"
 	"github.com/influxdata/telegraf/plugins/outputs"
-	"github.com/influxdata/telegraf/plugins/serializers"
 )
 
 //go:embed sample.conf
@@ -32,7 +31,7 @@ type SocketWriter struct {
 	common_tls.ClientConfig
 	Log telegraf.Logger `toml:"-"`
 
-	serializers.Serializer
+	serializer telegraf.Serializer
 
 	encoder internal.ContentEncoder
 
@@ -43,8 +42,8 @@ func (*SocketWriter) SampleConfig() string {
 	return sampleConfig
 }
 
-func (sw *SocketWriter) SetSerializer(s serializers.Serializer) {
-	sw.Serializer = s
+func (sw *SocketWriter) SetSerializer(s telegraf.Serializer) {
+	sw.serializer = s
 }
 
 func (sw *SocketWriter) Connect() error {
@@ -141,7 +140,7 @@ func (sw *SocketWriter) Write(metrics []telegraf.Metric) error {
 	}
 
 	for _, m := range metrics {
-		bs, err := sw.Serialize(m)
+		bs, err := sw.serializer.Serialize(m)
 		if err != nil {
 			sw.Log.Debugf("Could not serialize metric: %v", err)
 			continue

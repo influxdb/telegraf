@@ -49,6 +49,6 @@ func (w *writeToAccumulator) EnqueuePoint(
 	return nil
 }
 
-func (w *writeToAccumulator) WriteBatch(_ context.Context) error {
+func (*writeToAccumulator) WriteBatch(context.Context) error {
 	return nil
 }

@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -72,24 +73,54 @@ func TestWrite(t *testing.T) {
 	var body bytes.Buffer
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		gz, err := gzip.NewReader(r.Body)
-		require.NoError(t, err)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			t.Error(err)
+			return
+		}
 
 		var maxDecompressionSize int64 = 500 * 1024 * 1024
 		n, err := io.CopyN(&body, gz, maxDecompressionSize)
 		if errors.Is(err, io.EOF) {
 			err = nil
 		}
-		require.NoError(t, err)
-		require.NotEqualf(t, n, maxDecompressionSize, "size of decoded data exceeds allowed size %d", maxDecompressionSize)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			t.Error(err)
+			return
+		}
+		if n > maxDecompressionSize {
+			w.WriteHeader(http.StatusInternalServerError)
+			t.Errorf("Size of decoded data exceeds (%v) allowed size (%v)", n, maxDecompressionSize)
+			return
+		}
 
 		var lm Metric
-		err = json.Unmarshal(body.Bytes(), &lm)
-		require.NoError(t, err)
-
-		require.Equal(t, tm.Fields(), lm.Metric[tm.Name()])
-		require.Equal(t, logzioType, lm.Type)
-		require.Equal(t, tm.Tags(), lm.Dimensions)
-		require.Equal(t, tm.Time(), lm.Time)
+		if err = json.Unmarshal(body.Bytes(), &lm); err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			t.Error(err)
+			return
+		}
+		if !reflect.DeepEqual(lm.Metric[tm.Name()], tm.Fields()) {
+			w.WriteHeader(http.StatusInternalServerError)
+			t.Errorf("Not equal, expected: %q, actual: %q", tm.Fields(), lm.Metric[tm.Name()])
+			return
+		}
+		if lm.Type != logzioType {
+			w.WriteHeader(http.StatusInternalServerError)
+			t.Errorf("Not equal, expected: %q, actual: %q", logzioType, lm.Type)
+			return
+		}
+		if !reflect.DeepEqual(lm.Dimensions, tm.Tags()) {
+			w.WriteHeader(http.StatusInternalServerError)
+			t.Errorf("Not equal, expected: %q, actual: %q", tm.Tags(), lm.Dimensions)
+			return
+		}
+		if lm.Time != tm.Time() {
+			w.WriteHeader(http.StatusInternalServerError)
+			t.Errorf("Not equal, expected: %q, actual: %q", tm.Time(), lm.Time)
+			return
+		}
 
 		w.WriteHeader(http.StatusOK)
 	}))

@@ -14,7 +14,6 @@ import (
 	"github.com/influxdata/telegraf"
 	common_aws "github.com/influxdata/telegraf/plugins/common/aws"
 	"github.com/influxdata/telegraf/plugins/outputs"
-	"github.com/influxdata/telegraf/plugins/serializers"
 )
 
 //go:embed sample.conf
@@ -32,7 +31,7 @@ type (
 		Debug              bool       `toml:"debug"`
 
 		Log        telegraf.Logger `toml:"-"`
-		serializer serializers.Serializer
+		serializer telegraf.Serializer
 		svc        kinesisClient
 
 		common_aws.CredentialConfig
@@ -86,7 +85,7 @@ func (k *KinesisOutput) Close() error {
 	return nil
 }
 
-func (k *KinesisOutput) SetSerializer(serializer serializers.Serializer) {
+func (k *KinesisOutput) SetSerializer(serializer telegraf.Serializer) {
 	k.serializer = serializer
 }
 

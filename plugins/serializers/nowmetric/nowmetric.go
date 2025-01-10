@@ -130,13 +130,8 @@ func verifyValue(v interface{}) bool {
 
 func init() {
 	serializers.Add("nowmetric",
-		func() serializers.Serializer {
+		func() telegraf.Serializer {
 			return &Serializer{}
 		},
 	)
-}
-
-// InitFromConfig is a compatibility function to construct the parser the old way
-func (s *Serializer) InitFromConfig(_ *serializers.Config) error {
-	return nil
 }

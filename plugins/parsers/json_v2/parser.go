@@ -307,7 +307,7 @@ func cartesianProduct(a, b []telegraf.Metric) []telegraf.Metric {
 	return p
 }
 
-func mergeMetric(a telegraf.Metric, m telegraf.Metric) {
+func mergeMetric(a, m telegraf.Metric) {
 	for _, f := range a.FieldList() {
 		m.AddField(f.Key, f.Value)
 	}
@@ -657,7 +657,7 @@ func (p *Parser) SetDefaultTags(tags map[string]string) {
 }
 
 // convertType will convert the value parsed from the input JSON to the specified type in the config
-func (p *Parser) convertType(input gjson.Result, desiredType string, name string) (interface{}, error) {
+func (p *Parser) convertType(input gjson.Result, desiredType, name string) (interface{}, error) {
 	switch inputType := input.Value().(type) {
 	case string:
 		switch desiredType {

@@ -16,7 +16,6 @@ import (
 	"github.com/influxdata/telegraf/plugins/common/proxy"
 	"github.com/influxdata/telegraf/plugins/common/tls"
 	"github.com/influxdata/telegraf/plugins/outputs"
-	"github.com/influxdata/telegraf/plugins/serializers"
 )
 
 //go:embed sample.conf
@@ -42,7 +41,7 @@ type WebSocket struct {
 	tls.ClientConfig
 
 	conn       *ws.Conn
-	serializer serializers.Serializer
+	serializer telegraf.Serializer
 }
 
 func (*WebSocket) SampleConfig() string {
@@ -50,7 +49,7 @@ func (*WebSocket) SampleConfig() string {
 }
 
 // SetSerializer implements serializers.SerializerOutput.
-func (w *WebSocket) SetSerializer(serializer serializers.Serializer) {
+func (w *WebSocket) SetSerializer(serializer telegraf.Serializer) {
 	w.serializer = serializer
 }
 

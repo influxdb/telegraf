@@ -57,7 +57,7 @@ func (gcs *GCS) Init() error {
 	return gcs.setOffset()
 }
 
-func (gcs *GCS) SampleConfig() string {
+func (*GCS) SampleConfig() string {
 	return sampleConfig
 }
 

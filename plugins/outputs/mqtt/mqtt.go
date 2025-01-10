@@ -14,7 +14,6 @@ import (
 	"github.com/influxdata/telegraf/internal"
 	"github.com/influxdata/telegraf/plugins/common/mqtt"
 	"github.com/influxdata/telegraf/plugins/outputs"
-	"github.com/influxdata/telegraf/plugins/serializers"
 )
 
 //go:embed sample.conf
@@ -36,7 +35,7 @@ type MQTT struct {
 	mqtt.MqttConfig
 
 	client     mqtt.Client
-	serializer serializers.Serializer
+	serializer telegraf.Serializer
 	generator  *TopicNameGenerator
 
 	homieDeviceNameGenerator *HomieGenerator
@@ -118,7 +117,7 @@ func (m *MQTT) Connect() error {
 	return err
 }
 
-func (m *MQTT) SetSerializer(serializer serializers.Serializer) {
+func (m *MQTT) SetSerializer(serializer telegraf.Serializer) {
 	m.serializer = serializer
 }
 

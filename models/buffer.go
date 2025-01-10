@@ -10,11 +10,56 @@ import (
 )
 
 var (
-	AgentMetricsWritten = selfstat.Register("agent", "metrics_written", make(map[string]string))
-	AgentMetricsDropped = selfstat.Register("agent", "metrics_dropped", make(map[string]string))
+	AgentMetricsWritten  = selfstat.Register("agent", "metrics_written", make(map[string]string))
+	AgentMetricsRejected = selfstat.Register("agent", "metrics_rejected", make(map[string]string))
+	AgentMetricsDropped  = selfstat.Register("agent", "metrics_dropped", make(map[string]string))
 
 	registerGob = sync.OnceFunc(func() { metric.Init() })
 )
+
+type Transaction struct {
+	// Batch of metrics to write
+	Batch []telegraf.Metric
+
+	// Accept denotes the indices of metrics that were successfully written
+	Accept []int
+	// Reject denotes the indices of metrics that were not written but should
+	// not be requeued
+	Reject []int
+
+	// Marks this transaction as valid
+	valid bool
+
+	// Internal state that can be used by the buffer implementation
+	state interface{}
+}
+
+func (tx *Transaction) AcceptAll() {
+	tx.Accept = make([]int, len(tx.Batch))
+	for i := range tx.Batch {
+		tx.Accept[i] = i
+	}
+}
+
+func (tx *Transaction) KeepAll() {}
+
+func (tx *Transaction) InferKeep() []int {
+	used := make([]bool, len(tx.Batch))
+	for _, idx := range tx.Accept {
+		used[idx] = true
+	}
+	for _, idx := range tx.Reject {
+		used[idx] = true
+	}
+
+	keep := make([]int, 0, len(tx.Batch))
+	for i := range tx.Batch {
+		if !used[i] {
+			keep = append(keep, i)
+		}
+	}
+	return keep
+}
 
 type Buffer interface {
 	// Len returns the number of metrics currently in the buffer.
@@ -23,19 +68,15 @@ type Buffer interface {
 	// Add adds metrics to the buffer and returns number of dropped metrics.
 	Add(metrics ...telegraf.Metric) int
 
-	// Batch returns a slice containing up to batchSize of the oldest metrics not
-	// yet dropped.  Metrics are ordered from oldest to newest in the batch.  The
-	// batch must not be modified by the client.
-	Batch(batchSize int) []telegraf.Metric
+	// Batch starts a transaction by returning a slice of metrics up to the
+	// given batch-size starting from the oldest metric in the buffer. Metrics
+	// are ordered from oldest to newest and must not be modified by the plugin.
+	BeginTransaction(batchSize int) *Transaction
 
-	// Accept marks the batch, acquired from Batch(), as successfully written.
-	Accept(metrics []telegraf.Metric)
+	// Flush ends a metric and persists the buffer state
+	EndTransaction(*Transaction)
 
-	// Reject returns the batch, acquired from Batch(), to the buffer and marks it
-	// as unsent.
-	Reject([]telegraf.Metric)
-
-	// Stats returns the buffer statistics such as rejected, dropped and accepred metrics
+	// Stats returns the buffer statistics such as rejected, dropped and accepted metrics
 	Stats() BufferStats
 
 	// Close finalizes the buffer and closes all open resources
@@ -45,11 +86,12 @@ type Buffer interface {
 // BufferStats holds common metrics used for buffer implementations.
 // Implementations of Buffer should embed this struct in them.
 type BufferStats struct {
-	MetricsAdded   selfstat.Stat
-	MetricsWritten selfstat.Stat
-	MetricsDropped selfstat.Stat
-	BufferSize     selfstat.Stat
-	BufferLimit    selfstat.Stat
+	MetricsAdded    selfstat.Stat
+	MetricsWritten  selfstat.Stat
+	MetricsRejected selfstat.Stat
+	MetricsDropped  selfstat.Stat
+	BufferSize      selfstat.Stat
+	BufferLimit     selfstat.Stat
 }
 
 // NewBuffer returns a new empty Buffer with the given capacity.
@@ -67,7 +109,7 @@ func NewBuffer(name, id, alias string, capacity int, strategy, path string) (Buf
 	return nil, fmt.Errorf("invalid buffer strategy %q", strategy)
 }
 
-func NewBufferStats(name string, alias string, capacity int) BufferStats {
+func NewBufferStats(name, alias string, capacity int) BufferStats {
 	tags := map[string]string{"output": name}
 	if alias != "" {
 		tags["alias"] = alias
@@ -82,6 +124,11 @@ func NewBufferStats(name string, alias string, capacity int) BufferStats {
 		MetricsWritten: selfstat.Register(
 			"write",
 			"metrics_written",
+			tags,
+		),
+		MetricsRejected: selfstat.Register(
+			"write",
+			"metrics_rejected",
 			tags,
 		),
 		MetricsDropped: selfstat.Register(
@@ -113,6 +160,12 @@ func (b *BufferStats) metricWritten(m telegraf.Metric) {
 	AgentMetricsWritten.Incr(1)
 	b.MetricsWritten.Incr(1)
 	m.Accept()
+}
+
+func (b *BufferStats) metricRejected(m telegraf.Metric) {
+	AgentMetricsRejected.Incr(1)
+	b.MetricsRejected.Incr(1)
+	m.Reject()
 }
 
 func (b *BufferStats) metricDropped(m telegraf.Metric) {

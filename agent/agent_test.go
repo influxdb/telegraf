@@ -83,7 +83,6 @@ func TestAgent_LoadOutput(t *testing.T) {
 	require.Len(t, a.Config.Outputs, 1)
 
 	c = config.NewConfig()
-	c.OutputFilters = []string{}
 	err = c.LoadConfig("../config/testdata/telegraf-agent.toml")
 	require.NoError(t, err)
 	a = NewAgent(c)

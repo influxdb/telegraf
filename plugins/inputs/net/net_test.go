@@ -44,7 +44,7 @@ func TestNetIOStats(t *testing.T) {
 
 	t.Setenv("HOST_SYS", filepath.Join("testdata", "general", "sys"))
 
-	plugin := &NetIOStats{ps: &mps, skipChecks: true}
+	plugin := &Net{ps: &mps, skipChecks: true}
 
 	var acc testutil.Accumulator
 	require.NoError(t, plugin.Gather(&acc))
@@ -111,7 +111,7 @@ func TestNetIOStatsSpeedUnsupported(t *testing.T) {
 
 	t.Setenv("HOST_SYS", filepath.Join("testdata", "general", "sys"))
 
-	plugin := &NetIOStats{ps: &mps, skipChecks: true}
+	plugin := &Net{ps: &mps, skipChecks: true}
 
 	var acc testutil.Accumulator
 	require.NoError(t, plugin.Gather(&acc))
@@ -178,7 +178,7 @@ func TestNetIOStatsNoSpeedFile(t *testing.T) {
 
 	t.Setenv("HOST_SYS", filepath.Join("testdata", "general", "sys"))
 
-	plugin := &NetIOStats{ps: &mps, skipChecks: true}
+	plugin := &Net{ps: &mps, skipChecks: true}
 
 	var acc testutil.Accumulator
 	require.NoError(t, plugin.Gather(&acc))

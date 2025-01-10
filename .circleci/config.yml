@@ -8,7 +8,7 @@ executors:
     working_directory: '/go/src/github.com/influxdata/telegraf'
     resource_class: large
     docker:
-      - image: 'quay.io/influxdb/telegraf-ci:1.23.2'
+      - image: 'quay.io/influxdb/telegraf-ci:1.23.4'
     environment:
       GOFLAGS: -p=4
   mac:
@@ -106,7 +106,7 @@ jobs:
       - run: 'make check-deps'
       - run:
           name: "Install golangci-lint"
-          command: go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.61.0
+          command: go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.62.2
       - run:
           name: "golangci-lint/Linux"
           # There are only 4 vCPUs available for this executor, so use only 4 instead of the default number
@@ -120,7 +120,7 @@ jobs:
       - check-changed-files-or-halt
       - run:
           name: "Install golangci-lint"
-          command: go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.61.0
+          command: go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.62.2
       - run:
           name: "golangci-lint/macOS"
           # There are only 4 vCPUs available for this executor, so use only 4 instead of the default number
@@ -134,7 +134,7 @@ jobs:
       - check-changed-files-or-halt
       - run:
           name: "Install golangci-lint"
-          command: go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.61.0
+          command: go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.62.2
       - run:
           name: "golangci-lint/Windows"
           # There are only 4 vCPUs available for this executor, so use only 4 instead of the default number

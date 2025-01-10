@@ -17,7 +17,7 @@ var (
 )
 
 func TestStartNoParsers(t *testing.T) {
-	logparser := &LogParserPlugin{
+	logparser := &LogParser{
 		Log:           testutil.Logger{},
 		FromBeginning: true,
 		Files:         []string{filepath.Join(testdataDir, "*.log")},
@@ -28,11 +28,11 @@ func TestStartNoParsers(t *testing.T) {
 }
 
 func TestGrokParseLogFilesNonExistPattern(t *testing.T) {
-	logparser := &LogParserPlugin{
+	logparser := &LogParser{
 		Log:           testutil.Logger{},
 		FromBeginning: true,
 		Files:         []string{filepath.Join(testdataDir, "*.log")},
-		GrokConfig: GrokConfig{
+		GrokConfig: grokConfig{
 			Patterns:           []string{"%{FOOBAR}"},
 			CustomPatternFiles: []string{filepath.Join(testdataDir, "test-patterns")},
 		},
@@ -44,9 +44,9 @@ func TestGrokParseLogFilesNonExistPattern(t *testing.T) {
 }
 
 func TestGrokParseLogFiles(t *testing.T) {
-	logparser := &LogParserPlugin{
+	logparser := &LogParser{
 		Log: testutil.Logger{},
-		GrokConfig: GrokConfig{
+		GrokConfig: grokConfig{
 			MeasurementName:    "logparser_grok",
 			Patterns:           []string{"%{TEST_LOG_A}", "%{TEST_LOG_B}", "%{TEST_LOG_C}"},
 			CustomPatternFiles: []string{filepath.Join(testdataDir, "test-patterns")},
@@ -122,11 +122,11 @@ func TestGrokParseLogFilesAppearLater(t *testing.T) {
 	require.NoError(t, err)
 	defer os.RemoveAll(emptydir)
 
-	logparser := &LogParserPlugin{
+	logparser := &LogParser{
 		Log:           testutil.Logger{},
 		FromBeginning: true,
 		Files:         []string{filepath.Join(emptydir, "*.log")},
-		GrokConfig: GrokConfig{
+		GrokConfig: grokConfig{
 			MeasurementName:    "logparser_grok",
 			Patterns:           []string{"%{TEST_LOG_A}", "%{TEST_LOG_B}"},
 			CustomPatternFiles: []string{filepath.Join(testdataDir, "test-patterns")},
@@ -165,11 +165,11 @@ func TestGrokParseLogFilesAppearLater(t *testing.T) {
 // Test that test_a.log line gets parsed even though we don't have the correct
 // pattern available for test_b.log
 func TestGrokParseLogFilesOneBad(t *testing.T) {
-	logparser := &LogParserPlugin{
+	logparser := &LogParser{
 		Log:           testutil.Logger{},
 		FromBeginning: true,
 		Files:         []string{filepath.Join(testdataDir, "test_a.log")},
-		GrokConfig: GrokConfig{
+		GrokConfig: grokConfig{
 			MeasurementName:    "logparser_grok",
 			Patterns:           []string{"%{TEST_LOG_A}", "%{TEST_LOG_BAD}"},
 			CustomPatternFiles: []string{filepath.Join(testdataDir, "test-patterns")},
@@ -197,9 +197,9 @@ func TestGrokParseLogFilesOneBad(t *testing.T) {
 }
 
 func TestGrokParseLogFiles_TimestampInEpochMilli(t *testing.T) {
-	logparser := &LogParserPlugin{
+	logparser := &LogParser{
 		Log: testutil.Logger{},
-		GrokConfig: GrokConfig{
+		GrokConfig: grokConfig{
 			MeasurementName:    "logparser_grok",
 			Patterns:           []string{"%{TEST_LOG_C}"},
 			CustomPatternFiles: []string{filepath.Join(testdataDir, "test-patterns")},

@@ -232,7 +232,7 @@ func (s *SQLServer) Gather(acc telegraf.Accumulator) error {
 
 				if s.HealthMetric {
 					mutex.Lock()
-					s.gatherHealth(healthMetrics, dsn, queryError)
+					gatherHealth(healthMetrics, dsn, queryError)
 					mutex.Unlock()
 				}
 
@@ -425,7 +425,7 @@ func (s *SQLServer) accRow(query Query, acc telegraf.Accumulator, row scanner) e
 }
 
 // gatherHealth stores info about any query errors in the healthMetrics map
-func (s *SQLServer) gatherHealth(healthMetrics map[string]*HealthMetric, serv string, queryError error) {
+func gatherHealth(healthMetrics map[string]*HealthMetric, serv string, queryError error) {
 	if healthMetrics[serv] == nil {
 		healthMetrics[serv] = &HealthMetric{}
 	}

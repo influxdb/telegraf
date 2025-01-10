@@ -21,6 +21,8 @@ import (
 //go:embed sample.conf
 var sampleConfig string
 
+var ignoredColumns = map[string]bool{"stats_reset": true}
+
 type Postgresql struct {
 	Databases          []string        `deprecated:"1.22.4;use the sqlquery option to specify database to use"`
 	Query              []query         `toml:"query"`
@@ -45,7 +47,9 @@ type query struct {
 	additionalTags map[string]bool
 }
 
-var ignoredColumns = map[string]bool{"stats_reset": true}
+type scanner interface {
+	Scan(dest ...interface{}) error
+}
 
 func (*Postgresql) SampleConfig() string {
 	return sampleConfig
@@ -102,10 +106,6 @@ func (p *Postgresql) Start(_ telegraf.Accumulator) error {
 	return p.service.Start()
 }
 
-func (p *Postgresql) Stop() {
-	p.service.Stop()
-}
-
 func (p *Postgresql) Gather(acc telegraf.Accumulator) error {
 	// Retrieving the database version
 	query := `SELECT setting::integer / 100 AS version FROM pg_settings WHERE name = 'server_version_num'`
@@ -128,6 +128,10 @@ func (p *Postgresql) Gather(acc telegraf.Accumulator) error {
 	return nil
 }
 
+func (p *Postgresql) Stop() {
+	p.service.Stop()
+}
+
 func (p *Postgresql) gatherMetricsFromQuery(acc telegraf.Accumulator, q query, timestamp time.Time) error {
 	rows, err := p.service.DB.Query(q.Sqlquery)
 	if err != nil {
@@ -148,10 +152,6 @@ func (p *Postgresql) gatherMetricsFromQuery(acc telegraf.Accumulator, q query, t
 		}
 	}
 	return nil
-}
-
-type scanner interface {
-	Scan(dest ...interface{}) error
 }
 
 func (p *Postgresql) accRow(acc telegraf.Accumulator, row scanner, columns []string, q query, timestamp time.Time) error {

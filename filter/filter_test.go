@@ -7,7 +7,7 @@ import (
 )
 
 func TestCompile(t *testing.T) {
-	f, err := Compile([]string{})
+	f, err := Compile(nil)
 	require.NoError(t, err)
 	require.Nil(t, f)
 
@@ -50,10 +50,10 @@ func TestCompile(t *testing.T) {
 }
 
 func TestIncludeExclude(t *testing.T) {
-	tags := []string{}
 	labels := []string{"best", "com_influxdata", "timeseries", "com_influxdata_telegraf", "ever"}
+	tags := make([]string, 0, len(labels))
 
-	filter, err := NewIncludeExcludeFilter([]string{}, []string{"com_influx*"})
+	filter, err := NewIncludeExcludeFilter(nil, []string{"com_influx*"})
 	if err != nil {
 		t.Fatalf("Failed to create include/exclude filter - %v", err)
 	}

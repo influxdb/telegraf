@@ -56,7 +56,7 @@ type fileInfo struct {
 	pciBdf   string // PCI Bus:Device.Function (BDF)
 }
 
-func (p *IntelPMT) SampleConfig() string {
+func (*IntelPMT) SampleConfig() string {
 	return sampleConfig
 }
 

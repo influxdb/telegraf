@@ -16,7 +16,7 @@ import (
 // status: uint32
 // dataLength: size_t
 // data: byte[dataLength]
-func (p *PowerdnsRecursor) gatherFromV3Server(address string, acc telegraf.Accumulator) error {
+func gatherFromV3Server(address string, acc telegraf.Accumulator) error {
 	conn, err := net.Dial("unix", address)
 	if err != nil {
 		return err

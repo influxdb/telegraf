@@ -19,22 +19,8 @@ import (
 //go:embed sample.conf
 var sampleConfig string
 
-type passenger struct {
-	Command string
-}
-
-func (p *passenger) parseCommand() (string, []string) {
-	var arguments []string
-	if !strings.Contains(p.Command, " ") {
-		return p.Command, arguments
-	}
-
-	arguments = strings.Split(p.Command, " ")
-	if len(arguments) == 1 {
-		return arguments[0], arguments[1:]
-	}
-
-	return arguments[0], arguments[1:]
+type Passenger struct {
+	Command string `toml:"command"`
 }
 
 type info struct {
@@ -91,6 +77,39 @@ type process struct {
 	ProcessGroupID      string `xml:"process_group_id"`
 }
 
+func (*Passenger) SampleConfig() string {
+	return sampleConfig
+}
+
+func (p *Passenger) Gather(acc telegraf.Accumulator) error {
+	if p.Command == "" {
+		p.Command = "passenger-status -v --show=xml"
+	}
+
+	cmd, args := p.parseCommand()
+	out, err := exec.Command(cmd, args...).Output()
+
+	if err != nil {
+		return err
+	}
+
+	return importMetric(out, acc)
+}
+
+func (p *Passenger) parseCommand() (string, []string) {
+	var arguments []string
+	if !strings.Contains(p.Command, " ") {
+		return p.Command, arguments
+	}
+
+	arguments = strings.Split(p.Command, " ")
+	if len(arguments) == 1 {
+		return arguments[0], arguments[1:]
+	}
+
+	return arguments[0], arguments[1:]
+}
+
 func (p *process) getUptime() int64 {
 	if p.Uptime == "" {
 		return 0
@@ -129,25 +148,6 @@ func (p *process) getUptime() int64 {
 	}
 
 	return uptime
-}
-
-func (*passenger) SampleConfig() string {
-	return sampleConfig
-}
-
-func (p *passenger) Gather(acc telegraf.Accumulator) error {
-	if p.Command == "" {
-		p.Command = "passenger-status -v --show=xml"
-	}
-
-	cmd, args := p.parseCommand()
-	out, err := exec.Command(cmd, args...).Output()
-
-	if err != nil {
-		return err
-	}
-
-	return importMetric(out, acc)
 }
 
 func importMetric(stat []byte, acc telegraf.Accumulator) error {
@@ -231,6 +231,6 @@ func importMetric(stat []byte, acc telegraf.Accumulator) error {
 
 func init() {
 	inputs.Add("passenger", func() telegraf.Input {
-		return &passenger{}
+		return &Passenger{}
 	})
 }

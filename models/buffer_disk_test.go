@@ -27,9 +27,9 @@ func TestDiskBufferRetainsTrackingInformation(t *testing.T) {
 	defer buf.Close()
 
 	buf.Add(mm)
-
-	batch := buf.Batch(1)
-	buf.Accept(batch)
+	tx := buf.BeginTransaction(1)
+	tx.AcceptAll()
+	buf.EndTransaction(tx)
 	require.Equal(t, 1, delivered)
 }
 
@@ -85,11 +85,11 @@ func TestDiskBufferTrackingDroppedFromOldWal(t *testing.T) {
 	buf.Stats().MetricsDropped.Set(0)
 	defer buf.Close()
 
-	batch := buf.Batch(4)
+	tx := buf.BeginTransaction(4)
 
 	// Check that the tracking metric is skipped
 	expected := []telegraf.Metric{
 		metrics[0], metrics[1], metrics[2], metrics[4],
 	}
-	testutil.RequireMetricsEqual(t, expected, batch)
+	testutil.RequireMetricsEqual(t, expected, tx.Batch)
 }

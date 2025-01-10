@@ -48,22 +48,22 @@ type sineWave struct {
 }
 
 type step struct {
-	latest float64
-
 	Name  string  `toml:"name"`
 	Start float64 `toml:"start"`
 	Step  float64 `toml:"step"`
 
 	Min float64 `toml:"min" deprecated:"1.28.2;1.35.0;use 'start' instead"`
 	Max float64 `toml:"max" deprecated:"1.28.2;1.35.0;use 'step' instead"`
+
+	latest float64
 }
 
 type stock struct {
-	latest float64
-
 	Name       string  `toml:"name"`
 	Price      float64 `toml:"price"`
 	Volatility float64 `toml:"volatility"`
+
+	latest float64
 }
 
 func (*Mock) SampleConfig() string {

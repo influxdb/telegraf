@@ -16,15 +16,15 @@ import (
 	"github.com/influxdata/telegraf/plugins/common/opcua/input"
 )
 
-type SubscribeClientConfig struct {
+type subscribeClientConfig struct {
 	input.InputClientConfig
 	SubscriptionInterval config.Duration `toml:"subscription_interval"`
 	ConnectFailBehavior  string          `toml:"connect_fail_behavior"`
 }
 
-type SubscribeClient struct {
+type subscribeClient struct {
 	*input.OpcUAInputClient
-	Config SubscribeClientConfig
+	Config subscribeClientConfig
 
 	sub                *opcua.Subscription
 	monitoredItemsReqs []*ua.MonitoredItemCreateRequest
@@ -81,7 +81,7 @@ func assignConfigValuesToRequest(req *ua.MonitoredItemCreateRequest, monParams *
 	return nil
 }
 
-func (sc *SubscribeClientConfig) CreateSubscribeClient(log telegraf.Logger) (*SubscribeClient, error) {
+func (sc *subscribeClientConfig) createSubscribeClient(log telegraf.Logger) (*subscribeClient, error) {
 	client, err := sc.InputClientConfig.CreateInputClient(log)
 	if err != nil {
 		return nil, err
@@ -92,7 +92,7 @@ func (sc *SubscribeClientConfig) CreateSubscribeClient(log telegraf.Logger) (*Su
 	}
 
 	processingCtx, processingCancel := context.WithCancel(context.Background())
-	subClient := &SubscribeClient{
+	subClient := &subscribeClient{
 		OpcUAInputClient:   client,
 		Config:             *sc,
 		monitoredItemsReqs: make([]*ua.MonitoredItemCreateRequest, len(client.NodeIDs)),
@@ -118,7 +118,7 @@ func (sc *SubscribeClientConfig) CreateSubscribeClient(log telegraf.Logger) (*Su
 	return subClient, nil
 }
 
-func (o *SubscribeClient) Connect() error {
+func (o *subscribeClient) connect() error {
 	err := o.OpcUAClient.Connect(o.ctx)
 	if err != nil {
 		return err
@@ -137,7 +137,7 @@ func (o *SubscribeClient) Connect() error {
 	return nil
 }
 
-func (o *SubscribeClient) Stop(ctx context.Context) <-chan struct{} {
+func (o *subscribeClient) stop(ctx context.Context) <-chan struct{} {
 	o.Log.Debugf("Stopping OPC subscription...")
 	if o.State() != opcuaclient.Connected {
 		return nil
@@ -152,8 +152,8 @@ func (o *SubscribeClient) Stop(ctx context.Context) <-chan struct{} {
 	return closing
 }
 
-func (o *SubscribeClient) StartStreamValues(ctx context.Context) (<-chan telegraf.Metric, error) {
-	err := o.Connect()
+func (o *subscribeClient) startStreamValues(ctx context.Context) (<-chan telegraf.Metric, error) {
+	err := o.connect()
 	if err != nil {
 		switch o.Config.ConnectFailBehavior {
 		case "retry":
@@ -191,7 +191,7 @@ func (o *SubscribeClient) StartStreamValues(ctx context.Context) (<-chan telegra
 	return o.metrics, nil
 }
 
-func (o *SubscribeClient) processReceivedNotifications() {
+func (o *subscribeClient) processReceivedNotifications() {
 	for {
 		select {
 		case <-o.ctx.Done():

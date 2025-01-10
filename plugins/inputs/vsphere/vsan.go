@@ -72,7 +72,7 @@ func (e *Endpoint) collectVsanPerCluster(ctx context.Context, clusterRef *object
 	metrics map[string]string, acc telegraf.Accumulator) {
 	// Construct a map for cmmds
 	cluster := object.NewClusterComputeResource(vimClient, clusterRef.ref)
-	if !e.vsanEnabled(ctx, cluster) {
+	if !vsanEnabled(ctx, cluster) {
 		acc.AddError(fmt.Errorf("[vSAN] Fail to identify vSAN for cluster %s. Skipping", clusterRef.name))
 		return
 	}
@@ -103,7 +103,7 @@ func (e *Endpoint) collectVsanPerCluster(ctx context.Context, clusterRef *object
 }
 
 // vsanEnabled returns True if vSAN is enabled, otherwise False
-func (e *Endpoint) vsanEnabled(ctx context.Context, clusterObj *object.ClusterComputeResource) bool {
+func vsanEnabled(ctx context.Context, clusterObj *object.ClusterComputeResource) bool {
 	config, err := clusterObj.Configuration(ctx)
 	if err != nil {
 		return false

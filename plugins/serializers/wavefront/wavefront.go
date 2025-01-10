@@ -189,18 +189,8 @@ func (b *buffer) WriteFloat64(val float64) {
 
 func init() {
 	serializers.Add("wavefront",
-		func() serializers.Serializer {
+		func() telegraf.Serializer {
 			return &Serializer{}
 		},
 	)
-}
-
-// InitFromConfig is a compatibility function to construct the parser the old way
-func (s *Serializer) InitFromConfig(cfg *serializers.Config) error {
-	s.Prefix = cfg.Prefix
-	s.UseStrict = cfg.WavefrontUseStrict
-	s.SourceOverride = cfg.WavefrontSourceOverride
-	s.DisablePrefixConversions = cfg.WavefrontDisablePrefixConversion
-
-	return nil
 }

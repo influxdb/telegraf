@@ -221,7 +221,7 @@ func makeReadResponses(jresponses []jolokiaResponse) []ReadResponse {
 		rrequest := ReadRequest{
 			Mbean:      jr.Request.Mbean,
 			Path:       jr.Request.Path,
-			Attributes: []string{},
+			Attributes: make([]string, 0),
 		}
 
 		attrValue := jr.Request.Attribute

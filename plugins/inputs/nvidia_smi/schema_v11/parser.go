@@ -8,6 +8,7 @@ import (
 	"github.com/influxdata/telegraf/plugins/inputs/nvidia_smi/common"
 )
 
+// Parse parses the XML-encoded data from nvidia-smi and adds measurements.
 func Parse(acc telegraf.Accumulator, buf []byte) error {
 	var s smi
 	if err := xml.Unmarshal(buf, &s); err != nil {

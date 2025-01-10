@@ -68,7 +68,7 @@ func (s *Solr) Start(_ telegraf.Accumulator) error {
 	return nil
 }
 
-func (s *Solr) Stop() {}
+func (*Solr) Stop() {}
 
 func (s *Solr) Gather(acc telegraf.Accumulator) error {
 	var wg sync.WaitGroup

@@ -51,15 +51,15 @@ type mockServer struct {
 	grpcServer *grpc.Server
 }
 
-func (s *mockServer) Capabilities(context.Context, *gnmi.CapabilityRequest) (*gnmi.CapabilityResponse, error) {
+func (*mockServer) Capabilities(context.Context, *gnmi.CapabilityRequest) (*gnmi.CapabilityResponse, error) {
 	return nil, nil
 }
 
-func (s *mockServer) Get(context.Context, *gnmi.GetRequest) (*gnmi.GetResponse, error) {
+func (*mockServer) Get(context.Context, *gnmi.GetRequest) (*gnmi.GetResponse, error) {
 	return nil, nil
 }
 
-func (s *mockServer) Set(context.Context, *gnmi.SetRequest) (*gnmi.SetResponse, error) {
+func (*mockServer) Set(context.Context, *gnmi.SetRequest) (*gnmi.SetResponse, error) {
 	return nil, nil
 }
 

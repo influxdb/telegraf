@@ -19,6 +19,8 @@ import (
 //go:embed sample.conf
 var sampleConfig string
 
+var pendingActions = []string{"ignore", "alert", "restart", "stop", "exec", "unmonitor", "start", "monitor"}
+
 const (
 	fileSystem = "0"
 	directory  = "1"
@@ -31,7 +33,14 @@ const (
 	network    = "8"
 )
 
-var pendingActions = []string{"ignore", "alert", "restart", "stop", "exec", "unmonitor", "start", "monitor"}
+type Monit struct {
+	Address  string          `toml:"address"`
+	Username string          `toml:"username"`
+	Password string          `toml:"password"`
+	Timeout  config.Duration `toml:"timeout"`
+	client   http.Client
+	tls.ClientConfig
+}
 
 type status struct {
 	Server   server    `xml:"server"`
@@ -177,15 +186,6 @@ type system struct {
 		Percent  float64 `xml:"percent"`
 		Kilobyte float64 `xml:"kilobyte"`
 	} `xml:"swap"`
-}
-
-type Monit struct {
-	Address  string `toml:"address"`
-	Username string `toml:"username"`
-	Password string `toml:"password"`
-	client   http.Client
-	tls.ClientConfig
-	Timeout config.Duration `toml:"timeout"`
 }
 
 func (*Monit) SampleConfig() string {

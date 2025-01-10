@@ -199,7 +199,7 @@ func withCLocale(cmd *exec.Cmd) *exec.Cmd {
 //
 // and parses the output to add it to the telegraf.Accumulator acc.
 func (s *Sysstat) parse(acc telegraf.Accumulator, option, tmpfile string, ts time.Time) error {
-	cmd := execCommand(s.Sadf, s.sadfOptions(option, tmpfile)...)
+	cmd := execCommand(s.Sadf, sadfOptions(option, tmpfile)...)
 	cmd = withCLocale(cmd)
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
@@ -282,7 +282,7 @@ func (s *Sysstat) parse(acc telegraf.Accumulator, option, tmpfile string, ts tim
 }
 
 // sadfOptions creates the correct options for the sadf utility.
-func (s *Sysstat) sadfOptions(activityOption, tmpfile string) []string {
+func sadfOptions(activityOption, tmpfile string) []string {
 	options := []string{
 		"-p",
 		"--",

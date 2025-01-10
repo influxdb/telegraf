@@ -10,14 +10,9 @@ import (
 	"strings"
 
 	"github.com/influxdata/telegraf"
+	"github.com/influxdata/telegraf/internal"
 	"github.com/influxdata/telegraf/plugins/inputs"
 )
-
-// default host proc path
-const defaultHostProc = "/proc"
-
-// env host proc variable name
-const envProc = "HOST_PROC"
 
 // length of wireless interface fields
 const interfaceFieldLength = 10
@@ -41,7 +36,9 @@ type wirelessInterface struct {
 // Gather collects the wireless information.
 func (w *Wireless) Gather(acc telegraf.Accumulator) error {
 	// load proc path, get default value if config value and env variable are empty
-	w.loadPath()
+	if w.HostProc == "" {
+		w.HostProc = internal.GetProcPath()
+	}
 
 	wirelessPath := path.Join(w.HostProc, "net", "wireless")
 	table, err := os.ReadFile(wirelessPath)
@@ -115,24 +112,6 @@ func (w *Wireless) loadWirelessTable(table []byte) ([]*wirelessInterface, error)
 		})
 	}
 	return wi, nil
-}
-
-// loadPath can be used to read path firstly from config
-// if it is empty then try read from env variable
-func (w *Wireless) loadPath() {
-	if w.HostProc == "" {
-		w.HostProc = proc(envProc, defaultHostProc)
-	}
-}
-
-// proc can be used to read file paths from env
-func proc(env, defaultPath string) string {
-	// try to read full file path
-	if p := os.Getenv(env); p != "" {
-		return p
-	}
-	// return default path
-	return defaultPath
 }
 
 func init() {

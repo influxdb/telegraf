@@ -173,7 +173,7 @@ func TestNode(t *testing.T) {
 
 		if v.name == "no nodes" {
 			nodeCount := len((v.handler.responseMap["/nodes/"]).(corev1.NodeList).Items)
-			ks.gatherNodeCount(nodeCount, acc)
+			gatherNodeCount(nodeCount, acc)
 		}
 		require.Len(t, acc.Metrics, len(v.output))
 		testutil.RequireMetricsEqual(t, acc.GetTelegrafMetrics(), v.output, testutil.IgnoreTime())

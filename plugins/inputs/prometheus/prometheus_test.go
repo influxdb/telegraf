@@ -630,7 +630,7 @@ func TestInitConfigSelectors(t *testing.T) {
 		URLs:                        nil,
 		URLTag:                      "url",
 		MonitorPods:                 true,
-		MonitorKubernetesPodsMethod: MonitorMethodSettings,
+		MonitorKubernetesPodsMethod: monitorMethodSettings,
 		PodScrapeInterval:           60,
 		KubernetesLabelSelector:     "app=test",
 		KubernetesFieldSelector:     "spec.nodeName=node-0",

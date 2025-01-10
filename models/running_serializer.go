@@ -5,7 +5,6 @@ import (
 
 	"github.com/influxdata/telegraf"
 	logging "github.com/influxdata/telegraf/logger"
-	"github.com/influxdata/telegraf/plugins/serializers"
 	"github.com/influxdata/telegraf/selfstat"
 )
 
@@ -19,7 +18,7 @@ type SerializerConfig struct {
 }
 
 type RunningSerializer struct {
-	Serializer serializers.Serializer
+	Serializer telegraf.Serializer
 	Config     *SerializerConfig
 	log        telegraf.Logger
 
@@ -28,7 +27,7 @@ type RunningSerializer struct {
 	SerializationTime selfstat.Stat
 }
 
-func NewRunningSerializer(serializer serializers.Serializer, config *SerializerConfig) *RunningSerializer {
+func NewRunningSerializer(serializer telegraf.Serializer, config *SerializerConfig) *RunningSerializer {
 	tags := map[string]string{"type": config.DataFormat}
 	if config.Alias != "" {
 		tags["alias"] = config.Alias

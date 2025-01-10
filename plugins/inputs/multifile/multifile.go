@@ -19,15 +19,15 @@ import (
 var sampleConfig string
 
 type MultiFile struct {
-	BaseDir   string
-	FailEarly bool
-	Files     []File `toml:"file"`
+	BaseDir   string `toml:"base_dir"`
+	FailEarly bool   `toml:"fail_early"`
+	Files     []file `toml:"file"`
 }
 
-type File struct {
+type file struct {
 	Name       string `toml:"file"`
-	Dest       string
-	Conversion string
+	Dest       string `toml:"dest"`
+	Conversion string `toml:"conversion"`
 }
 
 func (*MultiFile) SampleConfig() string {

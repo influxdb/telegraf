@@ -34,7 +34,7 @@ type Tacacs struct {
 //go:embed sample.conf
 var sampleConfig string
 
-func (t *Tacacs) SampleConfig() string {
+func (*Tacacs) SampleConfig() string {
 	return sampleConfig
 }
 
@@ -74,7 +74,7 @@ func (t *Tacacs) Init() error {
 	return nil
 }
 
-func (t *Tacacs) AuthenReplyToString(code uint8) string {
+func AuthenReplyToString(code uint8) string {
 	switch code {
 	case tacplus.AuthenStatusPass:
 		return `AuthenStatusPass`
@@ -157,7 +157,7 @@ func (t *Tacacs) pollServer(acc telegraf.Accumulator, client *tacplus.Client) er
 	defer session.Close()
 	if reply.Status != tacplus.AuthenStatusGetUser {
 		fields["responsetime_ms"] = time.Since(startTime).Milliseconds()
-		fields["response_status"] = t.AuthenReplyToString(reply.Status)
+		fields["response_status"] = AuthenReplyToString(reply.Status)
 		acc.AddFields("tacacs", fields, tags)
 		return nil
 	}
@@ -174,7 +174,7 @@ func (t *Tacacs) pollServer(acc telegraf.Accumulator, client *tacplus.Client) er
 	}
 	if reply.Status != tacplus.AuthenStatusGetPass {
 		fields["responsetime_ms"] = time.Since(startTime).Milliseconds()
-		fields["response_status"] = t.AuthenReplyToString(reply.Status)
+		fields["response_status"] = AuthenReplyToString(reply.Status)
 		acc.AddFields("tacacs", fields, tags)
 		return nil
 	}
@@ -191,13 +191,13 @@ func (t *Tacacs) pollServer(acc telegraf.Accumulator, client *tacplus.Client) er
 	}
 	if reply.Status != tacplus.AuthenStatusPass {
 		fields["responsetime_ms"] = time.Since(startTime).Milliseconds()
-		fields["response_status"] = t.AuthenReplyToString(reply.Status)
+		fields["response_status"] = AuthenReplyToString(reply.Status)
 		acc.AddFields("tacacs", fields, tags)
 		return nil
 	}
 
 	fields["responsetime_ms"] = time.Since(startTime).Milliseconds()
-	fields["response_status"] = t.AuthenReplyToString(reply.Status)
+	fields["response_status"] = AuthenReplyToString(reply.Status)
 	acc.AddFields("tacacs", fields, tags)
 	return nil
 }

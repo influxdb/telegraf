@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -20,7 +21,6 @@ import (
 	common_aws "github.com/influxdata/telegraf/plugins/common/aws"
 	common_http "github.com/influxdata/telegraf/plugins/common/http"
 	"github.com/influxdata/telegraf/plugins/common/oauth"
-	"github.com/influxdata/telegraf/plugins/serializers"
 	"github.com/influxdata/telegraf/plugins/serializers/influx"
 	"github.com/influxdata/telegraf/plugins/serializers/json"
 	"github.com/influxdata/telegraf/testutil"
@@ -108,7 +108,11 @@ func TestMethod(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ts.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				require.Equal(t, tt.expectedMethod, r.Method)
+				if r.Method != tt.expectedMethod {
+					w.WriteHeader(http.StatusInternalServerError)
+					t.Errorf("Not equal, expected: %q, actual: %q", tt.expectedMethod, r.Method)
+					return
+				}
 				w.WriteHeader(http.StatusOK)
 			})
 
@@ -316,7 +320,11 @@ func TestContentType(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ts.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				require.Equal(t, tt.expected, r.Header.Get("Content-Type"))
+				if contentHeader := r.Header.Get("Content-Type"); contentHeader != tt.expected {
+					w.WriteHeader(http.StatusInternalServerError)
+					t.Errorf("Not equal, expected: %q, actual: %q", tt.expected, contentHeader)
+					return
+				}
 				w.WriteHeader(http.StatusOK)
 			})
 
@@ -365,18 +373,34 @@ func TestContentEncodingGzip(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ts.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				require.Equal(t, tt.expected, r.Header.Get("Content-Encoding"))
+				if contentHeader := r.Header.Get("Content-Encoding"); contentHeader != tt.expected {
+					w.WriteHeader(http.StatusInternalServerError)
+					t.Errorf("Not equal, expected: %q, actual: %q", tt.expected, contentHeader)
+					return
+				}
 
 				body := r.Body
 				var err error
 				if r.Header.Get("Content-Encoding") == "gzip" {
 					body, err = gzip.NewReader(r.Body)
-					require.NoError(t, err)
+					if err != nil {
+						w.WriteHeader(http.StatusInternalServerError)
+						t.Error(err)
+						return
+					}
 				}
 
 				payload, err := io.ReadAll(body)
-				require.NoError(t, err)
-				require.Contains(t, string(payload), "cpu value=42")
+				if err != nil {
+					w.WriteHeader(http.StatusInternalServerError)
+					t.Error(err)
+					return
+				}
+				if !strings.Contains(string(payload), "cpu value=42") {
+					w.WriteHeader(http.StatusInternalServerError)
+					t.Errorf("'payload' should contain %q", "cpu value=42")
+					return
+				}
 
 				w.WriteHeader(http.StatusNoContent)
 			})
@@ -432,8 +456,16 @@ func TestBasicAuth(t *testing.T) {
 			}
 			ts.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				username, password, _ := r.BasicAuth()
-				require.Equal(t, tt.username, username)
-				require.Equal(t, tt.password, password)
+				if username != tt.username {
+					w.WriteHeader(http.StatusInternalServerError)
+					t.Errorf("Not equal, expected: %q, actual: %q", tt.username, username)
+					return
+				}
+				if password != tt.password {
+					w.WriteHeader(http.StatusInternalServerError)
+					t.Errorf("Not equal, expected: %q, actual: %q", tt.password, password)
+					return
+				}
 				w.WriteHeader(http.StatusOK)
 			})
 
@@ -660,7 +692,11 @@ func TestDefaultUserAgent(t *testing.T) {
 
 	t.Run("default-user-agent", func(t *testing.T) {
 		ts.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			require.Equal(t, internal.ProductToken(), r.Header.Get("User-Agent"))
+			if userHeader := r.Header.Get("User-Agent"); userHeader != internal.ProductToken() {
+				w.WriteHeader(http.StatusInternalServerError)
+				t.Errorf("Not equal, expected: %q, actual: %q", internal.ProductToken(), userHeader)
+				return
+			}
 			w.WriteHeader(http.StatusOK)
 		})
 
@@ -698,7 +734,7 @@ func TestBatchedUnbatched(t *testing.T) {
 	jsonSerializer := &json.Serializer{}
 	require.NoError(t, jsonSerializer.Init())
 
-	s := map[string]serializers.Serializer{
+	s := map[string]telegraf.Serializer{
 		"influx": influxSerializer,
 		"json":   jsonSerializer,
 	}

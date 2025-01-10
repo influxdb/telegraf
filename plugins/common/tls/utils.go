@@ -39,8 +39,7 @@ func Ciphers() (secure, insecure []string) {
 // ParseCiphers returns a `[]uint16` by received `[]string` key that represents ciphers from crypto/tls.
 // If some of ciphers in received list doesn't exists  ParseCiphers returns nil with error
 func ParseCiphers(ciphers []string) ([]uint16, error) {
-	suites := []uint16{}
-
+	suites := make([]uint16, 0)
 	added := make(map[uint16]bool, len(ciphers))
 	for _, c := range ciphers {
 		// Handle meta-keywords

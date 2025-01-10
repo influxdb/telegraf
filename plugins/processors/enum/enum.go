@@ -153,7 +153,7 @@ func writeField(metric telegraf.Metric, name string, value interface{}) {
 	metric.AddField(name, value)
 }
 
-func writeTag(metric telegraf.Metric, name string, value string) {
+func writeTag(metric telegraf.Metric, name, value string) {
 	metric.RemoveTag(name)
 	metric.AddTag(name, value)
 }

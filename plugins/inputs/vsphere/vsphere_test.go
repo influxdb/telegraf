@@ -3,7 +3,6 @@ package vsphere
 import (
 	"context"
 	"crypto/tls"
-	"fmt"
 	"net/url"
 	"os"
 	"strings"
@@ -518,7 +517,7 @@ func testCollection(t *testing.T, excludeClusters bool) {
 	require.NoError(t, v.Start(&acc))
 	defer v.Stop()
 	require.NoError(t, v.Gather(&acc))
-	require.Empty(t, acc.Errors, fmt.Sprintf("Errors found: %s", acc.Errors))
+	require.Emptyf(t, acc.Errors, "Errors found: %s", acc.Errors)
 	require.NotEmpty(t, acc.Metrics, "No metrics were collected")
 	cache := make(map[string]string)
 	client, err := v.endpoints[0].clientFactory.GetClient(context.Background())
@@ -621,6 +620,6 @@ func TestVersionLowerThan(t *testing.T) {
 	}
 	for _, tc := range tests {
 		result := versionLowerThan(tc.current, tc.major, tc.minor)
-		require.Equal(t, tc.result, result, fmt.Sprintf("%s < %d.%d", tc.current, tc.major, tc.minor))
+		require.Equalf(t, tc.result, result, "%s < %d.%d", tc.current, tc.major, tc.minor)
 	}
 }

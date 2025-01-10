@@ -41,17 +41,19 @@ func (l *structuredLogger) Print(level telegraf.LogLevel, ts time.Time, _ string
 	}
 }
 
-var defaultStructuredHandlerOptions = &slog.HandlerOptions{
-	Level: slog.Level(-99),
-	ReplaceAttr: func(_ []string, attr slog.Attr) slog.Attr {
-		// Translate the Telegraf log-levels to strings
-		if attr.Key == slog.LevelKey {
-			if level, ok := attr.Value.Any().(slog.Level); ok {
-				attr.Value = slog.StringValue(telegraf.LogLevel(level).String())
-			}
+var defaultReplaceAttr = func(_ []string, attr slog.Attr) slog.Attr {
+	// Translate the Telegraf log-levels to strings
+	if attr.Key == slog.LevelKey {
+		if level, ok := attr.Value.Any().(slog.Level); ok {
+			attr.Value = slog.StringValue(telegraf.LogLevel(level).String())
 		}
-		return attr
-	},
+	}
+	return attr
+}
+
+var defaultStructuredHandlerOptions = &slog.HandlerOptions{
+	Level:       slog.Level(-99),
+	ReplaceAttr: defaultReplaceAttr,
 }
 
 func init() {
@@ -70,8 +72,20 @@ func init() {
 			writer = w
 		}
 
+		structuredHandlerOptions := defaultStructuredHandlerOptions
+
+		if cfg.StructuredLogMessageKey != "" {
+			structuredHandlerOptions.ReplaceAttr = func(groups []string, attr slog.Attr) slog.Attr {
+				if attr.Key == slog.MessageKey {
+					attr.Key = cfg.StructuredLogMessageKey
+				}
+
+				return defaultReplaceAttr(groups, attr)
+			}
+		}
+
 		return &structuredLogger{
-			handler: slog.NewJSONHandler(writer, defaultStructuredHandlerOptions),
+			handler: slog.NewJSONHandler(writer, structuredHandlerOptions),
 			output:  writer,
 			errlog:  log.New(os.Stderr, "", 0),
 		}, nil

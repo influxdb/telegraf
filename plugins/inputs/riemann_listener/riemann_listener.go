@@ -275,7 +275,7 @@ func (*RiemannSocketListener) SampleConfig() string {
 	return sampleConfig
 }
 
-func (rsl *RiemannSocketListener) Gather(_ telegraf.Accumulator) error {
+func (*RiemannSocketListener) Gather(telegraf.Accumulator) error {
 	return nil
 }
 

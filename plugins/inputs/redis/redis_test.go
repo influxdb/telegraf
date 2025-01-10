@@ -17,19 +17,19 @@ import (
 
 type testClient struct{}
 
-func (t *testClient) BaseTags() map[string]string {
+func (*testClient) BaseTags() map[string]string {
 	return map[string]string{"host": "redis.net"}
 }
 
-func (t *testClient) Info() *redis.StringCmd {
+func (*testClient) Info() *redis.StringCmd {
 	return nil
 }
 
-func (t *testClient) Do(_ string, _ ...interface{}) (interface{}, error) {
+func (*testClient) Do(string, ...interface{}) (interface{}, error) {
 	return 2, nil
 }
 
-func (t *testClient) Close() error {
+func (*testClient) Close() error {
 	return nil
 }
 

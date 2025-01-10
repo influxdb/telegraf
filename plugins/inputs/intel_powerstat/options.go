@@ -33,7 +33,7 @@ type optGenerator struct{}
 
 // generate takes plugin configuration options and generates options needed
 // to gather requested metrics.
-func (g *optGenerator) generate(cfg optConfig) []ptel.Option {
+func (*optGenerator) generate(cfg optConfig) []ptel.Option {
 	opts := make([]ptel.Option, 0)
 	if len(cfg.includedCPUs) != 0 {
 		opts = append(opts, ptel.WithIncludedCPUs(cfg.includedCPUs))

@@ -21,7 +21,7 @@ type MandrillWebhook struct {
 }
 
 func (md *MandrillWebhook) Register(router *mux.Router, acc telegraf.Accumulator, log telegraf.Logger) {
-	router.HandleFunc(md.Path, md.returnOK).Methods("HEAD")
+	router.HandleFunc(md.Path, returnOK).Methods("HEAD")
 	router.HandleFunc(md.Path, md.eventHandler).Methods("POST")
 
 	md.log = log
@@ -29,7 +29,7 @@ func (md *MandrillWebhook) Register(router *mux.Router, acc telegraf.Accumulator
 	md.acc = acc
 }
 
-func (md *MandrillWebhook) returnOK(w http.ResponseWriter, _ *http.Request) {
+func returnOK(w http.ResponseWriter, _ *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
 

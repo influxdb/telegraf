@@ -121,7 +121,7 @@ func (r *RunningAggregator) UpdateWindow(start, until time.Time) {
 }
 
 func (r *RunningAggregator) MakeMetric(telegrafMetric telegraf.Metric) telegraf.Metric {
-	m := makemetric(
+	m := makeMetric(
 		telegrafMetric,
 		r.Config.NameOverride,
 		r.Config.MeasurementPrefix,

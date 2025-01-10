@@ -180,6 +180,41 @@ func (p *Parser) flattenField(fldName string, fldVal map[string]interface{}) map
 	return ret
 }
 
+func (p *Parser) flattenItem(fld string, fldVal interface{}) (map[string]interface{}, error) {
+	sep := flatten.SeparatorStyle{
+		Before: "",
+		Middle: p.FieldSeparator,
+		After:  "",
+	}
+	candidate := make(map[string]interface{})
+	candidate[fld] = fldVal
+
+	var flat map[string]interface{}
+	var err error
+	// Exactly how we flatten is decided by p.UnionMode
+	if p.UnionMode == "flatten" {
+		flat, err = flatten.Flatten(candidate, "", sep)
+		if err != nil {
+			return nil, fmt.Errorf("flatten candidate %q failed: %w", candidate, err)
+		}
+	} else {
+		// "nullable" or "any"
+		typedVal, ok := candidate[fld].(map[string]interface{})
+		if !ok {
+			// the "key" is not a string, so ...
+			// most likely an array?  Do the default thing
+			// and flatten the candidate.
+			flat, err = flatten.Flatten(candidate, "", sep)
+			if err != nil {
+				return nil, fmt.Errorf("flatten candidate %q failed: %w", candidate, err)
+			}
+		} else {
+			flat = p.flattenField(fld, typedVal)
+		}
+	}
+	return flat, nil
+}
+
 func (p *Parser) createMetric(data map[string]interface{}, schema string) (telegraf.Metric, error) {
 	// Tags differ from fields, in that tags are inherently strings.
 	// fields can be of any type.
@@ -193,12 +228,18 @@ func (p *Parser) createMetric(data map[string]interface{}, schema string) (teleg
 	// Avro doesn't have a Tag/Field distinction, so we have to tell
 	// Telegraf which items are our tags.
 	for _, tag := range p.Tags {
-		sTag, err := internal.ToString(data[tag])
-		if err != nil {
-			p.Log.Warnf("Could not convert %v to string for tag %q: %v", data[tag], tag, err)
-			continue
+		flat, flattenErr := p.flattenItem(tag, data[tag])
+		if flattenErr != nil {
+			return nil, fmt.Errorf("flatten tag %q failed: %w", tag, flattenErr)
 		}
-		tags[tag] = sTag
+		for k, v := range flat {
+			sTag, stringErr := internal.ToString(v)
+			if stringErr != nil {
+				p.Log.Warnf("Could not convert %v to string for tag %q: %v", data[tag], tag, stringErr)
+				continue
+			}
+			tags[k] = sTag
+		}
 	}
 	var fieldList []string
 	if len(p.Fields) != 0 {
@@ -215,37 +256,8 @@ func (p *Parser) createMetric(data map[string]interface{}, schema string) (teleg
 	}
 	// We need to flatten out our fields.  The default (the separator
 	// string is empty) is equivalent to what streamreactor does.
-	sep := flatten.SeparatorStyle{
-		Before: "",
-		Middle: p.FieldSeparator,
-		After:  "",
-	}
 	for _, fld := range fieldList {
-		candidate := make(map[string]interface{})
-		candidate[fld] = data[fld] // 1-item map
-		var flat map[string]interface{}
-		var err error
-		// Exactly how we flatten is decided by p.UnionMode
-		if p.UnionMode == "flatten" {
-			flat, err = flatten.Flatten(candidate, "", sep)
-			if err != nil {
-				return nil, fmt.Errorf("flatten candidate %q failed: %w", candidate, err)
-			}
-		} else {
-			// "nullable" or "any"
-			typedVal, ok := candidate[fld].(map[string]interface{})
-			if !ok {
-				// the "key" is not a string, so ...
-				// most likely an array?  Do the default thing
-				// and flatten the candidate.
-				flat, err = flatten.Flatten(candidate, "", sep)
-				if err != nil {
-					return nil, fmt.Errorf("flatten candidate %q failed: %w", candidate, err)
-				}
-			} else {
-				flat = p.flattenField(fld, typedVal)
-			}
-		}
+		flat, err := p.flattenItem(fld, data[fld])
 		if err != nil {
 			return nil, fmt.Errorf("flatten field %q failed: %w", fld, err)
 		}

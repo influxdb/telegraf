@@ -92,7 +92,7 @@ func noLongLinesInParagraphs(threshold int) func(*T, ast.Node) error {
 	return func(t *T, root ast.Node) error {
 		// We're looking for long lines in paragraphs. Find paragraphs
 		// first, then which lines are in paragraphs
-		paraLines := []int{}
+		paraLines := make([]int, 0)
 		for n := root.FirstChild(); n != nil; n = n.NextSibling() {
 			var p *ast.Paragraph
 			var ok bool
@@ -108,7 +108,7 @@ func noLongLinesInParagraphs(threshold int) func(*T, ast.Node) error {
 		}
 
 		// Find long lines in the whole file
-		longLines := []int{}
+		longLines := make([]int, 0, len(t.newlineOffsets))
 		last := 0
 		for i, cur := range t.newlineOffsets {
 			length := cur - last - 1 // -1 to exclude the newline
@@ -121,7 +121,7 @@ func noLongLinesInParagraphs(threshold int) func(*T, ast.Node) error {
 		// Merge both lists
 		p := 0
 		l := 0
-		bads := []int{}
+		bads := make([]int, 0, max(len(paraLines), len(longLines)))
 		for p < len(paraLines) && l < len(longLines) {
 			long := longLines[l]
 			para := paraLines[p]

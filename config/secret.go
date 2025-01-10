@@ -308,7 +308,7 @@ func resolve(secret []byte, resolvers map[string]telegraf.ResolveFunc) ([]byte, 
 	return newsecret, remaining, replaceErrs
 }
 
-func splitLink(s string) (storeid string, key string) {
+func splitLink(s string) (storeID, key string) {
 	// There should _ALWAYS_ be two parts due to the regular expression match
 	parts := strings.SplitN(s[2:len(s)-1], ":", 2)
 	return parts[0], parts[1]

@@ -11,18 +11,12 @@ import (
 	"strings"
 
 	"github.com/influxdata/telegraf"
+	"github.com/influxdata/telegraf/internal"
 	"github.com/influxdata/telegraf/plugins/inputs"
 )
 
 //go:embed sample.conf
 var sampleConfig string
-
-const (
-	defaultHostProc = "/proc"
-	defaultHostSys  = "/sys"
-	envProc         = "HOST_PROC"
-	envSys          = "HOST_SYS"
-)
 
 type Bond struct {
 	HostProc       string   `toml:"host_proc"`
@@ -72,7 +66,7 @@ func (bond *Bond) Gather(acc telegraf.Accumulator) error {
 			if err != nil {
 				acc.AddError(err)
 			}
-			bond.gatherSysDetails(bondName, files, acc)
+			gatherSysDetails(bondName, files, acc)
 		}
 	}
 	return nil
@@ -170,7 +164,7 @@ func (bond *Bond) readSysFiles(bondDir string) (sysFiles, error) {
 	return output, nil
 }
 
-func (bond *Bond) gatherSysDetails(bondName string, files sysFiles, acc telegraf.Accumulator) {
+func gatherSysDetails(bondName string, files sysFiles, acc telegraf.Accumulator) {
 	var slaves []string
 	var adPortCount int
 
@@ -286,21 +280,11 @@ func (bond *Bond) gatherSlavePart(bondName, rawFile string, acc telegraf.Accumul
 // if it is empty then try read from env variable
 func (bond *Bond) loadPaths() {
 	if bond.HostProc == "" {
-		bond.HostProc = proc(envProc, defaultHostProc)
+		bond.HostProc = internal.GetProcPath()
 	}
 	if bond.HostSys == "" {
-		bond.HostSys = proc(envSys, defaultHostSys)
+		bond.HostSys = internal.GetSysPath()
 	}
-}
-
-// proc can be used to read file paths from env
-func proc(env, path string) string {
-	// try to read full file path
-	if p := os.Getenv(env); p != "" {
-		return p
-	}
-	// return default path
-	return path
 }
 
 func (bond *Bond) listInterfaces() ([]string, error) {

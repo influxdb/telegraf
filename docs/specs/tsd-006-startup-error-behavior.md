@@ -75,6 +75,19 @@ must *not* fail on startup errors and should continue running. On startup error,
 Telegraf must ignore the plugin as-if it was not configured at all, i.e. the
 plugin must be completely removed from processing.
 
+### `probe` behavior
+
+When using the `probe` setting for the `startup_error_behavior` option Telegraf
+must *not* fail on startup errors and should continue running. On startup error,
+Telegraf must ignore the plugin as-if it was not configured at all, i.e. the
+plugin must be completely removed from processing, similar to the `ignore`
+behavior. Additionally, Telegraf must probe the plugin (as defined in
+[TSD-009][tsd_009]) after startup, if it implements the `ProbePlugin` interface.
+If probing is available *and* returns an error Telegraf must *ignore* the
+plugin as-if it was not configured at all.
+
+[tsd_009]: /docs/specs/tsd-009-probe-on-startup.md
+
 ## Plugin Requirements
 
 Plugins participating in handling startup errors must implement the `Start()`

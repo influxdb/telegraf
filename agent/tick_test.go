@@ -37,8 +37,7 @@ func TestAlignedTicker(t *testing.T) {
 		time.Unix(60, 0).UTC(),
 	}
 
-	actual := []time.Time{}
-
+	actual := make([]time.Time, 0)
 	clk.Add(10 * time.Second)
 	for !clk.Now().After(until) {
 		tm := <-ticker.Elapsed()
@@ -109,8 +108,7 @@ func TestAlignedTickerOffset(t *testing.T) {
 		time.Unix(53, 0).UTC(),
 	}
 
-	actual := []time.Time{}
-
+	actual := make([]time.Time, 0)
 	clk.Add(10*time.Second + offset)
 	for !clk.Now().After(until) {
 		tm := <-ticker.Elapsed()
@@ -174,7 +172,7 @@ func TestUnalignedTicker(t *testing.T) {
 		time.Unix(61, 0).UTC(),
 	}
 
-	actual := []time.Time{}
+	actual := make([]time.Time, 0)
 	for !clk.Now().After(until) {
 		select {
 		case tm := <-ticker.Elapsed():
@@ -215,7 +213,7 @@ func TestRollingTicker(t *testing.T) {
 		time.Unix(61, 0).UTC(),
 	}
 
-	actual := []time.Time{}
+	actual := make([]time.Time, 0)
 	for !clk.Now().After(until) {
 		select {
 		case tm := <-ticker.Elapsed():

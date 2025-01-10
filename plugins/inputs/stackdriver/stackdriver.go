@@ -572,7 +572,7 @@ func (s *stackdriver) gatherTimeSeries(
 
 			if tsDesc.ValueType == metricpb.MetricDescriptor_DISTRIBUTION {
 				dist := p.Value.GetDistributionValue()
-				if err := s.addDistribution(dist, tags, ts, grouper, tsConf); err != nil {
+				if err := addDistribution(dist, tags, ts, grouper, tsConf); err != nil {
 					return err
 				}
 			} else {
@@ -666,10 +666,8 @@ func NewBucket(dist *distributionpb.Distribution) (buckets, error) {
 	return nil, errors.New("no buckets available")
 }
 
-// AddDistribution adds metrics from a distribution value type.
-func (s *stackdriver) addDistribution(dist *distributionpb.Distribution, tags map[string]string, ts time.Time,
-	grouper *lockedSeriesGrouper, tsConf *timeSeriesConf,
-) error {
+// addDistribution adds metrics from a distribution value type.
+func addDistribution(dist *distributionpb.Distribution, tags map[string]string, ts time.Time, grouper *lockedSeriesGrouper, tsConf *timeSeriesConf) error {
 	field := tsConf.fieldKey
 	name := tsConf.measurement
 

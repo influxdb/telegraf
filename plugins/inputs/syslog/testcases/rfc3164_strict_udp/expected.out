@@ -1,1 +1,1 @@
-syslog,appname=app,facility=user,hostname=host,severity=notice,source=127.0.0.1 facility_code=1i,message="Test",severity_code=5i,timestamp=1733157063000000000i 0
+syslog,appname=app,facility=user,hostname=host,severity=notice,source=127.0.0.1 facility_code=1i,message="Test",severity_code=5i,timestamp=1764693063000000000i 0

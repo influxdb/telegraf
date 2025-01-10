@@ -19,7 +19,7 @@ type Duration time.Duration
 // Size is an int64
 type Size int64
 
-// UnmarshalTOML parses the duration from the TOML config file
+// UnmarshalText parses the duration from the Text config file
 func (d *Duration) UnmarshalText(b []byte) error {
 	// convert to string
 	durStr := string(b)

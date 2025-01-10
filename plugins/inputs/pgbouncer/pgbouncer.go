@@ -16,16 +16,16 @@ import (
 //go:embed sample.conf
 var sampleConfig string
 
+var ignoredColumns = map[string]bool{"user": true, "database": true, "pool_mode": true,
+	"avg_req": true, "avg_recv": true, "avg_sent": true, "avg_query": true,
+	"force_user": true, "host": true, "port": true, "name": true,
+}
+
 type PgBouncer struct {
 	ShowCommands []string `toml:"show_commands"`
 	postgresql.Config
 
 	service *postgresql.Service
-}
-
-var ignoredColumns = map[string]bool{"user": true, "database": true, "pool_mode": true,
-	"avg_req": true, "avg_recv": true, "avg_sent": true, "avg_query": true,
-	"force_user": true, "host": true, "port": true, "name": true,
 }
 
 func (*PgBouncer) SampleConfig() string {
@@ -58,10 +58,6 @@ func (p *PgBouncer) Start(_ telegraf.Accumulator) error {
 	return p.service.Start()
 }
 
-func (p *PgBouncer) Stop() {
-	p.service.Stop()
-}
-
 func (p *PgBouncer) Gather(acc telegraf.Accumulator) error {
 	for _, cmd := range p.ShowCommands {
 		switch cmd {
@@ -85,6 +81,10 @@ func (p *PgBouncer) Gather(acc telegraf.Accumulator) error {
 	}
 
 	return nil
+}
+
+func (p *PgBouncer) Stop() {
+	p.service.Stop()
 }
 
 func (p *PgBouncer) accRow(row *sql.Rows, columns []string) (map[string]string, map[string]*interface{}, error) {

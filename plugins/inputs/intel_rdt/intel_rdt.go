@@ -100,7 +100,7 @@ func (r *IntelRDT) Start(acc telegraf.Accumulator) error {
 	return nil
 }
 
-func (r *IntelRDT) Gather(_ telegraf.Accumulator) error {
+func (*IntelRDT) Gather(telegraf.Accumulator) error {
 	return nil
 }
 

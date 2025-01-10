@@ -206,7 +206,7 @@ func (f *Filter) shouldTagsPass(tags []*telegraf.Tag) bool {
 
 // filterFields removes fields according to fieldinclude/fieldexclude.
 func (f *Filter) filterFields(metric telegraf.Metric) {
-	filterKeys := []string{}
+	filterKeys := make([]string, 0, len(metric.FieldList()))
 	for _, field := range metric.FieldList() {
 		if !ShouldPassFilters(f.fieldIncludeFilter, f.fieldExcludeFilter, field.Key) {
 			filterKeys = append(filterKeys, field.Key)
@@ -220,7 +220,7 @@ func (f *Filter) filterFields(metric telegraf.Metric) {
 
 // filterTags removes tags according to taginclude/tagexclude.
 func (f *Filter) filterTags(metric telegraf.Metric) {
-	filterKeys := []string{}
+	filterKeys := make([]string, 0, len(metric.TagList()))
 	for _, tag := range metric.TagList() {
 		if !ShouldPassFilters(f.tagIncludeFilter, f.tagExcludeFilter, tag.Key) {
 			filterKeys = append(filterKeys, tag.Key)
@@ -284,7 +284,7 @@ func (f *Filter) compileMetricFilter() error {
 	return err
 }
 
-func ShouldPassFilters(include filter.Filter, exclude filter.Filter, key string) bool {
+func ShouldPassFilters(include, exclude filter.Filter, key string) bool {
 	if include != nil && exclude != nil {
 		return include.Match(key) && !exclude.Match(key)
 	} else if include != nil {
@@ -295,7 +295,7 @@ func ShouldPassFilters(include filter.Filter, exclude filter.Filter, key string)
 	return true
 }
 
-func ShouldTagsPass(passFilters []TagFilter, dropFilters []TagFilter, tags []*telegraf.Tag) bool {
+func ShouldTagsPass(passFilters, dropFilters []TagFilter, tags []*telegraf.Tag) bool {
 	pass := func(tpf []TagFilter) bool {
 		for _, pat := range tpf {
 			if pat.filter == nil {

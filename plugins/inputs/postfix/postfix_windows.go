@@ -16,11 +16,13 @@ type Postfix struct {
 	Log telegraf.Logger `toml:"-"`
 }
 
+func (*Postfix) SampleConfig() string { return sampleConfig }
+
 func (p *Postfix) Init() error {
-	p.Log.Warn("current platform is not supported")
+	p.Log.Warn("Current platform is not supported")
 	return nil
 }
-func (*Postfix) SampleConfig() string                { return sampleConfig }
+
 func (*Postfix) Gather(_ telegraf.Accumulator) error { return nil }
 
 func init() {

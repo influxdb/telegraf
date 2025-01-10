@@ -14,23 +14,13 @@ import (
 )
 
 func TestGetProcValueInt(t *testing.T) {
-	k := Kernel{
-		statFile:        "testdata/stat_file_full",
-		entropyStatFile: "testdata/entropy_stat_file_full",
-	}
-
-	d, err := k.getProcValueInt(k.entropyStatFile)
+	d, err := getProcValueInt("testdata/entropy_stat_file_full")
 	require.NoError(t, err)
 	require.IsType(t, int64(1), d)
 }
 
 func TestGetProcValueByte(t *testing.T) {
-	k := Kernel{
-		statFile:        "testdata/stat_file_full",
-		entropyStatFile: "testdata/entropy_stat_file_full",
-	}
-
-	d, err := k.getProcValueBytes(k.entropyStatFile)
+	d, err := getProcValueBytes("testdata/entropy_stat_file_full")
 	require.NoError(t, err)
 	require.IsType(t, []byte("test"), d)
 }

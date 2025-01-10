@@ -307,6 +307,10 @@ The agent table configures Telegraf and the defaults used across all plugins.
   "structured" or, on Windows, "eventlog". The output file (if any) is
   determined by the `logfile` setting.
 
+- **structured_log_message_key**:
+  Message key for structured logs, to override the default of "msg".
+  Ignored if `logformat` is not "structured".
+
 - **logfile**:
   Name of the file to be logged to or stderr if unset or empty. This
   setting is ignored for the "eventlog" format.

@@ -6,11 +6,11 @@ import (
 	"errors"
 	"syscall"
 
-	"github.com/shirou/gopsutil/v4/net"
-	"github.com/shirou/gopsutil/v4/process"
+	gopsnet "github.com/shirou/gopsutil/v4/net"
+	gopsprocess "github.com/shirou/gopsutil/v4/process"
 )
 
-func processName(p *process.Process) (string, error) {
+func processName(p *gopsprocess.Process) (string, error) {
 	return p.Exe()
 }
 
@@ -18,7 +18,7 @@ func queryPidWithWinServiceName(string) (uint32, error) {
 	return 0, errors.New("os not supporting win_service option")
 }
 
-func collectMemmap(Process, string, map[string]any) {}
+func collectMemmap(process, string, map[string]any) {}
 
 func findBySystemdUnits([]string) ([]processGroup, error) {
 	return nil, nil
@@ -28,11 +28,11 @@ func findByWindowsServices([]string) ([]processGroup, error) {
 	return nil, nil
 }
 
-func collectTotalReadWrite(Process) (r, w uint64, err error) {
+func collectTotalReadWrite(process) (r, w uint64, err error) {
 	return 0, 0, errors.ErrUnsupported
 }
 
-func statsTCP(conns []net.ConnectionStat, _ uint8) ([]map[string]interface{}, error) {
+func statsTCP(conns []gopsnet.ConnectionStat, _ uint8) ([]map[string]interface{}, error) {
 	if len(conns) == 0 {
 		return nil, nil
 	}
@@ -65,7 +65,7 @@ func statsTCP(conns []net.ConnectionStat, _ uint8) ([]map[string]interface{}, er
 	return fieldslist, nil
 }
 
-func statsUDP(conns []net.ConnectionStat, _ uint8) ([]map[string]interface{}, error) {
+func statsUDP(conns []gopsnet.ConnectionStat, _ uint8) ([]map[string]interface{}, error) {
 	if len(conns) == 0 {
 		return nil, nil
 	}
@@ -98,6 +98,6 @@ func statsUDP(conns []net.ConnectionStat, _ uint8) ([]map[string]interface{}, er
 	return fieldslist, nil
 }
 
-func statsUnix([]net.ConnectionStat) ([]map[string]interface{}, error) {
+func statsUnix([]gopsnet.ConnectionStat) ([]map[string]interface{}, error) {
 	return nil, errors.ErrUnsupported
 }

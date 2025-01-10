@@ -152,7 +152,7 @@ func (s *subscription) createRequest(id string) subscriptionRequest {
 
 // addressList lists all configured node addresses
 func (s *subscription) addressList() []string {
-	addressList := []string{}
+	addressList := make([]string, 0)
 	for _, node := range s.Nodes {
 		addressList = append(addressList, node.Address)
 	}

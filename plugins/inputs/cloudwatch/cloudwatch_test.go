@@ -21,7 +21,7 @@ import (
 
 type mockGatherCloudWatchClient struct{}
 
-func (m *mockGatherCloudWatchClient) ListMetrics(
+func (*mockGatherCloudWatchClient) ListMetrics(
 	_ context.Context,
 	params *cloudwatch.ListMetricsInput,
 	_ ...func(*cloudwatch.Options),
@@ -56,7 +56,7 @@ func (m *mockGatherCloudWatchClient) ListMetrics(
 	return response, nil
 }
 
-func (m *mockGatherCloudWatchClient) GetMetricData(
+func (*mockGatherCloudWatchClient) GetMetricData(
 	_ context.Context,
 	params *cloudwatch.GetMetricDataInput,
 	_ ...func(*cloudwatch.Options),
@@ -307,12 +307,12 @@ func TestGather_MultipleNamespaces(t *testing.T) {
 
 type mockSelectMetricsCloudWatchClient struct{}
 
-func (m *mockSelectMetricsCloudWatchClient) ListMetrics(
-	_ context.Context,
-	_ *cloudwatch.ListMetricsInput,
-	_ ...func(*cloudwatch.Options),
+func (*mockSelectMetricsCloudWatchClient) ListMetrics(
+	context.Context,
+	*cloudwatch.ListMetricsInput,
+	...func(*cloudwatch.Options),
 ) (*cloudwatch.ListMetricsOutput, error) {
-	metrics := []types.Metric{}
+	metrics := make([]types.Metric, 0)
 	// 4 metrics are available
 	metricNames := []string{"Latency", "RequestCount", "HealthyHostCount", "UnHealthyHostCount"}
 	// for 3 ELBs
@@ -358,10 +358,10 @@ func (m *mockSelectMetricsCloudWatchClient) ListMetrics(
 	return result, nil
 }
 
-func (m *mockSelectMetricsCloudWatchClient) GetMetricData(
-	_ context.Context,
-	_ *cloudwatch.GetMetricDataInput,
-	_ ...func(*cloudwatch.Options),
+func (*mockSelectMetricsCloudWatchClient) GetMetricData(
+	context.Context,
+	*cloudwatch.GetMetricDataInput,
+	...func(*cloudwatch.Options),
 ) (*cloudwatch.GetMetricDataOutput, error) {
 	return nil, nil
 }
@@ -493,7 +493,7 @@ func TestGenerateStatisticsInputParamsFiltered(t *testing.T) {
 
 func TestMetricsCacheTimeout(t *testing.T) {
 	cache := &metricCache{
-		metrics: []filteredMetric{},
+		metrics: make([]filteredMetric, 0),
 		built:   time.Now(),
 		ttl:     time.Minute,
 	}

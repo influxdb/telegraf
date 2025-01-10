@@ -200,7 +200,7 @@ func makeReadRequests(metrics []Metric) []ReadRequest {
 		if len(metric.Paths) == 0 {
 			requests = append(requests, ReadRequest{
 				Mbean:      metric.Mbean,
-				Attributes: []string{},
+				Attributes: make([]string, 0),
 			})
 		} else {
 			attributes := make(map[string][]string)

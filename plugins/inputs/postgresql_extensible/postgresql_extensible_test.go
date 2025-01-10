@@ -218,22 +218,22 @@ func TestPostgresqlFieldOutputIntegration(t *testing.T) {
 
 	for _, field := range intMetrics {
 		_, found := acc.Int64Field(measurement, field)
-		require.True(t, found, fmt.Sprintf("expected %s to be an integer", field))
+		require.Truef(t, found, "expected %s to be an integer", field)
 	}
 
 	for _, field := range int32Metrics {
 		_, found := acc.Int32Field(measurement, field)
-		require.True(t, found, fmt.Sprintf("expected %s to be an int32", field))
+		require.Truef(t, found, "expected %s to be an int32", field)
 	}
 
 	for _, field := range floatMetrics {
 		_, found := acc.FloatField(measurement, field)
-		require.True(t, found, fmt.Sprintf("expected %s to be a float64", field))
+		require.Truef(t, found, "expected %s to be a float64", field)
 	}
 
 	for _, field := range stringMetrics {
 		_, found := acc.StringField(measurement, field)
-		require.True(t, found, fmt.Sprintf("expected %s to be a str", field))
+		require.Truef(t, found, "expected %s to be a str", field)
 	}
 }
 

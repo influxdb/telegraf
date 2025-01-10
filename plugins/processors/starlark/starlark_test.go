@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/gob"
 	"errors"
-	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -3681,13 +3680,13 @@ def apply(metric):
 			Log:              testutil.Logger{},
 		},
 	}
+	require.NoError(t, plugin.Init())
 
 	// Setup the "persisted" state
 	var pi telegraf.StatefulPlugin = plugin
 	var buf bytes.Buffer
 	require.NoError(t, gob.NewEncoder(&buf).Encode(map[string]interface{}{"instance": "myhost"}))
 	require.NoError(t, pi.SetState(buf.Bytes()))
-	require.NoError(t, plugin.Init())
 
 	var acc testutil.Accumulator
 	require.NoError(t, plugin.Start(&acc))
@@ -3743,7 +3742,7 @@ func parseMetricsFrom(t *testing.T, lines []string, header string) (metrics []te
 			break
 		}
 	}
-	require.NotEqual(t, -1, startIdx, fmt.Sprintf("Header %q must exist in file", header))
+	require.NotEqualf(t, -1, startIdx, "Header %q must exist in file", header)
 	for i := startIdx; i < len(lines); i++ {
 		line := strings.TrimLeft(lines[i], "# ")
 		if line == "" || line == "'''" {
@@ -3753,7 +3752,7 @@ func parseMetricsFrom(t *testing.T, lines []string, header string) (metrics []te
 	}
 	for i := startIdx; i < endIdx; i++ {
 		m, err := parser.ParseLine(strings.TrimLeft(lines[i], "# "))
-		require.NoError(t, err, fmt.Sprintf("Expected to be able to parse %q metric, but found error", header))
+		require.NoErrorf(t, err, "Expected to be able to parse %q metric, but found error", header)
 		metrics = append(metrics, m)
 	}
 	return metrics
@@ -3772,7 +3771,7 @@ func parseErrorMessage(t *testing.T, lines []string, header string) string {
 	if startIdx == -1 {
 		return ""
 	}
-	require.Less(t, startIdx, len(lines), fmt.Sprintf("Expected to find the error message after %q, but found none", header))
+	require.Lessf(t, startIdx, len(lines), "Expected to find the error message after %q, but found none", header)
 	return strings.TrimLeft(lines[startIdx], "# ")
 }
 

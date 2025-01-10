@@ -47,7 +47,7 @@ type Libvirt struct {
 	domainsMap         map[string]struct{}
 }
 
-func (l *Libvirt) SampleConfig() string {
+func (*Libvirt) SampleConfig() string {
 	return sampleConfig
 }
 
@@ -88,6 +88,40 @@ func (l *Libvirt) Init() error {
 	}
 
 	return nil
+}
+
+func (l *Libvirt) Gather(acc telegraf.Accumulator) error {
+	var err error
+	if err := l.utils.ensureConnected(l.LibvirtURI); err != nil {
+		return err
+	}
+
+	// Get all available domains
+	gatheredDomains, err := l.utils.gatherAllDomains()
+	if handledErr := handleError(err, "error occurred while gathering all domains", l.utils); handledErr != nil {
+		return handledErr
+	} else if len(gatheredDomains) == 0 {
+		l.Log.Debug("Couldn't find any domains on system")
+		return nil
+	}
+
+	// Exclude domain.
+	domains := l.filterDomains(gatheredDomains)
+	if len(domains) == 0 {
+		l.Log.Debug("Configured domains are not available on system")
+		return nil
+	}
+
+	var vcpuInfos map[string][]vcpuAffinity
+	if l.vcpuMappingEnabled {
+		vcpuInfos, err = l.getVcpuMapping(domains)
+		if handledErr := handleError(err, "error occurred while gathering vcpu mapping", l.utils); handledErr != nil {
+			return handledErr
+		}
+	}
+
+	err = l.gatherMetrics(domains, vcpuInfos, acc)
+	return handleError(err, "error occurred while gathering metrics", l.utils)
 }
 
 func (l *Libvirt) validateLibvirtURI() error {
@@ -150,43 +184,9 @@ func (l *Libvirt) isThereAnythingToGather() bool {
 	return l.metricNumber > 0 || len(l.AdditionalStatistics) > 0
 }
 
-func (l *Libvirt) Gather(acc telegraf.Accumulator) error {
-	var err error
-	if err := l.utils.EnsureConnected(l.LibvirtURI); err != nil {
-		return err
-	}
-
-	// Get all available domains
-	gatheredDomains, err := l.utils.GatherAllDomains()
-	if handledErr := handleError(err, "error occurred while gathering all domains", l.utils); handledErr != nil {
-		return handledErr
-	} else if len(gatheredDomains) == 0 {
-		l.Log.Debug("Couldn't find any domains on system")
-		return nil
-	}
-
-	// Exclude domain.
-	domains := l.filterDomains(gatheredDomains)
-	if len(domains) == 0 {
-		l.Log.Debug("Configured domains are not available on system")
-		return nil
-	}
-
-	var vcpuInfos map[string][]vcpuAffinity
-	if l.vcpuMappingEnabled {
-		vcpuInfos, err = l.getVcpuMapping(domains)
-		if handledErr := handleError(err, "error occurred while gathering vcpu mapping", l.utils); handledErr != nil {
-			return handledErr
-		}
-	}
-
-	err = l.gatherMetrics(domains, vcpuInfos, acc)
-	return handleError(err, "error occurred while gathering metrics", l.utils)
-}
-
 func handleError(err error, errMessage string, utils utils) error {
 	if err != nil {
-		if chanErr := utils.Disconnect(); chanErr != nil {
+		if chanErr := utils.disconnect(); chanErr != nil {
 			return fmt.Errorf("%s: %w; error occurred when disconnecting: %w", errMessage, err, chanErr)
 		}
 		return fmt.Errorf("%s: %w", errMessage, err)
@@ -210,7 +210,7 @@ func (l *Libvirt) filterDomains(availableDomains []golibvirt.Domain) []golibvirt
 }
 
 func (l *Libvirt) gatherMetrics(domains []golibvirt.Domain, vcpuInfos map[string][]vcpuAffinity, acc telegraf.Accumulator) error {
-	stats, err := l.utils.GatherStatsForDomains(domains, l.metricNumber)
+	stats, err := l.utils.gatherStatsForDomains(domains, l.metricNumber)
 	if err != nil {
 		return err
 	}
@@ -220,7 +220,7 @@ func (l *Libvirt) gatherMetrics(domains []golibvirt.Domain, vcpuInfos map[string
 }
 
 func (l *Libvirt) getVcpuMapping(domains []golibvirt.Domain) (map[string][]vcpuAffinity, error) {
-	pCPUs, err := l.utils.GatherNumberOfPCPUs()
+	pCPUs, err := l.utils.gatherNumberOfPCPUs()
 	if err != nil {
 		return nil, err
 	}
@@ -231,9 +231,9 @@ func (l *Libvirt) getVcpuMapping(domains []golibvirt.Domain) (map[string][]vcpuA
 	for i := range domains {
 		domain := domains[i]
 
-		// Executing GatherVcpuMapping can take some time, it is worth to call it in parallel
+		// Executing gatherVcpuMapping can take some time, it is worth to call it in parallel
 		group.Go(func() error {
-			vcpuInfo, err := l.utils.GatherVcpuMapping(domain, pCPUs, l.shouldGetCurrentPCPU())
+			vcpuInfo, err := l.utils.gatherVcpuMapping(domain, pCPUs, l.shouldGetCurrentPCPU())
 			if err != nil {
 				return err
 			}

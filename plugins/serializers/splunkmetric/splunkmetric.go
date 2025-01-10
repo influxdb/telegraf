@@ -210,17 +210,8 @@ func verifyValue(v interface{}) (value interface{}, valid bool) {
 
 func init() {
 	serializers.Add("splunkmetric",
-		func() serializers.Serializer {
+		func() telegraf.Serializer {
 			return &Serializer{}
 		},
 	)
-}
-
-// InitFromConfig is a compatibility function to construct the parser the old way
-func (s *Serializer) InitFromConfig(cfg *serializers.Config) error {
-	s.HecRouting = cfg.HecRouting
-	s.MultiMetric = cfg.SplunkmetricMultiMetric
-	s.OmitEventTag = cfg.SplunkmetricOmitEventTag
-
-	return nil
 }

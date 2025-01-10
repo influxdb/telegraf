@@ -30,10 +30,6 @@ var sampleConfig string
 
 var once sync.Once
 
-const (
-	defaultWatchMethod = "inotify"
-)
-
 var (
 	offsets      = make(map[string]int64)
 	offsetsMutex = new(sync.Mutex)
@@ -315,7 +311,7 @@ func (t *Tail) receiver(parser telegraf.Parser, tailer *tail.Tail) {
 			}
 		}
 		if line == nil || !channelOpen || !tailerOpen {
-			if text += t.multiline.Flush(&buffer); text == "" {
+			if text += Flush(&buffer); text == "" {
 				if !channelOpen {
 					return
 				}

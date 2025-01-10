@@ -36,7 +36,7 @@ type bucketData struct {
 	subaggregation aggregation
 }
 
-func (a *aggregationResponse) GetMetrics(acc telegraf.Accumulator, measurement string) error {
+func (a *aggregationResponse) getMetrics(acc telegraf.Accumulator, measurement string) error {
 	// Simple case (no aggregations)
 	if a.Aggregations == nil {
 		tags := make(map[string]string)
@@ -47,20 +47,20 @@ func (a *aggregationResponse) GetMetrics(acc telegraf.Accumulator, measurement s
 		return nil
 	}
 
-	return a.Aggregations.GetMetrics(acc, measurement, a.Hits.TotalHits.Value, make(map[string]string))
+	return a.Aggregations.getMetrics(acc, measurement, a.Hits.TotalHits.Value, make(map[string]string))
 }
 
-func (a *aggregation) GetMetrics(acc telegraf.Accumulator, measurement string, docCount int64, tags map[string]string) error {
+func (a *aggregation) getMetrics(acc telegraf.Accumulator, measurement string, docCount int64, tags map[string]string) error {
 	var err error
 	fields := make(map[string]interface{})
 	for name, agg := range *a {
-		if agg.IsAggregation() {
+		if agg.isAggregation() {
 			for _, bucket := range agg.buckets {
 				tt := map[string]string{name: bucket.Key}
 				for k, v := range tags {
 					tt[k] = v
 				}
-				err = bucket.subaggregation.GetMetrics(acc, measurement, bucket.DocumentCount, tt)
+				err = bucket.subaggregation.getMetrics(acc, measurement, bucket.DocumentCount, tt)
 				if err != nil {
 					return err
 				}
@@ -101,7 +101,7 @@ func (a *aggregateValue) UnmarshalJSON(bytes []byte) error {
 	return json.Unmarshal(bytes, &a.metrics)
 }
 
-func (a *aggregateValue) IsAggregation() bool {
+func (a *aggregateValue) isAggregation() bool {
 	return !(a.buckets == nil)
 }
 

@@ -1,6 +1,7 @@
 package dedup
 
 import (
+	"fmt"
 	"sync"
 	"testing"
 	"time"
@@ -456,4 +457,76 @@ func TestTracking(t *testing.T) {
 		defer mu.Unlock()
 		return len(input) == len(delivered)
 	}, time.Second, 100*time.Millisecond, "%d delivered but %d expected", len(delivered), len(expected))
+}
+
+func TestStatePersistence(t *testing.T) {
+	now := time.Now()
+
+	// Define the metrics and states
+	state := fmt.Sprintf("metric,tag=value foo=1i %d\n", now.Add(-1*time.Minute).UnixNano())
+	input := []telegraf.Metric{
+		metric.New("metric",
+			map[string]string{"tag": "value"},
+			map[string]interface{}{"foo": 1},
+			now.Add(-2*time.Second),
+		),
+		metric.New("metric",
+			map[string]string{"tag": "pass"},
+			map[string]interface{}{"foo": 1},
+			now.Add(-1*time.Second),
+		),
+		metric.New(
+			"metric",
+			map[string]string{"tag": "value"},
+			map[string]interface{}{"foo": 3},
+			now,
+		),
+	}
+
+	expected := []telegraf.Metric{
+		metric.New("metric",
+			map[string]string{"tag": "pass"},
+			map[string]interface{}{"foo": 1},
+			now.Add(-1*time.Second),
+		),
+		metric.New(
+			"metric",
+			map[string]string{"tag": "value"},
+			map[string]interface{}{"foo": 3},
+			now,
+		),
+	}
+	expectedState := []string{
+		fmt.Sprintf("metric,tag=pass foo=1i %d\n", now.Add(-1*time.Second).UnixNano()),
+		fmt.Sprintf("metric,tag=value foo=3i %d\n", now.UnixNano()),
+	}
+
+	// Configure the plugin
+	plugin := &Dedup{
+		DedupInterval: config.Duration(10 * time.Hour), // use a long interval to avoid flaky tests
+		FlushTime:     now.Add(-1 * time.Second),
+		Cache:         make(map[uint64]telegraf.Metric),
+	}
+	require.Empty(t, plugin.Cache)
+
+	// Setup the "persisted" state
+	var pi telegraf.StatefulPlugin = plugin
+	require.NoError(t, pi.SetState([]byte(state)))
+	require.Len(t, plugin.Cache, 1)
+
+	// Process expected metrics and compare with resulting metrics
+	actual := plugin.Apply(input...)
+	testutil.RequireMetricsEqual(t, expected, actual)
+
+	// Check getting the persisted state
+	// Because the cache is a map, the order of metrics in the state is not
+	// guaranteed, so check the string contents regardless of the order.
+	actualState, ok := pi.GetState().([]byte)
+	require.True(t, ok, "state is not a bytes array")
+	var expectedLen int
+	for _, m := range expectedState {
+		require.Contains(t, string(actualState), m)
+		expectedLen += len(m)
+	}
+	require.Len(t, actualState, expectedLen)
 }

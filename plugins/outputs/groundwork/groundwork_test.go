@@ -34,21 +34,39 @@ func TestWriteWithDebug(t *testing.T) {
 	// Simulate Groundwork server that should receive custom metrics
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		body, err := io.ReadAll(r.Body)
-		require.NoError(t, err)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			t.Error(err)
+			return
+		}
 
 		// Decode body to use in assertions below
 		var obj transit.ResourcesWithServicesRequest
-		err = json.Unmarshal(body, &obj)
-		require.NoError(t, err)
+		if err = json.Unmarshal(body, &obj); err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			t.Error(err)
+			return
+		}
 
 		// Check if server gets proper data
-		require.Equal(t, "IntMetric", obj.Resources[0].Services[0].Name)
-		require.Equal(t, int64(42), *obj.Resources[0].Services[0].Metrics[0].Value.IntegerValue)
+		if obj.Resources[0].Services[0].Name != "IntMetric" {
+			w.WriteHeader(http.StatusInternalServerError)
+			t.Errorf("Not equal, expected: %q, actual: %q", "IntMetric", obj.Resources[0].Services[0].Name)
+			return
+		}
+		if *obj.Resources[0].Services[0].Metrics[0].Value.IntegerValue != int64(42) {
+			w.WriteHeader(http.StatusInternalServerError)
+			t.Errorf("Not equal, expected: %v, actual: %v", int64(42), *obj.Resources[0].Services[0].Metrics[0].Value.IntegerValue)
+			return
+		}
 
 		// Send back details
 		ans := "Content-type: application/json\n\n" + `{"message":"` + srvTok + `"}`
-		_, err = fmt.Fprintln(w, ans)
-		require.NoError(t, err)
+		if _, err = fmt.Fprintln(w, ans); err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			t.Error(err)
+			return
+		}
 	}))
 
 	i := Groundwork{
@@ -84,24 +102,62 @@ func TestWriteWithDefaults(t *testing.T) {
 	// Simulate Groundwork server that should receive custom metrics
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		body, err := io.ReadAll(r.Body)
-		require.NoError(t, err)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			t.Error(err)
+			return
+		}
 
 		// Decode body to use in assertions below
 		var obj transit.ResourcesWithServicesRequest
-		err = json.Unmarshal(body, &obj)
-		require.NoError(t, err)
+		if err = json.Unmarshal(body, &obj); err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			t.Error(err)
+			return
+		}
 
 		// Check if server gets proper data
-		require.Equal(t, defaultTestAgentID, obj.Context.AgentID)
-		require.Equal(t, customAppType, obj.Context.AppType)
-		require.Equal(t, defaultHost, obj.Resources[0].Name)
-		require.Equal(t, transit.MonitorStatus("SERVICE_OK"), obj.Resources[0].Services[0].Status)
-		require.Equal(t, "IntMetric", obj.Resources[0].Services[0].Name)
-		require.Equal(t, int64(42), *obj.Resources[0].Services[0].Metrics[0].Value.IntegerValue)
-		require.Empty(t, obj.Groups)
+		if obj.Context.AgentID != defaultTestAgentID {
+			w.WriteHeader(http.StatusInternalServerError)
+			t.Errorf("Not equal, expected: %q, actual: %q", defaultTestAgentID, obj.Context.AgentID)
+			return
+		}
+		if obj.Context.AppType != customAppType {
+			w.WriteHeader(http.StatusInternalServerError)
+			t.Errorf("Not equal, expected: %q, actual: %q", customAppType, obj.Context.AppType)
+			return
+		}
+		if obj.Resources[0].Name != defaultHost {
+			w.WriteHeader(http.StatusInternalServerError)
+			t.Errorf("Not equal, expected: %q, actual: %q", defaultHost, obj.Resources[0].Name)
+			return
+		}
+		if obj.Resources[0].Services[0].Status != transit.MonitorStatus("SERVICE_OK") {
+			w.WriteHeader(http.StatusInternalServerError)
+			t.Errorf("Not equal, expected: %q, actual: %q", transit.MonitorStatus("SERVICE_OK"), obj.Resources[0].Services[0].Status)
+			return
+		}
+		if obj.Resources[0].Services[0].Name != "IntMetric" {
+			w.WriteHeader(http.StatusInternalServerError)
+			t.Errorf("Not equal, expected: %q, actual: %q", "IntMetric", obj.Resources[0].Services[0].Name)
+			return
+		}
+		if *obj.Resources[0].Services[0].Metrics[0].Value.IntegerValue != int64(42) {
+			w.WriteHeader(http.StatusInternalServerError)
+			t.Errorf("Not equal, expected: %v, actual: %v", int64(42), *obj.Resources[0].Services[0].Metrics[0].Value.IntegerValue)
+			return
+		}
+		if len(obj.Groups) != 0 {
+			w.WriteHeader(http.StatusInternalServerError)
+			t.Errorf("'obj.Groups' should not be empty")
+			return
+		}
 
-		_, err = fmt.Fprintln(w, "OK")
-		require.NoError(t, err)
+		if _, err = fmt.Fprintln(w, "OK"); err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			t.Error(err)
+			return
+		}
 	}))
 
 	i := Groundwork{
@@ -136,22 +192,55 @@ func TestWriteWithFields(t *testing.T) {
 	// Simulate Groundwork server that should receive custom metrics
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		body, err := io.ReadAll(r.Body)
-		require.NoError(t, err)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			t.Error(err)
+			return
+		}
 
 		// Decode body to use in assertions below
 		var obj transit.ResourcesWithServicesRequest
-		err = json.Unmarshal(body, &obj)
-		require.NoError(t, err)
+		if err = json.Unmarshal(body, &obj); err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			t.Error(err)
+			return
+		}
 
 		// Check if server gets proper data
-		require.Equal(t, "Test Message", obj.Resources[0].Services[0].LastPluginOutput)
-		require.Equal(t, transit.MonitorStatus("SERVICE_WARNING"), obj.Resources[0].Services[0].Status)
-		require.InDelta(t, float64(1.0), *obj.Resources[0].Services[0].Metrics[0].Value.DoubleValue, testutil.DefaultDelta)
-		require.InDelta(t, float64(3.0), *obj.Resources[0].Services[0].Metrics[0].Thresholds[0].Value.DoubleValue, testutil.DefaultDelta)
-		require.InDelta(t, float64(2.0), *obj.Resources[0].Services[0].Metrics[0].Thresholds[1].Value.DoubleValue, testutil.DefaultDelta)
+		if obj.Resources[0].Services[0].LastPluginOutput != "Test Message" {
+			w.WriteHeader(http.StatusInternalServerError)
+			t.Errorf("Not equal, expected: %q, actual: %q", "Test Message", obj.Resources[0].Services[0].LastPluginOutput)
+			return
+		}
+		if obj.Resources[0].Services[0].Status != transit.MonitorStatus("SERVICE_WARNING") {
+			w.WriteHeader(http.StatusInternalServerError)
+			t.Errorf("Not equal, expected: %q, actual: %q", transit.MonitorStatus("SERVICE_WARNING"), obj.Resources[0].Services[0].Status)
+			return
+		}
+		if dt := float64(1.0) - *obj.Resources[0].Services[0].Metrics[0].Value.DoubleValue; !testutil.WithinDefaultDelta(dt) {
+			w.WriteHeader(http.StatusInternalServerError)
+			t.Errorf("Max difference between %v and %v allowed is %v, but difference was %v",
+				float64(1.0), *obj.Resources[0].Services[0].Metrics[0].Value.DoubleValue, testutil.DefaultDelta, dt)
+			return
+		}
+		if dt := float64(3.0) - *obj.Resources[0].Services[0].Metrics[0].Thresholds[0].Value.DoubleValue; !testutil.WithinDefaultDelta(dt) {
+			w.WriteHeader(http.StatusInternalServerError)
+			t.Errorf("Max difference between %v and %v allowed is %v, but difference was %v",
+				float64(3.0), *obj.Resources[0].Services[0].Metrics[0].Thresholds[0].Value.DoubleValue, testutil.DefaultDelta, dt)
+			return
+		}
+		if dt := float64(2.0) - *obj.Resources[0].Services[0].Metrics[0].Thresholds[1].Value.DoubleValue; !testutil.WithinDefaultDelta(dt) {
+			w.WriteHeader(http.StatusInternalServerError)
+			t.Errorf("Max difference between %v and %v allowed is %v, but difference was %v",
+				float64(2.0), *obj.Resources[0].Services[0].Metrics[0].Thresholds[1].Value.DoubleValue, testutil.DefaultDelta, dt)
+			return
+		}
 
-		_, err = fmt.Fprintln(w, "OK")
-		require.NoError(t, err)
+		if _, err = fmt.Fprintln(w, "OK"); err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			t.Error(err)
+			return
+		}
 	}))
 
 	i := Groundwork{
@@ -197,30 +286,95 @@ func TestWriteWithTags(t *testing.T) {
 	// Simulate Groundwork server that should receive custom metrics
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		body, err := io.ReadAll(r.Body)
-		require.NoError(t, err)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			t.Error(err)
+			return
+		}
 
 		// Decode body to use in assertions below
 		var obj transit.ResourcesWithServicesRequest
-		err = json.Unmarshal(body, &obj)
-		require.NoError(t, err)
+		if err = json.Unmarshal(body, &obj); err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			t.Error(err)
+			return
+		}
 
 		// Check if server gets proper data
-		require.Equal(t, defaultTestAgentID, obj.Context.AgentID)
-		require.Equal(t, defaultAppType, obj.Context.AppType)
-		require.Equal(t, "Host01", obj.Resources[0].Name)
-		require.Equal(t, "Service01", obj.Resources[0].Services[0].Name)
-		require.Equal(t, "FACILITY", *obj.Resources[0].Services[0].Properties["facility"].StringValue)
-		require.Equal(t, "SEVERITY", *obj.Resources[0].Services[0].Properties["severity"].StringValue)
-		require.Equal(t, "Group01", obj.Groups[0].GroupName)
-		require.Equal(t, "Host01", obj.Groups[0].Resources[0].Name)
-		require.Equal(t, "Test Tag", obj.Resources[0].Services[0].LastPluginOutput)
-		require.Equal(t, transit.MonitorStatus("SERVICE_PENDING"), obj.Resources[0].Services[0].Status)
-		require.InDelta(t, float64(1.0), *obj.Resources[0].Services[0].Metrics[0].Value.DoubleValue, testutil.DefaultDelta)
-		require.InDelta(t, float64(9.0), *obj.Resources[0].Services[0].Metrics[0].Thresholds[0].Value.DoubleValue, testutil.DefaultDelta)
-		require.InDelta(t, float64(6.0), *obj.Resources[0].Services[0].Metrics[0].Thresholds[1].Value.DoubleValue, testutil.DefaultDelta)
+		if obj.Context.AgentID != defaultTestAgentID {
+			w.WriteHeader(http.StatusInternalServerError)
+			t.Errorf("Not equal, expected: %q, actual: %q", defaultTestAgentID, obj.Context.AgentID)
+			return
+		}
+		if obj.Context.AppType != defaultAppType {
+			w.WriteHeader(http.StatusInternalServerError)
+			t.Errorf("Not equal, expected: %q, actual: %q", defaultAppType, obj.Context.AppType)
+			return
+		}
+		if obj.Resources[0].Name != "Host01" {
+			w.WriteHeader(http.StatusInternalServerError)
+			t.Errorf("Not equal, expected: %q, actual: %q", "Host01", obj.Resources[0].Name)
+			return
+		}
+		if obj.Resources[0].Services[0].Name != "Service01" {
+			w.WriteHeader(http.StatusInternalServerError)
+			t.Errorf("Not equal, expected: %q, actual: %q", "Service01", obj.Resources[0].Services[0].Name)
+			return
+		}
+		if *obj.Resources[0].Services[0].Properties["facility"].StringValue != "FACILITY" {
+			w.WriteHeader(http.StatusInternalServerError)
+			t.Errorf("Not equal, expected: %q, actual: %q", "FACILITY", *obj.Resources[0].Services[0].Properties["facility"].StringValue)
+			return
+		}
+		if *obj.Resources[0].Services[0].Properties["severity"].StringValue != "SEVERITY" {
+			w.WriteHeader(http.StatusInternalServerError)
+			t.Errorf("Not equal, expected: %q, actual: %q", "SEVERITY", *obj.Resources[0].Services[0].Properties["severity"].StringValue)
+			return
+		}
+		if obj.Groups[0].GroupName != "Group01" {
+			w.WriteHeader(http.StatusInternalServerError)
+			t.Errorf("Not equal, expected: %q, actual: %q", "Group01", obj.Groups[0].GroupName)
+			return
+		}
+		if obj.Groups[0].Resources[0].Name != "Host01" {
+			w.WriteHeader(http.StatusInternalServerError)
+			t.Errorf("Not equal, expected: %q, actual: %q", "Host01", obj.Groups[0].Resources[0].Name)
+			return
+		}
+		if obj.Resources[0].Services[0].LastPluginOutput != "Test Tag" {
+			w.WriteHeader(http.StatusInternalServerError)
+			t.Errorf("Not equal, expected: %q, actual: %q", "Test Tag", obj.Resources[0].Services[0].LastPluginOutput)
+			return
+		}
+		if obj.Resources[0].Services[0].Status != transit.MonitorStatus("SERVICE_PENDING") {
+			w.WriteHeader(http.StatusInternalServerError)
+			t.Errorf("Not equal, expected: %q, actual: %q", transit.MonitorStatus("SERVICE_PENDING"), obj.Resources[0].Services[0].Status)
+			return
+		}
+		if dt := float64(1.0) - *obj.Resources[0].Services[0].Metrics[0].Value.DoubleValue; !testutil.WithinDefaultDelta(dt) {
+			w.WriteHeader(http.StatusInternalServerError)
+			t.Errorf("Max difference between %v and %v allowed is %v, but difference was %v",
+				float64(1.0), *obj.Resources[0].Services[0].Metrics[0].Value.DoubleValue, testutil.DefaultDelta, dt)
+			return
+		}
+		if dt := float64(9.0) - *obj.Resources[0].Services[0].Metrics[0].Thresholds[0].Value.DoubleValue; !testutil.WithinDefaultDelta(dt) {
+			w.WriteHeader(http.StatusInternalServerError)
+			t.Errorf("Max difference between %v and %v allowed is %v, but difference was %v",
+				float64(9.0), *obj.Resources[0].Services[0].Metrics[0].Thresholds[0].Value.DoubleValue, testutil.DefaultDelta, dt)
+			return
+		}
+		if dt := float64(6.0) - *obj.Resources[0].Services[0].Metrics[0].Thresholds[1].Value.DoubleValue; !testutil.WithinDefaultDelta(dt) {
+			w.WriteHeader(http.StatusInternalServerError)
+			t.Errorf("Max difference between %v and %v allowed is %v, but difference was %v",
+				float64(6.0), *obj.Resources[0].Services[0].Metrics[0].Thresholds[1].Value.DoubleValue, testutil.DefaultDelta, dt)
+			return
+		}
 
-		_, err = fmt.Fprintln(w, "OK")
-		require.NoError(t, err)
+		if _, err = fmt.Fprintln(w, "OK"); err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			t.Error(err)
+			return
+		}
 	}))
 
 	i := Groundwork{

@@ -20,26 +20,27 @@ import (
 //go:embed sample.conf
 var sampleConfig string
 
-const oid = ".1.3.6.1.4.1.35450"
+const (
+	oid = ".1.3.6.1.4.1.35450"
+	// For Manager Master
+	defaultEndpoint = "127.0.0.1:4020"
+)
 
-// For Manager Master
-const defaultEndpoint = "127.0.0.1:4020"
-
-type ServerType int
+type serverType int
 
 const (
-	ServerTypeManagerMaster ServerType = iota
-	ServerTypeManagerSlave
-	ServerTypeStorage
-	ServerTypeGateway
+	serverTypeManagerMaster serverType = iota
+	serverTypeManagerSlave
+	serverTypeStorage
+	serverTypeGateway
 )
 
 type LeoFS struct {
-	Servers []string
+	Servers []string `toml:"servers"`
 }
 
-var KeyMapping = map[ServerType][]string{
-	ServerTypeManagerMaster: {
+var keyMapping = map[serverType][]string{
+	serverTypeManagerMaster: {
 		"num_of_processes",
 		"total_memory_usage",
 		"system_memory_usage",
@@ -55,7 +56,7 @@ var KeyMapping = map[ServerType][]string{
 		"used_allocated_memory_5min",
 		"allocated_memory_5min",
 	},
-	ServerTypeManagerSlave: {
+	serverTypeManagerSlave: {
 		"num_of_processes",
 		"total_memory_usage",
 		"system_memory_usage",
@@ -71,7 +72,7 @@ var KeyMapping = map[ServerType][]string{
 		"used_allocated_memory_5min",
 		"allocated_memory_5min",
 	},
-	ServerTypeStorage: {
+	serverTypeStorage: {
 		"num_of_processes",
 		"total_memory_usage",
 		"system_memory_usage",
@@ -113,7 +114,7 @@ var KeyMapping = map[ServerType][]string{
 		"comp_num_of_ongoing_targets",
 		"comp_num_of_out_of_targets",
 	},
-	ServerTypeGateway: {
+	serverTypeGateway: {
 		"num_of_processes",
 		"total_memory_usage",
 		"system_memory_usage",
@@ -141,15 +142,15 @@ var KeyMapping = map[ServerType][]string{
 	},
 }
 
-var serverTypeMapping = map[string]ServerType{
-	"4020": ServerTypeManagerMaster,
-	"4021": ServerTypeManagerSlave,
-	"4010": ServerTypeStorage,
-	"4011": ServerTypeStorage,
-	"4012": ServerTypeStorage,
-	"4013": ServerTypeStorage,
-	"4000": ServerTypeGateway,
-	"4001": ServerTypeGateway,
+var serverTypeMapping = map[string]serverType{
+	"4020": serverTypeManagerMaster,
+	"4021": serverTypeManagerSlave,
+	"4010": serverTypeStorage,
+	"4011": serverTypeStorage,
+	"4012": serverTypeStorage,
+	"4013": serverTypeStorage,
+	"4000": serverTypeGateway,
+	"4001": serverTypeGateway,
 }
 
 func (*LeoFS) SampleConfig() string {
@@ -158,7 +159,7 @@ func (*LeoFS) SampleConfig() string {
 
 func (l *LeoFS) Gather(acc telegraf.Accumulator) error {
 	if len(l.Servers) == 0 {
-		return l.gatherServer(defaultEndpoint, ServerTypeManagerMaster, acc)
+		return gatherServer(defaultEndpoint, serverTypeManagerMaster, acc)
 	}
 	var wg sync.WaitGroup
 	for _, endpoint := range l.Servers {
@@ -179,23 +180,19 @@ func (l *LeoFS) Gather(acc telegraf.Accumulator) error {
 
 		st, ok := serverTypeMapping[port]
 		if !ok {
-			st = ServerTypeStorage
+			st = serverTypeStorage
 		}
 		wg.Add(1)
-		go func(endpoint string, st ServerType) {
+		go func(endpoint string, st serverType) {
 			defer wg.Done()
-			acc.AddError(l.gatherServer(endpoint, st, acc))
+			acc.AddError(gatherServer(endpoint, st, acc))
 		}(endpoint, st)
 	}
 	wg.Wait()
 	return nil
 }
 
-func (l *LeoFS) gatherServer(
-	endpoint string,
-	serverType ServerType,
-	acc telegraf.Accumulator,
-) error {
+func gatherServer(endpoint string, serverType serverType, acc telegraf.Accumulator) error {
 	cmd := exec.Command("snmpwalk", "-v2c", "-cpublic", "-On", endpoint, oid)
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
@@ -221,7 +218,7 @@ func (l *LeoFS) gatherServer(
 
 	fields := make(map[string]interface{})
 	for scanner.Scan() {
-		key := KeyMapping[serverType][i]
+		key := keyMapping[serverType][i]
 		val, err := retrieveTokenAfterColon(scanner.Text())
 		if err != nil {
 			return err

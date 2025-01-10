@@ -19,27 +19,12 @@ import (
 //go:embed sample.conf
 var sampleConfig string
 
-var once sync.Once
-
 var (
+	once                          sync.Once
 	defaultMaxUndeliveredMessages = 1000
 )
 
-type empty struct{}
-type semaphore chan empty
-
-type natsError struct {
-	conn *nats.Conn
-	sub  *nats.Subscription
-	err  error
-}
-
-func (e natsError) Error() string {
-	return fmt.Sprintf("%s url:%s id:%s sub:%s queue:%s",
-		e.err.Error(), e.conn.ConnectedUrl(), e.conn.ConnectedServerId(), e.sub.Subject, e.sub.Queue)
-}
-
-type natsConsumer struct {
+type NatsConsumer struct {
 	QueueGroup             string          `toml:"queue_group"`
 	Subjects               []string        `toml:"subjects"`
 	Servers                []string        `toml:"servers"`
@@ -70,24 +55,32 @@ type natsConsumer struct {
 	cancel context.CancelFunc
 }
 
-func (*natsConsumer) SampleConfig() string {
+type (
+	empty     struct{}
+	semaphore chan empty
+)
+
+type natsError struct {
+	conn *nats.Conn
+	sub  *nats.Subscription
+	err  error
+}
+
+func (e natsError) Error() string {
+	return fmt.Sprintf("%s url:%s id:%s sub:%s queue:%s",
+		e.err.Error(), e.conn.ConnectedUrl(), e.conn.ConnectedServerId(), e.sub.Subject, e.sub.Queue)
+}
+
+func (*NatsConsumer) SampleConfig() string {
 	return sampleConfig
 }
 
-func (n *natsConsumer) SetParser(parser telegraf.Parser) {
+func (n *NatsConsumer) SetParser(parser telegraf.Parser) {
 	n.parser = parser
 }
 
-func (n *natsConsumer) natsErrHandler(c *nats.Conn, s *nats.Subscription, e error) {
-	select {
-	case n.errs <- natsError{conn: c, sub: s, err: e}:
-	default:
-		return
-	}
-}
-
-// Start the nats consumer. Caller must call *natsConsumer.Stop() to clean up.
-func (n *natsConsumer) Start(acc telegraf.Accumulator) error {
+// Start the nats consumer. Caller must call *NatsConsumer.Stop() to clean up.
+func (n *NatsConsumer) Start(acc telegraf.Accumulator) error {
 	n.acc = acc.WithTracking(n.MaxUndeliveredMessages)
 
 	options := []nats.Option{
@@ -193,9 +186,27 @@ func (n *natsConsumer) Start(acc telegraf.Accumulator) error {
 	return nil
 }
 
+func (*NatsConsumer) Gather(telegraf.Accumulator) error {
+	return nil
+}
+
+func (n *NatsConsumer) Stop() {
+	n.cancel()
+	n.wg.Wait()
+	n.clean()
+}
+
+func (n *NatsConsumer) natsErrHandler(c *nats.Conn, s *nats.Subscription, e error) {
+	select {
+	case n.errs <- natsError{conn: c, sub: s, err: e}:
+	default:
+		return
+	}
+}
+
 // receiver() reads all incoming messages from NATS, and parses them into
 // telegraf metrics.
-func (n *natsConsumer) receiver(ctx context.Context) {
+func (n *NatsConsumer) receiver(ctx context.Context) {
 	sem := make(semaphore, n.MaxUndeliveredMessages)
 
 	for {
@@ -237,7 +248,7 @@ func (n *natsConsumer) receiver(ctx context.Context) {
 	}
 }
 
-func (n *natsConsumer) clean() {
+func (n *NatsConsumer) clean() {
 	for _, sub := range n.subs {
 		if err := sub.Unsubscribe(); err != nil {
 			n.Log.Errorf("Error unsubscribing from subject %s in queue %s: %s",
@@ -257,19 +268,9 @@ func (n *natsConsumer) clean() {
 	}
 }
 
-func (n *natsConsumer) Stop() {
-	n.cancel()
-	n.wg.Wait()
-	n.clean()
-}
-
-func (n *natsConsumer) Gather(_ telegraf.Accumulator) error {
-	return nil
-}
-
 func init() {
 	inputs.Add("nats_consumer", func() telegraf.Input {
-		return &natsConsumer{
+		return &NatsConsumer{
 			Servers:                []string{"nats://localhost:4222"},
 			Subjects:               []string{"telegraf"},
 			QueueGroup:             "telegraf_consumers",

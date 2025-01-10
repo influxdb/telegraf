@@ -78,7 +78,7 @@ func (c *converter) setup(ct converterType, log telegraf.Logger) error {
 				}
 			}
 			if allNamed {
-				log.Infof("%s: Using named-group mode...", ct)
+				log.Debugf("%s: Using named-group mode...", ct)
 				c.groups = groups[1:]
 			} else {
 				msg := "Neither 'result_key' nor 'replacement' given with unnamed or mixed groups;"
@@ -86,7 +86,7 @@ func (c *converter) setup(ct converterType, log telegraf.Logger) error {
 				log.Warnf("%s: %s", ct, msg)
 			}
 		} else {
-			log.Infof("%s: Using explicit mode...", ct)
+			log.Debugf("%s: Using explicit mode...", ct)
 		}
 	case convertTagRename, convertFieldRename:
 		switch c.ResultKey {

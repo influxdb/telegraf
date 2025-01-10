@@ -184,12 +184,7 @@ func formatValue(value interface{}) string {
 // FIELDNAME. It is up to the user to replace this. This is so that
 // SerializeBucketName can be called just once per measurement, rather than
 // once per field. See GraphiteSerializer.InsertField() function.
-func SerializeBucketName(
-	measurement string,
-	tags map[string]string,
-	template string,
-	prefix string,
-) string {
+func SerializeBucketName(measurement string, tags map[string]string, template, prefix string) string {
 	if template == "" {
 		template = DefaultTemplate
 	}
@@ -278,14 +273,7 @@ func InitGraphiteTemplates(templates []string) ([]*GraphiteTemplate, string, err
 // SerializeBucketNameWithTags will take the given measurement name and tags and
 // produce a graphite bucket. It will use the Graphite11Serializer.
 // http://graphite.readthedocs.io/en/latest/tags.html
-func (s *GraphiteSerializer) SerializeBucketNameWithTags(
-	measurement string,
-	tags map[string]string,
-	prefix string,
-	separator string,
-	field string,
-	tagSanitizeMode string,
-) string {
+func (s *GraphiteSerializer) SerializeBucketNameWithTags(measurement string, tags map[string]string, prefix, separator, field, tagSanitizeMode string) string {
 	var out string
 	var tagsCopy []string
 	for k, v := range tags {
@@ -358,7 +346,7 @@ func (s *GraphiteSerializer) strictSanitize(value string) string {
 	return s.strictAllowedChars.ReplaceAllLiteralString(value, "_")
 }
 
-func compatibleSanitize(name string, value string) string {
+func compatibleSanitize(name, value string) string {
 	name = compatibleAllowedCharsName.ReplaceAllLiteralString(name, "_")
 	value = compatibleAllowedCharsValue.ReplaceAllLiteralString(value, "_")
 	value = compatibleLeadingTildeDrop.FindStringSubmatch(value)[1]
@@ -367,20 +355,8 @@ func compatibleSanitize(name string, value string) string {
 
 func init() {
 	serializers.Add("graphite",
-		func() serializers.Serializer {
+		func() telegraf.Serializer {
 			return &GraphiteSerializer{}
 		},
 	)
-}
-
-// InitFromConfig is a compatibility function to construct the parser the old way
-func (s *GraphiteSerializer) InitFromConfig(cfg *serializers.Config) error {
-	s.Prefix = cfg.Prefix
-	s.Templates = cfg.Templates
-	s.StrictRegex = cfg.GraphiteStrictRegex
-	s.TagSupport = cfg.GraphiteTagSupport
-	s.TagSanitizeMode = cfg.GraphiteTagSanitizeMode
-	s.Separator = cfg.GraphiteSeparator
-
-	return nil
 }

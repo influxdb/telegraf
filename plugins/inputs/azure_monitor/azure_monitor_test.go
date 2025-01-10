@@ -27,7 +27,7 @@ type mockAzureMetricDefinitionsClient struct{}
 
 type mockAzureMetricsClient struct{}
 
-func (mam *mockAzureClientsManager) createAzureClients(_, _, _, _ string, _ azcore.ClientOptions) (*receiver.AzureClients, error) {
+func (*mockAzureClientsManager) createAzureClients(_, _, _, _ string, _ azcore.ClientOptions) (*receiver.AzureClients, error) {
 	return &receiver.AzureClients{
 		Ctx:                     context.Background(),
 		ResourcesClient:         &mockAzureResourcesClient{},
@@ -36,7 +36,7 @@ func (mam *mockAzureClientsManager) createAzureClients(_, _, _, _ string, _ azco
 	}, nil
 }
 
-func (marc *mockAzureResourcesClient) List(_ context.Context, _ *armresources.ClientListOptions) ([]*armresources.ClientListResponse, error) {
+func (*mockAzureResourcesClient) List(_ context.Context, _ *armresources.ClientListOptions) ([]*armresources.ClientListResponse, error) {
 	var responses []*armresources.ClientListResponse
 
 	file, err := os.ReadFile("testdata/json/azure_resources_response.json")
@@ -59,7 +59,7 @@ func (marc *mockAzureResourcesClient) List(_ context.Context, _ *armresources.Cl
 	return responses, nil
 }
 
-func (marc *mockAzureResourcesClient) ListByResourceGroup(
+func (*mockAzureResourcesClient) ListByResourceGroup(
 	_ context.Context,
 	resourceGroup string,
 	_ *armresources.ClientListByResourceGroupOptions) ([]*armresources.ClientListByResourceGroupResponse, error) {
@@ -105,7 +105,7 @@ func (marc *mockAzureResourcesClient) ListByResourceGroup(
 	return nil, errors.New("resource group was not found")
 }
 
-func (mamdc *mockAzureMetricDefinitionsClient) List(
+func (*mockAzureMetricDefinitionsClient) List(
 	_ context.Context,
 	resourceID string,
 	_ *armmonitor.MetricDefinitionsClientListOptions) (armmonitor.MetricDefinitionsClientListResponse, error) {
@@ -146,7 +146,7 @@ func (mamdc *mockAzureMetricDefinitionsClient) List(
 	return armmonitor.MetricDefinitionsClientListResponse{}, errors.New("resource ID was not found")
 }
 
-func (mamc *mockAzureMetricsClient) List(
+func (*mockAzureMetricsClient) List(
 	_ context.Context,
 	resourceID string,
 	_ *armmonitor.MetricsClientListOptions) (armmonitor.MetricsClientListResponse, error) {
@@ -923,7 +923,7 @@ func TestGather_Success(t *testing.T) {
 
 	am.receiver, err = receiver.NewAzureMonitorMetricsReceiver(
 		am.SubscriptionID,
-		receiver.NewTargets(resourceTargets, []*receiver.ResourceGroupTarget{}, []*receiver.Resource{}),
+		receiver.NewTargets(resourceTargets, nil, nil),
 		azureClients,
 	)
 	require.NoError(t, err)
@@ -1010,7 +1010,7 @@ func TestGather_China_Success(t *testing.T) {
 
 	am.receiver, err = receiver.NewAzureMonitorMetricsReceiver(
 		am.SubscriptionID,
-		receiver.NewTargets(resourceTargets, []*receiver.ResourceGroupTarget{}, []*receiver.Resource{}),
+		receiver.NewTargets(resourceTargets, nil, nil),
 		azureClients,
 	)
 	require.NoError(t, err)
@@ -1043,7 +1043,7 @@ func TestGather_Government_Success(t *testing.T) {
 
 	am.receiver, err = receiver.NewAzureMonitorMetricsReceiver(
 		am.SubscriptionID,
-		receiver.NewTargets(resourceTargets, []*receiver.ResourceGroupTarget{}, []*receiver.Resource{}),
+		receiver.NewTargets(resourceTargets, nil, nil),
 		azureClients,
 	)
 	require.NoError(t, err)
@@ -1076,7 +1076,7 @@ func TestGather_Public_Success(t *testing.T) {
 
 	am.receiver, err = receiver.NewAzureMonitorMetricsReceiver(
 		am.SubscriptionID,
-		receiver.NewTargets(resourceTargets, []*receiver.ResourceGroupTarget{}, []*receiver.Resource{}),
+		receiver.NewTargets(resourceTargets, nil, nil),
 		azureClients,
 	)
 	require.NoError(t, err)

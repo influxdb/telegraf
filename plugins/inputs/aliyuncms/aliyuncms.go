@@ -149,7 +149,7 @@ func (s *AliyunCMS) Init() error {
 			continue
 		}
 		metric.dimensionsUdObj = make(map[string]string)
-		metric.dimensionsUdArr = []map[string]string{}
+		metric.dimensionsUdArr = make([]map[string]string, 0)
 
 		// first try to unmarshal as an object
 		if err := json.Unmarshal([]byte(metric.Dimensions), &metric.dimensionsUdObj); err == nil {

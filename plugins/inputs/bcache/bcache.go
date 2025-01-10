@@ -53,7 +53,7 @@ func (b *Bcache) Gather(acc telegraf.Accumulator) error {
 				continue
 			}
 		}
-		if err := b.gatherBcache(bdev, acc); err != nil {
+		if err := gatherBcache(bdev, acc); err != nil {
 			return fmt.Errorf("gathering bcache failed: %w", err)
 		}
 	}
@@ -97,7 +97,7 @@ func prettyToBytes(v string) uint64 {
 	return uint64(result)
 }
 
-func (b *Bcache) gatherBcache(bdev string, acc telegraf.Accumulator) error {
+func gatherBcache(bdev string, acc telegraf.Accumulator) error {
 	tags := getTags(bdev)
 	metrics, err := filepath.Glob(bdev + "/stats_total/*")
 	if err != nil {

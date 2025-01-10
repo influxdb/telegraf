@@ -15,7 +15,7 @@ import (
 type JSON struct{}
 
 // Decode unmarshals and validates the JSON body
-func (j *JSON) Decode(octets []byte) ([]codec.Span, error) {
+func (*JSON) Decode(octets []byte) ([]codec.Span, error) {
 	var spans []span
 	err := json.Unmarshal(octets, &spans)
 	if err != nil {

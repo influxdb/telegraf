@@ -101,7 +101,7 @@ func (*Kibana) SampleConfig() string {
 	return sampleConfig
 }
 
-func (k *Kibana) Start(_ telegraf.Accumulator) error {
+func (*Kibana) Start(telegraf.Accumulator) error {
 	return nil
 }
 

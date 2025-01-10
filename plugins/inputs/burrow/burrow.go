@@ -289,14 +289,14 @@ func (b *Burrow) gatherTopics(guard chan struct{}, src *url.URL, cluster string,
 				return
 			}
 
-			b.genTopicMetrics(tr, cluster, topic, acc)
+			genTopicMetrics(tr, cluster, topic, acc)
 		}(topic)
 	}
 
 	wg.Wait()
 }
 
-func (b *Burrow) genTopicMetrics(r *apiResponse, cluster, topic string, acc telegraf.Accumulator) {
+func genTopicMetrics(r *apiResponse, cluster, topic string, acc telegraf.Accumulator) {
 	for i, offset := range r.Offsets {
 		tags := map[string]string{
 			"cluster":   cluster,
@@ -346,7 +346,7 @@ func (b *Burrow) gatherGroups(guard chan struct{}, src *url.URL, cluster string,
 				return
 			}
 
-			b.genGroupStatusMetrics(gr, cluster, group, acc)
+			genGroupStatusMetrics(gr, cluster, group, acc)
 			b.genGroupLagMetrics(gr, cluster, group, acc)
 		}(group)
 	}
@@ -354,7 +354,7 @@ func (b *Burrow) gatherGroups(guard chan struct{}, src *url.URL, cluster string,
 	wg.Wait()
 }
 
-func (b *Burrow) genGroupStatusMetrics(r *apiResponse, cluster, group string, acc telegraf.Accumulator) {
+func genGroupStatusMetrics(r *apiResponse, cluster, group string, acc telegraf.Accumulator) {
 	partitionCount := r.Status.PartitionCount
 	if partitionCount == 0 {
 		partitionCount = len(r.Status.Partitions)

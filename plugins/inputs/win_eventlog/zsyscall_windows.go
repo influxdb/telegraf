@@ -156,7 +156,7 @@ func _EvtClose(object EvtHandle) error {
 	return err
 }
 
-func _EvtNext(resultSet EvtHandle, eventArraySize uint32, eventArray *EvtHandle, timeout uint32, flags uint32, numReturned *uint32) error {
+func _EvtNext(resultSet EvtHandle, eventArraySize uint32, eventArray *EvtHandle, timeout, flags uint32, numReturned *uint32) error {
 	r1, _, e1 := syscall.SyscallN(
 		procEvtNext.Addr(),
 		uintptr(resultSet),
@@ -214,7 +214,7 @@ func _EvtFormatMessage(
 	return err
 }
 
-func _EvtOpenPublisherMetadata(session EvtHandle, publisherIdentity *uint16, logFilePath *uint16, locale uint32, flags uint32) (EvtHandle, error) {
+func _EvtOpenPublisherMetadata(session EvtHandle, publisherIdentity, logFilePath *uint16, locale, flags uint32) (EvtHandle, error) {
 	r0, _, e1 := syscall.SyscallN(
 		procEvtOpenPublisherMetadata.Addr(),
 		uintptr(session),

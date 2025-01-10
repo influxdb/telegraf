@@ -172,7 +172,7 @@ func (m *OpenConfigTelemetry) Start(acc telegraf.Accumulator) error {
 	return nil
 }
 
-func (m *OpenConfigTelemetry) Gather(_ telegraf.Accumulator) error {
+func (*OpenConfigTelemetry) Gather(telegraf.Accumulator) error {
 	return nil
 }
 

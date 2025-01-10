@@ -13,16 +13,16 @@ var (
 	scoreboardRegex       = regexp.MustCompile(`\[(?P<name>[^\]]+)\]: (?P<value>\d+)`)
 )
 
-// Connection is an established connection to the Minecraft server.
-type Connection interface {
+// connection is an established connection to the Minecraft server.
+type connection interface {
 	// Execute runs a command.
 	Execute(command string) (string, error)
 }
 
-// Connector is used to create connections to the Minecraft server.
-type Connector interface {
-	// Connect establishes a connection to the server.
-	Connect() (Connection, error)
+// conn is used to create connections to the Minecraft server.
+type conn interface {
+	// connect establishes a connection to the server.
+	connect() (connection, error)
 }
 
 func newConnector(hostname, port, password string) *connector {
@@ -39,7 +39,7 @@ type connector struct {
 	password string
 }
 
-func (c *connector) Connect() (Connection, error) {
+func (c *connector) connect() (connection, error) {
 	client, err := rcon.Dial(c.hostname+":"+c.port, c.password)
 	if err != nil {
 		return nil, err
@@ -48,17 +48,17 @@ func (c *connector) Connect() (Connection, error) {
 	return client, nil
 }
 
-func newClient(connector Connector) *client {
+func newClient(connector conn) *client {
 	return &client{connector: connector}
 }
 
 type client struct {
-	connector Connector
-	conn      Connection
+	connector conn
+	conn      connection
 }
 
-func (c *client) Connect() error {
-	conn, err := c.connector.Connect()
+func (c *client) connect() error {
+	conn, err := c.connector.connect()
 	if err != nil {
 		return err
 	}
@@ -66,9 +66,9 @@ func (c *client) Connect() error {
 	return nil
 }
 
-func (c *client) Players() ([]string, error) {
+func (c *client) players() ([]string, error) {
 	if c.conn == nil {
-		err := c.Connect()
+		err := c.connect()
 		if err != nil {
 			return nil, err
 		}
@@ -83,9 +83,9 @@ func (c *client) Players() ([]string, error) {
 	return parsePlayers(resp), nil
 }
 
-func (c *client) Scores(player string) ([]Score, error) {
+func (c *client) scores(player string) ([]score, error) {
 	if c.conn == nil {
-		err := c.Connect()
+		err := c.connect()
 		if err != nil {
 			return nil, err
 		}
@@ -127,13 +127,13 @@ func parsePlayers(input string) []string {
 	return players
 }
 
-// Score is an individual tracked scoreboard stat.
-type Score struct {
-	Name  string
-	Value int64
+// score is an individual tracked scoreboard stat.
+type score struct {
+	name  string
+	value int64
 }
 
-func parseScores(input string) []Score {
+func parseScores(input string) []score {
 	if strings.Contains(input, "has no scores") {
 		return nil
 	}
@@ -147,19 +147,19 @@ func parseScores(input string) []Score {
 	}
 
 	matches := re.FindAllStringSubmatch(input, -1)
-	scores := make([]Score, 0, len(matches))
+	scores := make([]score, 0, len(matches))
 	for _, match := range matches {
-		score := Score{}
+		score := score{}
 		for i, subexp := range re.SubexpNames() {
 			switch subexp {
 			case "name":
-				score.Name = match[i]
+				score.name = match[i]
 			case "value":
 				value, err := strconv.ParseInt(match[i], 10, 64)
 				if err != nil {
 					continue
 				}
-				score.Value = value
+				score.value = value
 			default:
 				continue
 			}

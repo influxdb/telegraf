@@ -31,15 +31,17 @@ It is intended to
 
 The persistence will use the following steps:
 
+- Compute an unique ID for each of the plugin _instances_
+- Startup Telegraf plugins calling `Init()`, etc.
 - Initialize persistence framework with the user specified `statefile` location
   and load the state if present
 - Determine all stateful plugin instances by fulfilling the `StatefulPlugin`
   interface
-- Compute an unique ID for each of the plugin _instances_
 - Restore plugin states (if any) for each plugin ID present in the state-file
-- Startup Telegraf plugins calling `Init()`, etc.
 - Run data-collection etc...
-- On shutdown, query the state of all registered stateful plugins state
+- On shutdown, stopping all Telegraf plugins calling `Stop()` or `Close()`
+  depending on the plugin type
+- Query the state of all registered stateful plugins state
 - Create an overall state-map with the plugin instance ID as a key and the
   serialized plugin state as value.
 - Marshal the overall state-map and store to disk
@@ -85,7 +87,7 @@ for the overall state. On-disk, the overall state of Telegraf is stored as JSON.
 To restore the state of a plugin, the overall Telegraf state is first
 deserialized from the on-disk JSON data and a lookup for the plugin ID is
 performed in the resulting map. The value, if found, is then deserialized to the
-plugin's state data-structure and provided to the plugin before calling `Init()`.
+plugin's state data-structure and provided to the plugin after calling `Init()`.
 
 ## Is / Is-not
 

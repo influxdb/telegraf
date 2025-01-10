@@ -13,7 +13,6 @@ import (
 	"github.com/influxdata/telegraf/internal"
 	"github.com/influxdata/telegraf/internal/rotate"
 	"github.com/influxdata/telegraf/plugins/outputs"
-	"github.com/influxdata/telegraf/plugins/serializers"
 )
 
 //go:embed sample.conf
@@ -32,14 +31,14 @@ type File struct {
 	encoder    internal.ContentEncoder
 	writer     io.Writer
 	closers    []io.Closer
-	serializer serializers.Serializer
+	serializer telegraf.Serializer
 }
 
 func (*File) SampleConfig() string {
 	return sampleConfig
 }
 
-func (f *File) SetSerializer(serializer serializers.Serializer) {
+func (f *File) SetSerializer(serializer telegraf.Serializer) {
 	f.serializer = serializer
 }
 

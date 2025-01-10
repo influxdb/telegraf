@@ -58,7 +58,7 @@ func TestNginxUpstreamCheckData(test *testing.T) {
 	}))
 	defer testServer.Close()
 
-	check := NewNginxUpstreamCheck()
+	check := newNginxUpstreamCheck()
 	check.URL = testServer.URL + "/status"
 
 	var accumulator testutil.Accumulator
@@ -139,7 +139,7 @@ func TestNginxUpstreamCheckRequest(test *testing.T) {
 	}))
 	defer testServer.Close()
 
-	check := NewNginxUpstreamCheck()
+	check := newNginxUpstreamCheck()
 	check.URL = testServer.URL + "/status"
 	check.Headers["X-test"] = "test-value"
 	check.HostHeader = "status.local"

@@ -106,7 +106,7 @@ func (n *NginxVTS) gatherURL(addr *url.URL, acc telegraf.Accumulator) error {
 	}
 }
 
-type NginxVTSResponse struct {
+type nginxVTSResponse struct {
 	Connections struct {
 		Active   uint64 `json:"active"`
 		Reading  uint64 `json:"reading"`
@@ -116,13 +116,13 @@ type NginxVTSResponse struct {
 		Handled  uint64 `json:"handled"`
 		Requests uint64 `json:"requests"`
 	} `json:"connections"`
-	ServerZones   map[string]Server            `json:"serverZones"`
-	FilterZones   map[string]map[string]Server `json:"filterZones"`
-	UpstreamZones map[string][]Upstream        `json:"upstreamZones"`
-	CacheZones    map[string]Cache             `json:"cacheZones"`
+	ServerZones   map[string]server            `json:"serverZones"`
+	FilterZones   map[string]map[string]server `json:"filterZones"`
+	UpstreamZones map[string][]upstream        `json:"upstreamZones"`
+	CacheZones    map[string]cache             `json:"cacheZones"`
 }
 
-type Server struct {
+type server struct {
 	RequestCounter uint64 `json:"requestCounter"`
 	InBytes        uint64 `json:"inBytes"`
 	OutBytes       uint64 `json:"outBytes"`
@@ -144,7 +144,7 @@ type Server struct {
 	} `json:"responses"`
 }
 
-type Upstream struct {
+type upstream struct {
 	Server         string `json:"server"`
 	RequestCounter uint64 `json:"requestCounter"`
 	InBytes        uint64 `json:"inBytes"`
@@ -165,7 +165,7 @@ type Upstream struct {
 	Down         bool   `json:"down"`
 }
 
-type Cache struct {
+type cache struct {
 	MaxSize   uint64 `json:"maxSize"`
 	UsedSize  uint64 `json:"usedSize"`
 	InBytes   uint64 `json:"inBytes"`
@@ -184,7 +184,7 @@ type Cache struct {
 
 func gatherStatusURL(r *bufio.Reader, tags map[string]string, acc telegraf.Accumulator) error {
 	dec := json.NewDecoder(r)
-	status := &NginxVTSResponse{}
+	status := &nginxVTSResponse{}
 	if err := dec.Decode(status); err != nil {
 		return errors.New("error while decoding JSON response")
 	}

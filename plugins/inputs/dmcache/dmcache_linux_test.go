@@ -139,7 +139,7 @@ func TestNoDevicesOutput(t *testing.T) {
 	var plugin = &DMCache{
 		PerDevice: true,
 		getCurrentStatus: func() ([]string, error) {
-			return []string{}, nil
+			return nil, nil
 		},
 	}
 

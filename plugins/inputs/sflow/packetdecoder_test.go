@@ -15,8 +15,7 @@ func TestUDPHeader(t *testing.T) {
 		0x00, 0x00, // checksum
 	})
 
-	dc := newDecoder()
-	actual, err := dc.decodeUDPHeader(octets)
+	actual, err := decodeUDPHeader(octets)
 	require.NoError(t, err)
 
 	expected := udpHeader{
@@ -36,11 +35,9 @@ func BenchmarkUDPHeader(b *testing.B) {
 		0x00, 0x00, // checksum
 	})
 
-	dc := newDecoder()
-
 	b.ResetTimer()
 	for n := 0; n < b.N; n++ {
-		_, err := dc.decodeUDPHeader(octets)
+		_, err := decodeUDPHeader(octets)
 		require.NoError(b, err)
 	}
 }

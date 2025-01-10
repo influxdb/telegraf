@@ -128,7 +128,7 @@ func (d *DockerLogs) Init() error {
 }
 
 // Start is a noop which is required for a *DockerLogs to implement the telegraf.ServiceInput interface
-func (d *DockerLogs) Start(telegraf.Accumulator) error {
+func (*DockerLogs) Start(telegraf.Accumulator) error {
 	return nil
 }
 

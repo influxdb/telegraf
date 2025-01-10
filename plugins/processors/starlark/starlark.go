@@ -120,8 +120,7 @@ func (s *Starlark) Add(origMetric telegraf.Metric, acc telegraf.Accumulator) err
 	return nil
 }
 
-func (s *Starlark) Stop() {
-}
+func (s *Starlark) Stop() {}
 
 func containsMetric(metrics []telegraf.Metric, target telegraf.Metric) bool {
 	for _, m := range metrics {

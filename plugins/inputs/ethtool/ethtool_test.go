@@ -35,19 +35,19 @@ func (n *namespaceMock) name() string {
 	return n.namespaceName
 }
 
-func (n *namespaceMock) interfaces() ([]namespacedInterface, error) {
+func (*namespaceMock) interfaces() ([]namespacedInterface, error) {
 	return nil, errors.New("it is a test bug to invoke this function")
 }
 
-func (n *namespaceMock) driverName(_ namespacedInterface) (string, error) {
+func (*namespaceMock) driverName(_ namespacedInterface) (string, error) {
 	return "", errors.New("it is a test bug to invoke this function")
 }
 
-func (n *namespaceMock) stats(_ namespacedInterface) (map[string]uint64, error) {
+func (*namespaceMock) stats(_ namespacedInterface) (map[string]uint64, error) {
 	return nil, errors.New("it is a test bug to invoke this function")
 }
 
-func (n *namespaceMock) get(_ namespacedInterface) (map[string]uint64, error) {
+func (*namespaceMock) get(_ namespacedInterface) (map[string]uint64, error) {
 	return nil, errors.New("it is a test bug to invoke this function")
 }
 
@@ -55,7 +55,7 @@ type commandEthtoolMock struct {
 	interfaceMap map[string]*interfaceMock
 }
 
-func (c *commandEthtoolMock) init() error {
+func (*commandEthtoolMock) init() error {
 	// Not required for test mock
 	return nil
 }

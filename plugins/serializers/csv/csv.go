@@ -238,18 +238,8 @@ func (s *Serializer) writeDataOrdered(metric telegraf.Metric) error {
 
 func init() {
 	serializers.Add("csv",
-		func() serializers.Serializer {
+		func() telegraf.Serializer {
 			return &Serializer{}
 		},
 	)
-}
-
-// InitFromConfig is a compatibility function to construct the parser the old way
-func (s *Serializer) InitFromConfig(cfg *serializers.Config) error {
-	s.TimestampFormat = cfg.TimestampFormat
-	s.Separator = cfg.CSVSeparator
-	s.Header = cfg.CSVHeader
-	s.Prefix = cfg.CSVPrefix
-
-	return nil
 }

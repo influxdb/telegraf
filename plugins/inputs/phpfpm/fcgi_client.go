@@ -44,7 +44,7 @@ func newFcgiClient(timeout time.Duration, h string, args ...interface{}) (*conn,
 	return &conn{rwc: con}, nil
 }
 
-func (c *conn) Request(env map[string]string, requestData string) (retout, reterr []byte, err error) {
+func (c *conn) request(env map[string]string, requestData string) (retout, reterr []byte, err error) {
 	defer c.rwc.Close()
 	var reqID uint16 = 1
 

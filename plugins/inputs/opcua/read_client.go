@@ -15,33 +15,33 @@ import (
 	"github.com/influxdata/telegraf/selfstat"
 )
 
-type ReadClientWorkarounds struct {
+type readClientWorkarounds struct {
 	UseUnregisteredReads bool `toml:"use_unregistered_reads"`
 }
 
-type ReadClientConfig struct {
+type readClientConfig struct {
 	ReadRetryTimeout      config.Duration       `toml:"read_retry_timeout"`
 	ReadRetries           uint64                `toml:"read_retry_count"`
-	ReadClientWorkarounds ReadClientWorkarounds `toml:"request_workarounds"`
+	ReadClientWorkarounds readClientWorkarounds `toml:"request_workarounds"`
 	input.InputClientConfig
 }
 
-// ReadClient Requests the current values from the required nodes when gather is called.
-type ReadClient struct {
+// readClient Requests the current values from the required nodes when gather is called.
+type readClient struct {
 	*input.OpcUAInputClient
 
 	ReadRetryTimeout time.Duration
 	ReadRetries      uint64
 	ReadSuccess      selfstat.Stat
 	ReadError        selfstat.Stat
-	Workarounds      ReadClientWorkarounds
+	Workarounds      readClientWorkarounds
 
 	// internal values
 	reqIDs []*ua.ReadValueID
 	ctx    context.Context
 }
 
-func (rc *ReadClientConfig) CreateReadClient(log telegraf.Logger) (*ReadClient, error) {
+func (rc *readClientConfig) createReadClient(log telegraf.Logger) (*readClient, error) {
 	inputClient, err := rc.InputClientConfig.CreateInputClient(log)
 	if err != nil {
 		return nil, err
@@ -55,7 +55,7 @@ func (rc *ReadClientConfig) CreateReadClient(log telegraf.Logger) (*ReadClient, 
 		rc.ReadRetryTimeout = config.Duration(100 * time.Millisecond)
 	}
 
-	return &ReadClient{
+	return &readClient{
 		OpcUAInputClient: inputClient,
 		ReadRetryTimeout: time.Duration(rc.ReadRetryTimeout),
 		ReadRetries:      rc.ReadRetries,
@@ -65,7 +65,7 @@ func (rc *ReadClientConfig) CreateReadClient(log telegraf.Logger) (*ReadClient, 
 	}, nil
 }
 
-func (o *ReadClient) Connect() error {
+func (o *readClient) connect() error {
 	o.ctx = context.Background()
 
 	if err := o.OpcUAClient.Connect(o.ctx); err != nil {
@@ -103,14 +103,14 @@ func (o *ReadClient) Connect() error {
 	return nil
 }
 
-func (o *ReadClient) ensureConnected() error {
+func (o *readClient) ensureConnected() error {
 	if o.State() == opcua.Disconnected || o.State() == opcua.Closed {
-		return o.Connect()
+		return o.connect()
 	}
 	return nil
 }
 
-func (o *ReadClient) CurrentValues() ([]telegraf.Metric, error) {
+func (o *readClient) currentValues() ([]telegraf.Metric, error) {
 	if err := o.ensureConnected(); err != nil {
 		return nil, err
 	}
@@ -142,7 +142,7 @@ func (o *ReadClient) CurrentValues() ([]telegraf.Metric, error) {
 	return metrics, nil
 }
 
-func (o *ReadClient) read() error {
+func (o *readClient) read() error {
 	req := &ua.ReadRequest{
 		MaxAge:             2000,
 		TimestampsToReturn: ua.TimestampsToReturnBoth,

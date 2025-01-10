@@ -328,17 +328,8 @@ func appendStringField(buf []byte, value string) []byte {
 
 func init() {
 	serializers.Add("influx",
-		func() serializers.Serializer {
+		func() telegraf.Serializer {
 			return &Serializer{}
 		},
 	)
-}
-
-// InitFromConfig is a compatibility function to construct the parser the old way
-func (s *Serializer) InitFromConfig(cfg *serializers.Config) error {
-	s.MaxLineBytes = cfg.InfluxMaxLineBytes
-	s.SortFields = cfg.InfluxSortFields
-	s.UintSupport = cfg.InfluxUintSupport
-
-	return nil
 }

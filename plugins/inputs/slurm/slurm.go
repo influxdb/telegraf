@@ -103,7 +103,7 @@ func (s *Slurm) Init() error {
 	return nil
 }
 
-func (s *Slurm) parseTres(tres string) map[string]interface{} {
+func parseTres(tres string) map[string]interface{} {
 	tresKVs := strings.Split(tres, ",")
 	parsedValues := make(map[string]interface{}, len(tresKVs))
 
@@ -258,7 +258,7 @@ func (s *Slurm) gatherJobsMetrics(acc telegraf.Accumulator, jobs []goslurm.V0038
 			records["time_limit"] = *int64Ptr
 		}
 		if strPtr, ok := jobs[i].GetTresReqStrOk(); ok {
-			for k, v := range s.parseTres(*strPtr) {
+			for k, v := range parseTres(*strPtr) {
 				records["tres_"+k] = v
 			}
 		}
@@ -302,12 +302,12 @@ func (s *Slurm) gatherNodesMetrics(acc telegraf.Accumulator, nodes []goslurm.V00
 			records["alloc_memory"] = *int64Ptr
 		}
 		if strPtr, ok := node.GetTresOk(); ok {
-			for k, v := range s.parseTres(*strPtr) {
+			for k, v := range parseTres(*strPtr) {
 				records["tres_"+k] = v
 			}
 		}
 		if strPtr, ok := node.GetTresUsedOk(); ok {
-			for k, v := range s.parseTres(*strPtr) {
+			for k, v := range parseTres(*strPtr) {
 				records["tres_used_"+k] = v
 			}
 		}
@@ -348,7 +348,7 @@ func (s *Slurm) gatherPartitionsMetrics(acc telegraf.Accumulator, partitions []g
 			records["nodes"] = *strPtr
 		}
 		if strPtr, ok := partition.GetTresOk(); ok {
-			for k, v := range s.parseTres(*strPtr) {
+			for k, v := range parseTres(*strPtr) {
 				records["tres_"+k] = v
 			}
 		}

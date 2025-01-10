@@ -10,7 +10,7 @@ import (
 	"github.com/influxdata/telegraf/testutil"
 )
 
-func NSDControl(output string) func(string, config.Duration, bool, string, string) (*bytes.Buffer, error) {
+func nsdControl(output string) func(string, config.Duration, bool, string, string) (*bytes.Buffer, error) {
 	return func(string, config.Duration, bool, string, string) (*bytes.Buffer, error) {
 		return bytes.NewBufferString(output), nil
 	}
@@ -19,7 +19,7 @@ func NSDControl(output string) func(string, config.Duration, bool, string, strin
 func TestParseFullOutput(t *testing.T) {
 	acc := &testutil.Accumulator{}
 	v := &NSD{
-		run: NSDControl(fullOutput),
+		run: nsdControl(fullOutput),
 	}
 	err := v.Gather(acc)
 

@@ -56,7 +56,7 @@ func (d *Dovecot) Gather(acc telegraf.Accumulator) error {
 			wg.Add(1)
 			go func(s string, f string) {
 				defer wg.Done()
-				acc.AddError(d.gatherServer(s, acc, d.Type, f))
+				acc.AddError(gatherServer(s, acc, d.Type, f))
 			}(server, filter)
 		}
 	}
@@ -65,7 +65,7 @@ func (d *Dovecot) Gather(acc telegraf.Accumulator) error {
 	return nil
 }
 
-func (d *Dovecot) gatherServer(addr string, acc telegraf.Accumulator, qtype, filter string) error {
+func gatherServer(addr string, acc telegraf.Accumulator, qtype, filter string) error {
 	var proto string
 
 	if strings.HasPrefix(addr, "/") {

@@ -3,6 +3,7 @@ package influxdb_v2
 
 import (
 	"context"
+	"crypto/tls"
 	_ "embed"
 	"errors"
 	"fmt"
@@ -15,26 +16,15 @@ import (
 
 	"github.com/influxdata/telegraf"
 	"github.com/influxdata/telegraf/config"
-	"github.com/influxdata/telegraf/plugins/common/tls"
+	"github.com/influxdata/telegraf/internal"
+	"github.com/influxdata/telegraf/plugins/common/ratelimiter"
+	commontls "github.com/influxdata/telegraf/plugins/common/tls"
 	"github.com/influxdata/telegraf/plugins/outputs"
 	"github.com/influxdata/telegraf/plugins/serializers/influx"
 )
 
 //go:embed sample.conf
 var sampleConfig string
-
-var (
-	defaultURL = "http://localhost:8086"
-
-	ErrMissingURL = errors.New("missing URL")
-)
-
-type Client interface {
-	Write(context.Context, []telegraf.Metric) error
-
-	URL() string // for logging
-	Close()
-}
 
 type InfluxDB struct {
 	URLs             []string          `toml:"urls"`
@@ -53,22 +43,65 @@ type InfluxDB struct {
 	OmitTimestamp    bool              `toml:"influx_omit_timestamp"`
 	PingTimeout      config.Duration   `toml:"ping_timeout"`
 	ReadIdleTimeout  config.Duration   `toml:"read_idle_timeout"`
-	tls.ClientConfig
+	Log              telegraf.Logger   `toml:"-"`
+	commontls.ClientConfig
+	ratelimiter.RateLimitConfig
 
-	Log telegraf.Logger `toml:"-"`
-
-	clients []Client
+	clients    []*httpClient
+	encoder    internal.ContentEncoder
+	serializer ratelimiter.Serializer
+	tlsCfg     *tls.Config
 }
 
 func (*InfluxDB) SampleConfig() string {
 	return sampleConfig
 }
 
-func (i *InfluxDB) Connect() error {
-	if len(i.URLs) == 0 {
-		i.URLs = append(i.URLs, defaultURL)
+func (i *InfluxDB) Init() error {
+	// Set defaults
+	if i.UserAgent == "" {
+		i.UserAgent = internal.ProductToken()
 	}
 
+	if len(i.URLs) == 0 {
+		i.URLs = append(i.URLs, "http://localhost:8086")
+	}
+
+	// Init encoding if configured
+	switch i.ContentEncoding {
+	case "", "gzip":
+		i.ContentEncoding = "gzip"
+		enc, err := internal.NewGzipEncoder()
+		if err != nil {
+			return fmt.Errorf("setting up gzip encoder failed: %w", err)
+		}
+		i.encoder = enc
+	case "identity":
+	default:
+		return fmt.Errorf("invalid content encoding %q", i.ContentEncoding)
+	}
+
+	// Setup the limited serializer
+	serializer := &influx.Serializer{
+		UintSupport:   i.UintSupport,
+		OmitTimestamp: i.OmitTimestamp,
+	}
+	if err := serializer.Init(); err != nil {
+		return fmt.Errorf("setting up serializer failed: %w", err)
+	}
+	i.serializer = ratelimiter.NewIndividualSerializer(serializer)
+
+	// Setup the client config
+	tlsCfg, err := i.ClientConfig.TLSConfig()
+	if err != nil {
+		return fmt.Errorf("setting up TLS failed: %w", err)
+	}
+	i.tlsCfg = tlsCfg
+
+	return nil
+}
+
+func (i *InfluxDB) Connect() error {
 	for _, u := range i.URLs {
 		parts, err := url.Parse(u)
 		if err != nil {
@@ -112,9 +145,34 @@ func (i *InfluxDB) Connect() error {
 
 		switch parts.Scheme {
 		case "http", "https", "unix":
-			c, err := i.getHTTPClient(parts, localAddr, proxy)
+			limiter, err := i.RateLimitConfig.CreateRateLimiter()
 			if err != nil {
 				return err
+			}
+			c := &httpClient{
+				url:              parts,
+				localAddr:        localAddr,
+				token:            i.Token,
+				organization:     i.Organization,
+				bucket:           i.Bucket,
+				bucketTag:        i.BucketTag,
+				excludeBucketTag: i.ExcludeBucketTag,
+				timeout:          time.Duration(i.Timeout),
+				headers:          i.HTTPHeaders,
+				proxy:            proxy,
+				userAgent:        i.UserAgent,
+				contentEncoding:  i.ContentEncoding,
+				tlsConfig:        i.tlsCfg,
+				pingTimeout:      i.PingTimeout,
+				readIdleTimeout:  i.ReadIdleTimeout,
+				encoder:          i.encoder,
+				rateLimiter:      limiter,
+				serializer:       i.serializer,
+				log:              i.Log,
+			}
+
+			if err := c.Init(); err != nil {
+				return fmt.Errorf("error creating HTTP client [%s]: %w", parts, err)
 			}
 
 			i.clients = append(i.clients, c)
@@ -138,68 +196,26 @@ func (i *InfluxDB) Close() error {
 func (i *InfluxDB) Write(metrics []telegraf.Metric) error {
 	ctx := context.Background()
 
-	var err error
-	p := rand.Perm(len(i.clients))
-	for _, n := range p {
+	for _, n := range rand.Perm(len(i.clients)) {
 		client := i.clients[n]
-		err = client.Write(ctx, metrics)
-		if err == nil {
-			return nil
+		if err := client.Write(ctx, metrics); err != nil {
+			var werr *internal.PartialWriteError
+			if errors.As(err, &werr) || errors.Is(err, internal.ErrSizeLimitReached) {
+				return err
+			}
+			i.Log.Errorf("When writing to [%s]: %v", client.url, err)
+			continue
 		}
-
-		i.Log.Errorf("When writing to [%s]: %v", client.URL(), err)
+		return nil
 	}
 
 	return errors.New("failed to send metrics to any configured server(s)")
 }
 
-func (i *InfluxDB) getHTTPClient(address *url.URL, localAddr *net.TCPAddr, proxy *url.URL) (Client, error) {
-	tlsConfig, err := i.ClientConfig.TLSConfig()
-	if err != nil {
-		return nil, err
-	}
-
-	serializer := &influx.Serializer{
-		UintSupport:   i.UintSupport,
-		OmitTimestamp: i.OmitTimestamp,
-	}
-	if err := serializer.Init(); err != nil {
-		return nil, err
-	}
-
-	httpConfig := &HTTPConfig{
-		URL:              address,
-		LocalAddr:        localAddr,
-		Token:            i.Token,
-		Organization:     i.Organization,
-		Bucket:           i.Bucket,
-		BucketTag:        i.BucketTag,
-		ExcludeBucketTag: i.ExcludeBucketTag,
-		Timeout:          time.Duration(i.Timeout),
-		Headers:          i.HTTPHeaders,
-		Proxy:            proxy,
-		UserAgent:        i.UserAgent,
-		ContentEncoding:  i.ContentEncoding,
-		TLSConfig:        tlsConfig,
-		Serializer:       serializer,
-		PingTimeout:      i.PingTimeout,
-		ReadIdleTimeout:  i.ReadIdleTimeout,
-		Log:              i.Log,
-	}
-
-	c, err := NewHTTPClient(httpConfig)
-	if err != nil {
-		return nil, fmt.Errorf("error creating HTTP client [%s]: %w", address, err)
-	}
-
-	return c, nil
-}
-
 func init() {
 	outputs.Add("influxdb_v2", func() telegraf.Output {
 		return &InfluxDB{
-			Timeout:         config.Duration(time.Second * 5),
-			ContentEncoding: "gzip",
+			Timeout: config.Duration(time.Second * 5),
 		}
 	})
 }

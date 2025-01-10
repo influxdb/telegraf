@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"reflect"
+	"strings"
 	"testing"
 	"time"
 
@@ -161,7 +163,11 @@ func TestContentType(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ts.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				require.Equal(t, tt.expected, r.Header.Get("Content-Type"))
+				if contentHeader := r.Header.Get("Content-Type"); contentHeader != tt.expected {
+					w.WriteHeader(http.StatusInternalServerError)
+					t.Errorf("Not equal, expected: %q, actual: %q", tt.expected, contentHeader)
+					return
+				}
 				w.WriteHeader(http.StatusOK)
 			})
 
@@ -205,28 +211,71 @@ func TestContentEncodingGzip(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ts.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				require.Equal(t, tt.expected, r.Header.Get("Content-Encoding"))
+				if contentHeader := r.Header.Get("Content-Encoding"); contentHeader != tt.expected {
+					w.WriteHeader(http.StatusInternalServerError)
+					t.Errorf("Not equal, expected: %q, actual: %q", tt.expected, contentHeader)
+					return
+				}
 
 				body := r.Body
 				var err error
 				if r.Header.Get("Content-Encoding") == "gzip" {
 					body, err = gzip.NewReader(r.Body)
-					require.NoError(t, err)
+					if err != nil {
+						w.WriteHeader(http.StatusInternalServerError)
+						t.Error(err)
+						return
+					}
 				}
 
 				payload, err := io.ReadAll(body)
-				require.NoError(t, err)
+				if err != nil {
+					w.WriteHeader(http.StatusInternalServerError)
+					t.Error(err)
+					return
+				}
 
 				var s Request
-				err = json.Unmarshal(payload, &s)
-				require.NoError(t, err)
-				require.Len(t, s.Streams, 1)
-				require.Len(t, s.Streams[0].Logs, 1)
-				require.Len(t, s.Streams[0].Logs[0], 2)
-				require.Equal(t, map[string]string{"key1": "value1"}, s.Streams[0].Labels)
-				require.Equal(t, "123000000000", s.Streams[0].Logs[0][0])
-				require.Contains(t, s.Streams[0].Logs[0][1], "line=\"my log\"")
-				require.Contains(t, s.Streams[0].Logs[0][1], "field=\"3.14\"")
+				if err = json.Unmarshal(payload, &s); err != nil {
+					w.WriteHeader(http.StatusInternalServerError)
+					t.Error(err)
+					return
+				}
+				if len(s.Streams) != 1 {
+					w.WriteHeader(http.StatusInternalServerError)
+					t.Errorf("'s.Streams' should have %d item(s), but has %d", 1, len(s.Streams))
+					return
+				}
+				if len(s.Streams[0].Logs) != 1 {
+					w.WriteHeader(http.StatusInternalServerError)
+					t.Errorf("'s.Streams[0].Logs' should have %d item(s), but has %d", 1, len(s.Streams[0].Logs))
+					return
+				}
+				if len(s.Streams[0].Logs[0]) != 2 {
+					w.WriteHeader(http.StatusInternalServerError)
+					t.Errorf("'s.Streams[0].Logs[0]' should have %d item(s), but has %d", 2, len(s.Streams[0].Logs[0]))
+					return
+				}
+				if !reflect.DeepEqual(s.Streams[0].Labels, map[string]string{"key1": "value1"}) {
+					w.WriteHeader(http.StatusInternalServerError)
+					t.Errorf("Not equal, expected: %q, actual: %q", map[string]string{"key1": "value1"}, s.Streams[0].Labels)
+					return
+				}
+				if s.Streams[0].Logs[0][0] != "123000000000" {
+					w.WriteHeader(http.StatusInternalServerError)
+					t.Errorf("Not equal, expected: %q, actual: %q", "123000000000", s.Streams[0].Logs[0][0])
+					return
+				}
+				if !strings.Contains(s.Streams[0].Logs[0][1], `line="my log"`) {
+					w.WriteHeader(http.StatusInternalServerError)
+					t.Errorf("'s.Streams[0].Logs[0][1]' should contain %q", `line="my log"`)
+					return
+				}
+				if !strings.Contains(s.Streams[0].Logs[0][1], `field="3.14"`) {
+					w.WriteHeader(http.StatusInternalServerError)
+					t.Errorf("'s.Streams[0].Logs[0][1]' should contain %q", `field="3.14"`)
+					return
+				}
 
 				w.WriteHeader(http.StatusNoContent)
 			})
@@ -264,16 +313,32 @@ func TestMetricNameLabel(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			ts.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				payload, err := io.ReadAll(r.Body)
-				require.NoError(t, err)
+				if err != nil {
+					w.WriteHeader(http.StatusInternalServerError)
+					t.Error(err)
+					return
+				}
 
 				var s Request
-				require.NoError(t, json.Unmarshal(payload, &s))
+				if err := json.Unmarshal(payload, &s); err != nil {
+					w.WriteHeader(http.StatusInternalServerError)
+					t.Error(err)
+					return
+				}
 
 				switch tt.metricNameLabel {
 				case "":
-					require.Equal(t, map[string]string{"key1": "value1"}, s.Streams[0].Labels)
+					if !reflect.DeepEqual(s.Streams[0].Labels, map[string]string{"key1": "value1"}) {
+						w.WriteHeader(http.StatusInternalServerError)
+						t.Errorf("Not equal, expected: %q, actual: %q", map[string]string{"key1": "value1"}, s.Streams[0].Labels)
+						return
+					}
 				case "foobar":
-					require.Equal(t, map[string]string{"foobar": "log", "key1": "value1"}, s.Streams[0].Labels)
+					if !reflect.DeepEqual(s.Streams[0].Labels, map[string]string{"foobar": "log", "key1": "value1"}) {
+						w.WriteHeader(http.StatusInternalServerError)
+						t.Errorf("Not equal, expected: %q, actual: %q", map[string]string{"foobar": "log", "key1": "value1"}, s.Streams[0].Labels)
+						return
+					}
 				}
 
 				w.WriteHeader(http.StatusNoContent)
@@ -315,8 +380,16 @@ func TestBasicAuth(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			ts.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				username, password, _ := r.BasicAuth()
-				require.Equal(t, tt.username, username)
-				require.Equal(t, tt.password, password)
+				if username != tt.username {
+					w.WriteHeader(http.StatusInternalServerError)
+					t.Errorf("Not equal, expected: %q, actual: %q", tt.username, username)
+					return
+				}
+				if password != tt.password {
+					w.WriteHeader(http.StatusInternalServerError)
+					t.Errorf("Not equal, expected: %q, actual: %q", tt.password, password)
+					return
+				}
 				w.WriteHeader(http.StatusOK)
 			})
 
@@ -412,7 +485,11 @@ func TestDefaultUserAgent(t *testing.T) {
 
 	t.Run("default-user-agent", func(t *testing.T) {
 		ts.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			require.Equal(t, internal.ProductToken(), r.Header.Get("User-Agent"))
+			if userHeader := r.Header.Get("User-Agent"); userHeader != internal.ProductToken() {
+				w.WriteHeader(http.StatusInternalServerError)
+				t.Errorf("Not equal, expected: %q, actual: %q", internal.ProductToken(), userHeader)
+				return
+			}
 			w.WriteHeader(http.StatusOK)
 		})
 
@@ -440,21 +517,68 @@ func TestMetricSorting(t *testing.T) {
 			var err error
 
 			payload, err := io.ReadAll(body)
-			require.NoError(t, err)
+			if err != nil {
+				w.WriteHeader(http.StatusInternalServerError)
+				t.Error(err)
+				return
+			}
 
 			var s Request
-			err = json.Unmarshal(payload, &s)
-			require.NoError(t, err)
-			require.Len(t, s.Streams, 1)
-			require.Len(t, s.Streams[0].Logs, 2)
-			require.Len(t, s.Streams[0].Logs[0], 2)
-			require.Equal(t, map[string]string{"key1": "value1"}, s.Streams[0].Labels)
-			require.Equal(t, "456000000000", s.Streams[0].Logs[0][0])
-			require.Contains(t, s.Streams[0].Logs[0][1], "line=\"older log\"")
-			require.Contains(t, s.Streams[0].Logs[0][1], "field=\"3.14\"")
-			require.Equal(t, "1230000000000", s.Streams[0].Logs[1][0])
-			require.Contains(t, s.Streams[0].Logs[1][1], "line=\"newer log\"")
-			require.Contains(t, s.Streams[0].Logs[1][1], "field=\"3.14\"")
+			if err = json.Unmarshal(payload, &s); err != nil {
+				w.WriteHeader(http.StatusInternalServerError)
+				t.Error(err)
+				return
+			}
+			if len(s.Streams) != 1 {
+				w.WriteHeader(http.StatusInternalServerError)
+				t.Errorf("'s.Streams' should have %d item(s), but has %d", 1, len(s.Streams))
+				return
+			}
+			if len(s.Streams[0].Logs) != 2 {
+				w.WriteHeader(http.StatusInternalServerError)
+				t.Errorf("'s.Streams[0].Logs' should have %d item(s), but has %d", 2, len(s.Streams[0].Logs))
+				return
+			}
+			if len(s.Streams[0].Logs[0]) != 2 {
+				w.WriteHeader(http.StatusInternalServerError)
+				t.Errorf("'s.Streams[0].Logs[0]' should have %d item(s), but has %d", 2, len(s.Streams[0].Logs[0]))
+				return
+			}
+			if !reflect.DeepEqual(s.Streams[0].Labels, map[string]string{"key1": "value1"}) {
+				w.WriteHeader(http.StatusInternalServerError)
+				t.Errorf("Not equal, expected: %q, actual: %q", map[string]string{"key1": "value1"}, s.Streams[0].Labels)
+				return
+			}
+			if s.Streams[0].Logs[0][0] != "456000000000" {
+				w.WriteHeader(http.StatusInternalServerError)
+				t.Errorf("Not equal, expected: %q, actual: %q", "456000000000", s.Streams[0].Logs[0][0])
+				return
+			}
+			if !strings.Contains(s.Streams[0].Logs[0][1], `line="older log"`) {
+				w.WriteHeader(http.StatusInternalServerError)
+				t.Errorf("'s.Streams[0].Logs[0][1]' should contain %q", `line="older log"`)
+				return
+			}
+			if !strings.Contains(s.Streams[0].Logs[0][1], `field="3.14"`) {
+				w.WriteHeader(http.StatusInternalServerError)
+				t.Errorf("'s.Streams[0].Logs[0][1]' should contain %q", `field="3.14"`)
+				return
+			}
+			if s.Streams[0].Logs[1][0] != "1230000000000" {
+				w.WriteHeader(http.StatusInternalServerError)
+				t.Errorf("Not equal, expected: %q, actual: %q", "1230000000000", s.Streams[0].Logs[1][0])
+				return
+			}
+			if !strings.Contains(s.Streams[0].Logs[1][1], `line="newer log"`) {
+				w.WriteHeader(http.StatusInternalServerError)
+				t.Errorf("'s.Streams[0].Logs[1][1]' should contain %q", `line="newer log"`)
+				return
+			}
+			if !strings.Contains(s.Streams[0].Logs[1][1], `field="3.14"`) {
+				w.WriteHeader(http.StatusInternalServerError)
+				t.Errorf("'s.Streams[0].Logs[1][1]' should contain %q", `field="3.14"`)
+				return
+			}
 
 			w.WriteHeader(http.StatusNoContent)
 		})

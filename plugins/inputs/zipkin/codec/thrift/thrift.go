@@ -45,7 +45,7 @@ func UnmarshalThrift(body []byte) ([]*zipkincore.Span, error) {
 type Thrift struct{}
 
 // Decode unmarshals and validates bytes in thrift format
-func (t *Thrift) Decode(octets []byte) ([]codec.Span, error) {
+func (*Thrift) Decode(octets []byte) ([]codec.Span, error) {
 	spans, err := UnmarshalThrift(octets)
 	if err != nil {
 		return nil, err

@@ -23,8 +23,8 @@ import (
 var sampleConfig string
 
 type Nats struct {
-	Server          string
-	ResponseTimeout config.Duration
+	Server          string          `toml:"server"`
+	ResponseTimeout config.Duration `toml:"response_timeout"`
 
 	client *http.Client
 }

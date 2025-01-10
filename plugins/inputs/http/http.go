@@ -86,7 +86,7 @@ func (h *HTTP) SetParserFunc(fn telegraf.ParserFunc) {
 	h.parserFunc = fn
 }
 
-func (h *HTTP) Start(_ telegraf.Accumulator) error {
+func (*HTTP) Start(telegraf.Accumulator) error {
 	return nil
 }
 

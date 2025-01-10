@@ -99,7 +99,7 @@ func (m *FakePerformanceQuery) ExpandWildCardPath(counterPath string) ([]string,
 	if e, ok := m.expandPaths[counterPath]; ok {
 		return e, nil
 	}
-	return []string{}, fmt.Errorf("in ExpandWildCardPath: invalid counter path: %q", counterPath)
+	return nil, fmt.Errorf("in ExpandWildCardPath: invalid counter path: %q", counterPath)
 }
 
 func (m *FakePerformanceQuery) GetFormattedCounterValueDouble(counterHandle pdhCounterHandle) (float64, error) {

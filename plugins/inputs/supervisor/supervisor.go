@@ -49,11 +49,7 @@ type supervisorInfo struct {
 //go:embed sample.conf
 var sampleConfig string
 
-func (s *Supervisor) Description() string {
-	return "Gather info about processes state, that running under supervisor using its XML-RPC API"
-}
-
-func (s *Supervisor) SampleConfig() string {
+func (*Supervisor) SampleConfig() string {
 	return sampleConfig
 }
 

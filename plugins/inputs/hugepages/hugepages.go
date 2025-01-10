@@ -118,7 +118,7 @@ func (h *Hugepages) Gather(acc telegraf.Accumulator) error {
 
 // gatherStatsPerNode collects root hugepages statistics
 func (h *Hugepages) gatherRootStats(acc telegraf.Accumulator) error {
-	return h.gatherFromHugepagePath(acc, "hugepages_"+rootHugepages, h.rootHugepagePath, hugepagesMetricsRoot, nil)
+	return gatherFromHugepagePath(acc, "hugepages_"+rootHugepages, h.rootHugepagePath, hugepagesMetricsRoot, nil)
 }
 
 // gatherStatsPerNode collects hugepages statistics per NUMA node
@@ -144,7 +144,7 @@ func (h *Hugepages) gatherStatsPerNode(acc telegraf.Accumulator) error {
 			"node": nodeNumber,
 		}
 		hugepagesPath := filepath.Join(h.numaNodePath, nodeDir.Name(), "hugepages")
-		err = h.gatherFromHugepagePath(acc, "hugepages_"+perNodeHugepages, hugepagesPath, hugepagesMetricsPerNUMANode, perNodeTags)
+		err = gatherFromHugepagePath(acc, "hugepages_"+perNodeHugepages, hugepagesPath, hugepagesMetricsPerNUMANode, perNodeTags)
 		if err != nil {
 			return err
 		}
@@ -152,7 +152,7 @@ func (h *Hugepages) gatherStatsPerNode(acc telegraf.Accumulator) error {
 	return nil
 }
 
-func (h *Hugepages) gatherFromHugepagePath(acc telegraf.Accumulator, measurement, path string, fileFilter, defaultTags map[string]string) error {
+func gatherFromHugepagePath(acc telegraf.Accumulator, measurement, path string, fileFilter, defaultTags map[string]string) error {
 	// read metrics from: hugepages/hugepages-*/*
 	hugepagesDirs, err := os.ReadDir(path)
 	if err != nil {

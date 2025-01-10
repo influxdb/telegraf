@@ -14,7 +14,7 @@ import (
 func BenchmarkPattern(b *testing.B) {
 	finder := &NativeFinder{}
 	for n := 0; n < b.N; n++ {
-		_, err := finder.Pattern(".*")
+		_, err := finder.pattern(".*")
 		require.NoError(b, err)
 	}
 }
@@ -22,7 +22,7 @@ func BenchmarkPattern(b *testing.B) {
 func BenchmarkFullPattern(b *testing.B) {
 	finder := &NativeFinder{}
 	for n := 0; n < b.N; n++ {
-		_, err := finder.FullPattern(".*")
+		_, err := finder.fullPattern(".*")
 		require.NoError(b, err)
 	}
 }
@@ -37,26 +37,26 @@ func TestChildPattern(t *testing.T) {
 	require.NoError(t, err)
 
 	// Spawn two child processes and get their PIDs
-	expected := make([]PID, 0, 2)
+	expected := make([]pid, 0, 2)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	// First process
 	cmd1 := exec.CommandContext(ctx, "/bin/sh")
 	require.NoError(t, cmd1.Start(), "starting first command failed")
-	expected = append(expected, PID(cmd1.Process.Pid))
+	expected = append(expected, pid(cmd1.Process.Pid))
 
 	// Second process
 	cmd2 := exec.CommandContext(ctx, "/bin/sh")
 	require.NoError(t, cmd2.Start(), "starting first command failed")
-	expected = append(expected, PID(cmd2.Process.Pid))
+	expected = append(expected, pid(cmd2.Process.Pid))
 
 	// Use the plugin to find the children
 	finder := &NativeFinder{}
-	parent, err := finder.Pattern(parentName)
+	parent, err := finder.pattern(parentName)
 	require.NoError(t, err)
 	require.Len(t, parent, 1)
-	children, err := finder.Children(parent[0])
+	children, err := finder.children(parent[0])
 	require.NoError(t, err)
 	require.ElementsMatch(t, expected, children)
 }
@@ -66,7 +66,7 @@ func TestGather_RealPatternIntegration(t *testing.T) {
 		t.Skip("Skipping integration test in short mode")
 	}
 	pg := &NativeFinder{}
-	pids, err := pg.Pattern(`procstat`)
+	pids, err := pg.pattern(`procstat`)
 	require.NoError(t, err)
 	require.NotEmpty(t, pids)
 }
@@ -79,7 +79,7 @@ func TestGather_RealFullPatternIntegration(t *testing.T) {
 		t.Skip("Skipping integration test on Non-Windows OS")
 	}
 	pg := &NativeFinder{}
-	pids, err := pg.FullPattern(`%procstat%`)
+	pids, err := pg.fullPattern(`%procstat%`)
 	require.NoError(t, err)
 	require.NotEmpty(t, pids)
 }
@@ -92,7 +92,7 @@ func TestGather_RealUserIntegration(t *testing.T) {
 	require.NoError(t, err)
 
 	pg := &NativeFinder{}
-	pids, err := pg.UID(currentUser.Username)
+	pids, err := pg.uid(currentUser.Username)
 	require.NoError(t, err)
 	require.NotEmpty(t, pids)
 }

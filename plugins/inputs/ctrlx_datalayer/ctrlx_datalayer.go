@@ -131,7 +131,7 @@ func (c *CtrlXDataLayer) Start(acc telegraf.Accumulator) error {
 	return nil
 }
 
-func (c *CtrlXDataLayer) Gather(_ telegraf.Accumulator) error {
+func (*CtrlXDataLayer) Gather(telegraf.Accumulator) error {
 	// Metrics are sent to the accumulator asynchronously in worker thread. So nothing to do here.
 	return nil
 }

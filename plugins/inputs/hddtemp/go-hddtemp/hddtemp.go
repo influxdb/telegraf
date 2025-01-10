@@ -25,7 +25,7 @@ func New() *hddtemp {
 }
 
 // Fetch gathers disks data from hddtemp daemon.
-func (h *hddtemp) Fetch(address string) ([]Disk, error) {
+func (*hddtemp) Fetch(address string) ([]Disk, error) {
 	var (
 		err    error
 		conn   net.Conn

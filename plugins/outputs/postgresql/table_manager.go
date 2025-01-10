@@ -27,14 +27,20 @@ type TableManager struct {
 	// map[tableName]map[columnName]utils.Column
 	tables      map[string]*tableState
 	tablesMutex sync.Mutex
+
+	// Map to track which columns are already logged
+	loggedLongColumnWarn map[string]bool
+	loggedLongColumnErr  map[string]bool
 }
 
 // NewTableManager returns an instance of the tables.Manager interface
 // that can handle checking and updating the state of tables in the PG database.
 func NewTableManager(postgresql *Postgresql) *TableManager {
 	return &TableManager{
-		Postgresql: postgresql,
-		tables:     make(map[string]*tableState),
+		Postgresql:           postgresql,
+		tables:               make(map[string]*tableState),
+		loggedLongColumnWarn: make(map[string]bool),
+		loggedLongColumnErr:  make(map[string]bool),
 	}
 }
 
@@ -178,7 +184,15 @@ func (tm *TableManager) EnsureStructure(
 	// check that the missing columns are columns that can be added
 	addColumns := make([]utils.Column, 0, len(missingCols))
 	invalidColumns := make([]utils.Column, 0, len(missingCols))
-	for _, col := range missingCols {
+	for i, col := range missingCols {
+		if tm.ColumnNameLenLimit > 0 && len(col.Name) > tm.ColumnNameLenLimit {
+			if !tm.loggedLongColumnWarn[col.Name] {
+				tm.Postgresql.Logger.Warnf("Limiting too long column name: %q", col.Name)
+				tm.loggedLongColumnWarn[col.Name] = true
+			}
+			col.Name = col.Name[:tm.ColumnNameLenLimit]
+			missingCols[i] = col
+		}
 		if tm.validateColumnName(col.Name) {
 			addColumns = append(addColumns, col)
 			continue
@@ -187,7 +201,10 @@ func (tm *TableManager) EnsureStructure(
 		if col.Role == utils.TagColType {
 			return nil, fmt.Errorf("column name too long: %q", col.Name)
 		}
-		tm.Postgresql.Logger.Errorf("Column name too long: %q", col.Name)
+		if !tm.loggedLongColumnErr[col.Name] {
+			tm.Postgresql.Logger.Errorf("Column name too long: %q", col.Name)
+			tm.loggedLongColumnErr[col.Name] = true
+		}
 		invalidColumns = append(invalidColumns, col)
 	}
 

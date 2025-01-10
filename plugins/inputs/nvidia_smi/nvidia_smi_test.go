@@ -4,64 +4,15 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
-	"runtime"
 	"testing"
 	"time"
 
 	"github.com/influxdata/telegraf"
-	"github.com/influxdata/telegraf/config"
 	"github.com/influxdata/telegraf/internal"
 	"github.com/influxdata/telegraf/models"
 	"github.com/influxdata/telegraf/testutil"
 	"github.com/stretchr/testify/require"
 )
-
-func TestOnStartupError(t *testing.T) {
-	var binPath string
-	var nvidiaSMIArgs []string
-	if runtime.GOOS == "windows" {
-		binPath = `C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe`
-		nvidiaSMIArgs = []string{"-Command", "exit 1"}
-	} else {
-		binPath = "/bin/bash"
-		nvidiaSMIArgs = []string{"-c", "exit 1"}
-	}
-
-	tests := []struct {
-		ProbeOnStartup bool
-	}{
-		{
-			ProbeOnStartup: true,
-		},
-		{
-			ProbeOnStartup: false,
-		},
-	}
-	for _, tt := range tests {
-		plugin := &NvidiaSMI{
-			BinPath:        binPath,
-			ProbeOnStartup: tt.ProbeOnStartup,
-			Timeout:        config.Duration(time.Second),
-			Log:            &testutil.Logger{},
-			nvidiaSMIArgs:  nvidiaSMIArgs,
-		}
-		model := models.NewRunningInput(plugin, &models.InputConfig{
-			Name: "nvidia_smi",
-		})
-		require.NoError(t, model.Init())
-
-		var acc testutil.Accumulator
-		var ferr *internal.FatalError
-		err := model.Start(&acc)
-
-		if tt.ProbeOnStartup {
-			require.False(t, errors.As(err, &ferr))
-			require.ErrorIs(t, model.Gather(&acc), internal.ErrNotConnected)
-		} else {
-			require.NoError(t, err)
-		}
-	}
-}
 
 func TestErrorBehaviorDefault(t *testing.T) {
 	// make sure we can't find nvidia-smi in $PATH somewhere

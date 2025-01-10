@@ -53,6 +53,7 @@ func (s *BufferSuiteTest) newTestBuffer(capacity int) Buffer {
 	s.Require().NoError(err)
 	buf.Stats().MetricsAdded.Set(0)
 	buf.Stats().MetricsWritten.Set(0)
+	buf.Stats().MetricsRejected.Set(0)
 	buf.Stats().MetricsDropped.Set(0)
 	return buf
 }
@@ -99,16 +100,16 @@ func (s *BufferSuiteTest) TestBufferBatchLenZero() {
 	buf := s.newTestBuffer(5)
 	defer buf.Close()
 
-	batch := buf.Batch(0)
-	s.Empty(batch)
+	tx := buf.BeginTransaction(0)
+	s.Empty(tx.Batch)
 }
 
 func (s *BufferSuiteTest) TestBufferBatchLenBufferEmpty() {
 	buf := s.newTestBuffer(5)
 	defer buf.Close()
 
-	batch := buf.Batch(2)
-	s.Empty(batch)
+	tx := buf.BeginTransaction(2)
+	s.Empty(tx.Batch)
 }
 
 func (s *BufferSuiteTest) TestBufferBatchLenUnderfill() {
@@ -117,8 +118,8 @@ func (s *BufferSuiteTest) TestBufferBatchLenUnderfill() {
 
 	m := metric.New("cpu", map[string]string{}, map[string]interface{}{"value": 42.0}, time.Unix(0, 0))
 	buf.Add(m)
-	batch := buf.Batch(2)
-	s.Len(batch, 1)
+	tx := buf.BeginTransaction(2)
+	s.Len(tx.Batch, 1)
 }
 
 func (s *BufferSuiteTest) TestBufferBatchLenFill() {
@@ -127,8 +128,8 @@ func (s *BufferSuiteTest) TestBufferBatchLenFill() {
 
 	m := metric.New("cpu", map[string]string{}, map[string]interface{}{"value": 42.0}, time.Unix(0, 0))
 	buf.Add(m, m, m)
-	batch := buf.Batch(2)
-	s.Len(batch, 2)
+	tx := buf.BeginTransaction(2)
+	s.Len(tx.Batch, 2)
 }
 
 func (s *BufferSuiteTest) TestBufferBatchLenExact() {
@@ -137,8 +138,8 @@ func (s *BufferSuiteTest) TestBufferBatchLenExact() {
 
 	m := metric.New("cpu", map[string]string{}, map[string]interface{}{"value": 42.0}, time.Unix(0, 0))
 	buf.Add(m, m)
-	batch := buf.Batch(2)
-	s.Len(batch, 2)
+	tx := buf.BeginTransaction(2)
+	s.Len(tx.Batch, 2)
 }
 
 func (s *BufferSuiteTest) TestBufferBatchLenLargerThanBuffer() {
@@ -147,8 +148,8 @@ func (s *BufferSuiteTest) TestBufferBatchLenLargerThanBuffer() {
 
 	m := metric.New("cpu", map[string]string{}, map[string]interface{}{"value": 42.0}, time.Unix(0, 0))
 	buf.Add(m, m, m, m, m)
-	batch := buf.Batch(6)
-	s.Len(batch, 5)
+	tx := buf.BeginTransaction(6)
+	s.Len(tx.Batch, 5)
 }
 
 func (s *BufferSuiteTest) TestBufferBatchWrap() {
@@ -157,11 +158,12 @@ func (s *BufferSuiteTest) TestBufferBatchWrap() {
 
 	m := metric.New("cpu", map[string]string{}, map[string]interface{}{"value": 42.0}, time.Unix(0, 0))
 	buf.Add(m, m, m, m, m)
-	batch := buf.Batch(2)
-	buf.Accept(batch)
+	tx := buf.BeginTransaction(2)
+	tx.AcceptAll()
+	buf.EndTransaction(tx)
 	buf.Add(m, m)
-	batch = buf.Batch(5)
-	s.Len(batch, 5)
+	tx = buf.BeginTransaction(5)
+	s.Len(tx.Batch, 5)
 }
 
 func (s *BufferSuiteTest) TestBufferBatchLatest() {
@@ -171,13 +173,13 @@ func (s *BufferSuiteTest) TestBufferBatchLatest() {
 	buf.Add(metric.New("cpu", map[string]string{}, map[string]interface{}{"value": 42.0}, time.Unix(1, 0)))
 	buf.Add(metric.New("cpu", map[string]string{}, map[string]interface{}{"value": 42.0}, time.Unix(2, 0)))
 	buf.Add(metric.New("cpu", map[string]string{}, map[string]interface{}{"value": 42.0}, time.Unix(3, 0)))
-	batch := buf.Batch(2)
+	tx := buf.BeginTransaction(2)
 
 	testutil.RequireMetricsEqual(s.T(),
 		[]telegraf.Metric{
 			metric.New("cpu", map[string]string{}, map[string]interface{}{"value": 42.0}, time.Unix(1, 0)),
 			metric.New("cpu", map[string]string{}, map[string]interface{}{"value": 42.0}, time.Unix(2, 0)),
-		}, batch)
+		}, tx.Batch)
 }
 
 func (s *BufferSuiteTest) TestBufferBatchLatestWrap() {
@@ -193,13 +195,13 @@ func (s *BufferSuiteTest) TestBufferBatchLatestWrap() {
 	buf.Add(metric.New("cpu", map[string]string{}, map[string]interface{}{"value": 42.0}, time.Unix(3, 0)))
 	buf.Add(metric.New("cpu", map[string]string{}, map[string]interface{}{"value": 42.0}, time.Unix(4, 0)))
 	buf.Add(metric.New("cpu", map[string]string{}, map[string]interface{}{"value": 42.0}, time.Unix(5, 0)))
-	batch := buf.Batch(2)
+	tx := buf.BeginTransaction(2)
 
 	testutil.RequireMetricsEqual(s.T(),
 		[]telegraf.Metric{
 			metric.New("cpu", map[string]string{}, map[string]interface{}{"value": 42.0}, time.Unix(2, 0)),
 			metric.New("cpu", map[string]string{}, map[string]interface{}{"value": 42.0}, time.Unix(3, 0)),
-		}, batch)
+		}, tx.Batch)
 }
 
 func (s *BufferSuiteTest) TestBufferMultipleBatch() {
@@ -212,7 +214,7 @@ func (s *BufferSuiteTest) TestBufferMultipleBatch() {
 	buf.Add(metric.New("cpu", map[string]string{}, map[string]interface{}{"value": 42.0}, time.Unix(4, 0)))
 	buf.Add(metric.New("cpu", map[string]string{}, map[string]interface{}{"value": 42.0}, time.Unix(5, 0)))
 	buf.Add(metric.New("cpu", map[string]string{}, map[string]interface{}{"value": 42.0}, time.Unix(6, 0)))
-	batch := buf.Batch(5)
+	tx := buf.BeginTransaction(5)
 	testutil.RequireMetricsEqual(s.T(),
 		[]telegraf.Metric{
 			metric.New("cpu", map[string]string{}, map[string]interface{}{"value": 42.0}, time.Unix(1, 0)),
@@ -220,14 +222,16 @@ func (s *BufferSuiteTest) TestBufferMultipleBatch() {
 			metric.New("cpu", map[string]string{}, map[string]interface{}{"value": 42.0}, time.Unix(3, 0)),
 			metric.New("cpu", map[string]string{}, map[string]interface{}{"value": 42.0}, time.Unix(4, 0)),
 			metric.New("cpu", map[string]string{}, map[string]interface{}{"value": 42.0}, time.Unix(5, 0)),
-		}, batch)
-	buf.Accept(batch)
-	batch = buf.Batch(5)
+		}, tx.Batch)
+	tx.AcceptAll()
+	buf.EndTransaction(tx)
+	tx = buf.BeginTransaction(5)
 	testutil.RequireMetricsEqual(s.T(),
 		[]telegraf.Metric{
 			metric.New("cpu", map[string]string{}, map[string]interface{}{"value": 42.0}, time.Unix(6, 0)),
-		}, batch)
-	buf.Accept(batch)
+		}, tx.Batch)
+	tx.AcceptAll()
+	buf.EndTransaction(tx)
 }
 
 func (s *BufferSuiteTest) TestBufferRejectWithRoom() {
@@ -237,14 +241,15 @@ func (s *BufferSuiteTest) TestBufferRejectWithRoom() {
 	buf.Add(metric.New("cpu", map[string]string{}, map[string]interface{}{"value": 42.0}, time.Unix(1, 0)))
 	buf.Add(metric.New("cpu", map[string]string{}, map[string]interface{}{"value": 42.0}, time.Unix(2, 0)))
 	buf.Add(metric.New("cpu", map[string]string{}, map[string]interface{}{"value": 42.0}, time.Unix(3, 0)))
-	batch := buf.Batch(2)
+	tx := buf.BeginTransaction(2)
 	buf.Add(metric.New("cpu", map[string]string{}, map[string]interface{}{"value": 42.0}, time.Unix(4, 0)))
 	buf.Add(metric.New("cpu", map[string]string{}, map[string]interface{}{"value": 42.0}, time.Unix(5, 0)))
-	buf.Reject(batch)
+	tx.KeepAll()
+	buf.EndTransaction(tx)
 
 	s.Equal(int64(0), buf.Stats().MetricsDropped.Get())
 
-	batch = buf.Batch(5)
+	tx = buf.BeginTransaction(5)
 	testutil.RequireMetricsEqual(s.T(),
 		[]telegraf.Metric{
 			metric.New("cpu", map[string]string{}, map[string]interface{}{"value": 42.0}, time.Unix(1, 0)),
@@ -252,7 +257,7 @@ func (s *BufferSuiteTest) TestBufferRejectWithRoom() {
 			metric.New("cpu", map[string]string{}, map[string]interface{}{"value": 42.0}, time.Unix(3, 0)),
 			metric.New("cpu", map[string]string{}, map[string]interface{}{"value": 42.0}, time.Unix(4, 0)),
 			metric.New("cpu", map[string]string{}, map[string]interface{}{"value": 42.0}, time.Unix(5, 0)),
-		}, batch)
+		}, tx.Batch)
 }
 
 func (s *BufferSuiteTest) TestBufferRejectNothingNewFull() {
@@ -264,12 +269,13 @@ func (s *BufferSuiteTest) TestBufferRejectNothingNewFull() {
 	buf.Add(metric.New("cpu", map[string]string{}, map[string]interface{}{"value": 42.0}, time.Unix(3, 0)))
 	buf.Add(metric.New("cpu", map[string]string{}, map[string]interface{}{"value": 42.0}, time.Unix(4, 0)))
 	buf.Add(metric.New("cpu", map[string]string{}, map[string]interface{}{"value": 42.0}, time.Unix(5, 0)))
-	batch := buf.Batch(2)
-	buf.Reject(batch)
+	tx := buf.BeginTransaction(2)
+	tx.KeepAll()
+	buf.EndTransaction(tx)
 
 	s.Equal(int64(0), buf.Stats().MetricsDropped.Get())
 
-	batch = buf.Batch(5)
+	tx = buf.BeginTransaction(5)
 	testutil.RequireMetricsEqual(s.T(),
 		[]telegraf.Metric{
 			metric.New("cpu", map[string]string{}, map[string]interface{}{"value": 42.0}, time.Unix(1, 0)),
@@ -277,7 +283,7 @@ func (s *BufferSuiteTest) TestBufferRejectNothingNewFull() {
 			metric.New("cpu", map[string]string{}, map[string]interface{}{"value": 42.0}, time.Unix(3, 0)),
 			metric.New("cpu", map[string]string{}, map[string]interface{}{"value": 42.0}, time.Unix(4, 0)),
 			metric.New("cpu", map[string]string{}, map[string]interface{}{"value": 42.0}, time.Unix(5, 0)),
-		}, batch)
+		}, tx.Batch)
 }
 
 func (s *BufferSuiteTest) TestBufferRejectNoRoom() {
@@ -291,18 +297,19 @@ func (s *BufferSuiteTest) TestBufferRejectNoRoom() {
 	buf.Add(metric.New("cpu", map[string]string{}, map[string]interface{}{"value": 42.0}, time.Unix(1, 0)))
 	buf.Add(metric.New("cpu", map[string]string{}, map[string]interface{}{"value": 42.0}, time.Unix(2, 0)))
 	buf.Add(metric.New("cpu", map[string]string{}, map[string]interface{}{"value": 42.0}, time.Unix(3, 0)))
-	batch := buf.Batch(2)
+	tx := buf.BeginTransaction(2)
 
 	buf.Add(metric.New("cpu", map[string]string{}, map[string]interface{}{"value": 42.0}, time.Unix(4, 0)))
 	buf.Add(metric.New("cpu", map[string]string{}, map[string]interface{}{"value": 42.0}, time.Unix(5, 0)))
 	buf.Add(metric.New("cpu", map[string]string{}, map[string]interface{}{"value": 42.0}, time.Unix(6, 0)))
 	buf.Add(metric.New("cpu", map[string]string{}, map[string]interface{}{"value": 42.0}, time.Unix(7, 0)))
 	buf.Add(metric.New("cpu", map[string]string{}, map[string]interface{}{"value": 42.0}, time.Unix(8, 0)))
-	buf.Reject(batch)
+	tx.KeepAll()
+	buf.EndTransaction(tx)
 
 	s.Equal(int64(3), buf.Stats().MetricsDropped.Get())
 
-	batch = buf.Batch(5)
+	tx = buf.BeginTransaction(5)
 	testutil.RequireMetricsEqual(s.T(),
 		[]telegraf.Metric{
 			metric.New("cpu", map[string]string{}, map[string]interface{}{"value": 42.0}, time.Unix(4, 0)),
@@ -310,7 +317,7 @@ func (s *BufferSuiteTest) TestBufferRejectNoRoom() {
 			metric.New("cpu", map[string]string{}, map[string]interface{}{"value": 42.0}, time.Unix(6, 0)),
 			metric.New("cpu", map[string]string{}, map[string]interface{}{"value": 42.0}, time.Unix(7, 0)),
 			metric.New("cpu", map[string]string{}, map[string]interface{}{"value": 42.0}, time.Unix(8, 0)),
-		}, batch)
+		}, tx.Batch)
 }
 
 func (s *BufferSuiteTest) TestBufferRejectRoomExact() {
@@ -319,16 +326,17 @@ func (s *BufferSuiteTest) TestBufferRejectRoomExact() {
 
 	buf.Add(metric.New("cpu", map[string]string{}, map[string]interface{}{"value": 42.0}, time.Unix(1, 0)))
 	buf.Add(metric.New("cpu", map[string]string{}, map[string]interface{}{"value": 42.0}, time.Unix(2, 0)))
-	batch := buf.Batch(2)
+	tx := buf.BeginTransaction(2)
 	buf.Add(metric.New("cpu", map[string]string{}, map[string]interface{}{"value": 42.0}, time.Unix(3, 0)))
 	buf.Add(metric.New("cpu", map[string]string{}, map[string]interface{}{"value": 42.0}, time.Unix(4, 0)))
 	buf.Add(metric.New("cpu", map[string]string{}, map[string]interface{}{"value": 42.0}, time.Unix(5, 0)))
 
-	buf.Reject(batch)
+	tx.KeepAll()
+	buf.EndTransaction(tx)
 
 	s.Equal(int64(0), buf.Stats().MetricsDropped.Get())
 
-	batch = buf.Batch(5)
+	tx = buf.BeginTransaction(5)
 	testutil.RequireMetricsEqual(s.T(),
 		[]telegraf.Metric{
 			metric.New("cpu", map[string]string{}, map[string]interface{}{"value": 42.0}, time.Unix(1, 0)),
@@ -336,7 +344,7 @@ func (s *BufferSuiteTest) TestBufferRejectRoomExact() {
 			metric.New("cpu", map[string]string{}, map[string]interface{}{"value": 42.0}, time.Unix(3, 0)),
 			metric.New("cpu", map[string]string{}, map[string]interface{}{"value": 42.0}, time.Unix(4, 0)),
 			metric.New("cpu", map[string]string{}, map[string]interface{}{"value": 42.0}, time.Unix(5, 0)),
-		}, batch)
+		}, tx.Batch)
 }
 
 func (s *BufferSuiteTest) TestBufferRejectRoomOverwriteOld() {
@@ -350,16 +358,17 @@ func (s *BufferSuiteTest) TestBufferRejectRoomOverwriteOld() {
 	buf.Add(metric.New("cpu", map[string]string{}, map[string]interface{}{"value": 42.0}, time.Unix(1, 0)))
 	buf.Add(metric.New("cpu", map[string]string{}, map[string]interface{}{"value": 42.0}, time.Unix(2, 0)))
 	buf.Add(metric.New("cpu", map[string]string{}, map[string]interface{}{"value": 42.0}, time.Unix(3, 0)))
-	batch := buf.Batch(1)
+	tx := buf.BeginTransaction(1)
 	buf.Add(metric.New("cpu", map[string]string{}, map[string]interface{}{"value": 42.0}, time.Unix(4, 0)))
 	buf.Add(metric.New("cpu", map[string]string{}, map[string]interface{}{"value": 42.0}, time.Unix(5, 0)))
 	buf.Add(metric.New("cpu", map[string]string{}, map[string]interface{}{"value": 42.0}, time.Unix(6, 0)))
 
-	buf.Reject(batch)
+	tx.KeepAll()
+	buf.EndTransaction(tx)
 
 	s.Equal(int64(1), buf.Stats().MetricsDropped.Get())
 
-	batch = buf.Batch(5)
+	tx = buf.BeginTransaction(5)
 	testutil.RequireMetricsEqual(s.T(),
 		[]telegraf.Metric{
 			metric.New("cpu", map[string]string{}, map[string]interface{}{"value": 42.0}, time.Unix(2, 0)),
@@ -367,7 +376,7 @@ func (s *BufferSuiteTest) TestBufferRejectRoomOverwriteOld() {
 			metric.New("cpu", map[string]string{}, map[string]interface{}{"value": 42.0}, time.Unix(4, 0)),
 			metric.New("cpu", map[string]string{}, map[string]interface{}{"value": 42.0}, time.Unix(5, 0)),
 			metric.New("cpu", map[string]string{}, map[string]interface{}{"value": 42.0}, time.Unix(6, 0)),
-		}, batch)
+		}, tx.Batch)
 }
 
 func (s *BufferSuiteTest) TestBufferRejectPartialRoom() {
@@ -381,16 +390,17 @@ func (s *BufferSuiteTest) TestBufferRejectPartialRoom() {
 	buf.Add(metric.New("cpu", map[string]string{}, map[string]interface{}{"value": 42.0}, time.Unix(1, 0)))
 	buf.Add(metric.New("cpu", map[string]string{}, map[string]interface{}{"value": 42.0}, time.Unix(2, 0)))
 	buf.Add(metric.New("cpu", map[string]string{}, map[string]interface{}{"value": 42.0}, time.Unix(3, 0)))
-	batch := buf.Batch(2)
+	tx := buf.BeginTransaction(2)
 	buf.Add(metric.New("cpu", map[string]string{}, map[string]interface{}{"value": 42.0}, time.Unix(4, 0)))
 	buf.Add(metric.New("cpu", map[string]string{}, map[string]interface{}{"value": 42.0}, time.Unix(5, 0)))
 	buf.Add(metric.New("cpu", map[string]string{}, map[string]interface{}{"value": 42.0}, time.Unix(6, 0)))
 	buf.Add(metric.New("cpu", map[string]string{}, map[string]interface{}{"value": 42.0}, time.Unix(7, 0)))
-	buf.Reject(batch)
+	tx.KeepAll()
+	buf.EndTransaction(tx)
 
 	s.Equal(int64(2), buf.Stats().MetricsDropped.Get())
 
-	batch = buf.Batch(5)
+	tx = buf.BeginTransaction(5)
 	testutil.RequireMetricsEqual(s.T(),
 		[]telegraf.Metric{
 			metric.New("cpu", map[string]string{}, map[string]interface{}{"value": 42.0}, time.Unix(3, 0)),
@@ -398,7 +408,7 @@ func (s *BufferSuiteTest) TestBufferRejectPartialRoom() {
 			metric.New("cpu", map[string]string{}, map[string]interface{}{"value": 42.0}, time.Unix(5, 0)),
 			metric.New("cpu", map[string]string{}, map[string]interface{}{"value": 42.0}, time.Unix(6, 0)),
 			metric.New("cpu", map[string]string{}, map[string]interface{}{"value": 42.0}, time.Unix(7, 0)),
-		}, batch)
+		}, tx.Batch)
 }
 
 func (s *BufferSuiteTest) TestBufferRejectNewMetricsWrapped() {
@@ -412,7 +422,7 @@ func (s *BufferSuiteTest) TestBufferRejectNewMetricsWrapped() {
 	buf.Add(metric.New("cpu", map[string]string{}, map[string]interface{}{"value": 42.0}, time.Unix(1, 0)))
 	buf.Add(metric.New("cpu", map[string]string{}, map[string]interface{}{"value": 42.0}, time.Unix(2, 0)))
 	buf.Add(metric.New("cpu", map[string]string{}, map[string]interface{}{"value": 42.0}, time.Unix(3, 0)))
-	batch := buf.Batch(2)
+	tx := buf.BeginTransaction(2)
 	buf.Add(metric.New("cpu", map[string]string{}, map[string]interface{}{"value": 42.0}, time.Unix(4, 0)))
 	buf.Add(metric.New("cpu", map[string]string{}, map[string]interface{}{"value": 42.0}, time.Unix(5, 0)))
 
@@ -435,11 +445,12 @@ func (s *BufferSuiteTest) TestBufferRejectNewMetricsWrapped() {
 	buf.Add(metric.New("cpu", map[string]string{}, map[string]interface{}{"value": 42.0}, time.Unix(15, 0)))
 	// buffer: 13, 14, 15, 11, 12; batch: 2, 3
 	s.Equal(int64(8), buf.Stats().MetricsDropped.Get())
-	buf.Reject(batch)
+	tx.KeepAll()
+	buf.EndTransaction(tx)
 
 	s.Equal(int64(10), buf.Stats().MetricsDropped.Get())
 
-	batch = buf.Batch(5)
+	tx = buf.BeginTransaction(5)
 	testutil.RequireMetricsEqual(s.T(),
 		[]telegraf.Metric{
 			metric.New("cpu", map[string]string{}, map[string]interface{}{"value": 42.0}, time.Unix(11, 0)),
@@ -447,7 +458,7 @@ func (s *BufferSuiteTest) TestBufferRejectNewMetricsWrapped() {
 			metric.New("cpu", map[string]string{}, map[string]interface{}{"value": 42.0}, time.Unix(13, 0)),
 			metric.New("cpu", map[string]string{}, map[string]interface{}{"value": 42.0}, time.Unix(14, 0)),
 			metric.New("cpu", map[string]string{}, map[string]interface{}{"value": 42.0}, time.Unix(15, 0)),
-		}, batch)
+		}, tx.Batch)
 }
 
 func (s *BufferSuiteTest) TestBufferRejectWrapped() {
@@ -467,16 +478,17 @@ func (s *BufferSuiteTest) TestBufferRejectWrapped() {
 	buf.Add(metric.New("cpu", map[string]string{}, map[string]interface{}{"value": 42.0}, time.Unix(6, 0)))
 	buf.Add(metric.New("cpu", map[string]string{}, map[string]interface{}{"value": 42.0}, time.Unix(7, 0)))
 	buf.Add(metric.New("cpu", map[string]string{}, map[string]interface{}{"value": 42.0}, time.Unix(8, 0)))
-	batch := buf.Batch(3)
+	tx := buf.BeginTransaction(3)
 
 	buf.Add(metric.New("cpu", map[string]string{}, map[string]interface{}{"value": 42.0}, time.Unix(9, 0)))
 	buf.Add(metric.New("cpu", map[string]string{}, map[string]interface{}{"value": 42.0}, time.Unix(10, 0)))
 	buf.Add(metric.New("cpu", map[string]string{}, map[string]interface{}{"value": 42.0}, time.Unix(11, 0)))
 	buf.Add(metric.New("cpu", map[string]string{}, map[string]interface{}{"value": 42.0}, time.Unix(12, 0)))
 
-	buf.Reject(batch)
+	tx.KeepAll()
+	buf.EndTransaction(tx)
 
-	batch = buf.Batch(5)
+	tx = buf.BeginTransaction(5)
 	testutil.RequireMetricsEqual(s.T(),
 		[]telegraf.Metric{
 			metric.New("cpu", map[string]string{}, map[string]interface{}{"value": 42.0}, time.Unix(8, 0)),
@@ -484,7 +496,7 @@ func (s *BufferSuiteTest) TestBufferRejectWrapped() {
 			metric.New("cpu", map[string]string{}, map[string]interface{}{"value": 42.0}, time.Unix(10, 0)),
 			metric.New("cpu", map[string]string{}, map[string]interface{}{"value": 42.0}, time.Unix(11, 0)),
 			metric.New("cpu", map[string]string{}, map[string]interface{}{"value": 42.0}, time.Unix(12, 0)),
-		}, batch)
+		}, tx.Batch)
 }
 
 func (s *BufferSuiteTest) TestBufferRejectAdjustFirst() {
@@ -498,36 +510,39 @@ func (s *BufferSuiteTest) TestBufferRejectAdjustFirst() {
 	buf.Add(metric.New("cpu", map[string]string{}, map[string]interface{}{"value": 42.0}, time.Unix(1, 0)))
 	buf.Add(metric.New("cpu", map[string]string{}, map[string]interface{}{"value": 42.0}, time.Unix(2, 0)))
 	buf.Add(metric.New("cpu", map[string]string{}, map[string]interface{}{"value": 42.0}, time.Unix(3, 0)))
-	batch := buf.Batch(3)
+	tx := buf.BeginTransaction(3)
 
 	buf.Add(metric.New("cpu", map[string]string{}, map[string]interface{}{"value": 42.0}, time.Unix(4, 0)))
 	buf.Add(metric.New("cpu", map[string]string{}, map[string]interface{}{"value": 42.0}, time.Unix(5, 0)))
 	buf.Add(metric.New("cpu", map[string]string{}, map[string]interface{}{"value": 42.0}, time.Unix(6, 0)))
-	buf.Reject(batch)
+	tx.KeepAll()
+	buf.EndTransaction(tx)
 
 	buf.Add(metric.New("cpu", map[string]string{}, map[string]interface{}{"value": 42.0}, time.Unix(7, 0)))
 	buf.Add(metric.New("cpu", map[string]string{}, map[string]interface{}{"value": 42.0}, time.Unix(8, 0)))
 	buf.Add(metric.New("cpu", map[string]string{}, map[string]interface{}{"value": 42.0}, time.Unix(9, 0)))
-	batch = buf.Batch(3)
+	tx = buf.BeginTransaction(3)
 
 	buf.Add(metric.New("cpu", map[string]string{}, map[string]interface{}{"value": 42.0}, time.Unix(10, 0)))
 	buf.Add(metric.New("cpu", map[string]string{}, map[string]interface{}{"value": 42.0}, time.Unix(11, 0)))
 	buf.Add(metric.New("cpu", map[string]string{}, map[string]interface{}{"value": 42.0}, time.Unix(12, 0)))
-	buf.Reject(batch)
+	tx.KeepAll()
+	buf.EndTransaction(tx)
 
 	buf.Add(metric.New("cpu", map[string]string{}, map[string]interface{}{"value": 42.0}, time.Unix(13, 0)))
 	buf.Add(metric.New("cpu", map[string]string{}, map[string]interface{}{"value": 42.0}, time.Unix(14, 0)))
 	buf.Add(metric.New("cpu", map[string]string{}, map[string]interface{}{"value": 42.0}, time.Unix(15, 0)))
-	batch = buf.Batch(3)
+	tx = buf.BeginTransaction(3)
 
 	buf.Add(metric.New("cpu", map[string]string{}, map[string]interface{}{"value": 42.0}, time.Unix(16, 0)))
 	buf.Add(metric.New("cpu", map[string]string{}, map[string]interface{}{"value": 42.0}, time.Unix(17, 0)))
 	buf.Add(metric.New("cpu", map[string]string{}, map[string]interface{}{"value": 42.0}, time.Unix(18, 0)))
-	buf.Reject(batch)
+	tx.KeepAll()
+	buf.EndTransaction(tx)
 
 	buf.Add(metric.New("cpu", map[string]string{}, map[string]interface{}{"value": 42.0}, time.Unix(19, 0)))
 
-	batch = buf.Batch(10)
+	tx = buf.BeginTransaction(10)
 	testutil.RequireMetricsEqual(s.T(),
 		[]telegraf.Metric{
 			metric.New("cpu", map[string]string{}, map[string]interface{}{"value": 42.0}, time.Unix(10, 0)),
@@ -540,7 +555,7 @@ func (s *BufferSuiteTest) TestBufferRejectAdjustFirst() {
 			metric.New("cpu", map[string]string{}, map[string]interface{}{"value": 42.0}, time.Unix(17, 0)),
 			metric.New("cpu", map[string]string{}, map[string]interface{}{"value": 42.0}, time.Unix(18, 0)),
 			metric.New("cpu", map[string]string{}, map[string]interface{}{"value": 42.0}, time.Unix(19, 0)),
-		}, batch)
+		}, tx.Batch)
 }
 
 func (s *BufferSuiteTest) TestBufferAddDropsOverwrittenMetrics() {
@@ -565,8 +580,9 @@ func (s *BufferSuiteTest) TestBufferAcceptRemovesBatch() {
 
 	m := metric.New("cpu", map[string]string{}, map[string]interface{}{"value": 42.0}, time.Unix(0, 0))
 	buf.Add(m, m, m)
-	batch := buf.Batch(2)
-	buf.Accept(batch)
+	tx := buf.BeginTransaction(2)
+	tx.AcceptAll()
+	buf.EndTransaction(tx)
 	s.Equal(1, buf.Len())
 }
 
@@ -576,8 +592,9 @@ func (s *BufferSuiteTest) TestBufferRejectLeavesBatch() {
 
 	m := metric.New("cpu", map[string]string{}, map[string]interface{}{"value": 42.0}, time.Unix(0, 0))
 	buf.Add(m, m, m)
-	batch := buf.Batch(2)
-	buf.Reject(batch)
+	tx := buf.BeginTransaction(2)
+	tx.KeepAll()
+	buf.EndTransaction(tx)
 	s.Equal(3, buf.Len())
 }
 
@@ -587,9 +604,10 @@ func (s *BufferSuiteTest) TestBufferAcceptWritesOverwrittenBatch() {
 
 	m := metric.New("cpu", map[string]string{}, map[string]interface{}{"value": 42.0}, time.Unix(0, 0))
 	buf.Add(m, m, m, m, m)
-	batch := buf.Batch(5)
+	tx := buf.BeginTransaction(5)
 	buf.Add(m, m, m, m, m)
-	buf.Accept(batch)
+	tx.AcceptAll()
+	buf.EndTransaction(tx)
 
 	s.Equal(int64(0), buf.Stats().MetricsDropped.Get())
 	s.Equal(int64(5), buf.Stats().MetricsWritten.Get())
@@ -605,9 +623,10 @@ func (s *BufferSuiteTest) TestBufferBatchRejectDropsOverwrittenBatch() {
 
 	m := metric.New("cpu", map[string]string{}, map[string]interface{}{"value": 42.0}, time.Unix(0, 0))
 	buf.Add(m, m, m, m, m)
-	batch := buf.Batch(5)
+	tx := buf.BeginTransaction(5)
 	buf.Add(m, m, m, m, m)
-	buf.Reject(batch)
+	tx.KeepAll()
+	buf.EndTransaction(tx)
 
 	s.Equal(int64(5), buf.Stats().MetricsDropped.Get())
 	s.Equal(int64(0), buf.Stats().MetricsWritten.Get())
@@ -619,9 +638,10 @@ func (s *BufferSuiteTest) TestBufferMetricsOverwriteBatchAccept() {
 
 	m := metric.New("cpu", map[string]string{}, map[string]interface{}{"value": 42.0}, time.Unix(0, 0))
 	buf.Add(m, m, m, m, m)
-	batch := buf.Batch(3)
+	tx := buf.BeginTransaction(3)
 	buf.Add(m, m, m)
-	buf.Accept(batch)
+	tx.AcceptAll()
+	buf.EndTransaction(tx)
 	s.Equal(int64(0), buf.Stats().MetricsDropped.Get(), "dropped")
 	s.Equal(int64(3), buf.Stats().MetricsWritten.Get(), "written")
 }
@@ -636,9 +656,10 @@ func (s *BufferSuiteTest) TestBufferMetricsOverwriteBatchReject() {
 
 	m := metric.New("cpu", map[string]string{}, map[string]interface{}{"value": 42.0}, time.Unix(0, 0))
 	buf.Add(m, m, m, m, m)
-	batch := buf.Batch(3)
+	tx := buf.BeginTransaction(3)
 	buf.Add(m, m, m)
-	buf.Reject(batch)
+	tx.KeepAll()
+	buf.EndTransaction(tx)
 	s.Equal(int64(3), buf.Stats().MetricsDropped.Get())
 	s.Equal(int64(0), buf.Stats().MetricsWritten.Get())
 }
@@ -653,9 +674,10 @@ func (s *BufferSuiteTest) TestBufferMetricsBatchAcceptRemoved() {
 
 	m := metric.New("cpu", map[string]string{}, map[string]interface{}{"value": 42.0}, time.Unix(0, 0))
 	buf.Add(m, m, m, m, m)
-	batch := buf.Batch(3)
+	tx := buf.BeginTransaction(3)
 	buf.Add(m, m, m, m, m)
-	buf.Accept(batch)
+	tx.AcceptAll()
+	buf.EndTransaction(tx)
 	s.Equal(int64(2), buf.Stats().MetricsDropped.Get())
 	s.Equal(int64(3), buf.Stats().MetricsWritten.Get())
 }
@@ -670,10 +692,10 @@ func (s *BufferSuiteTest) TestBufferWrapWithBatch() {
 
 	m := metric.New("cpu", map[string]string{}, map[string]interface{}{"value": 42.0}, time.Unix(0, 0))
 	buf.Add(m, m, m)
-	buf.Batch(3)
+	tx := buf.BeginTransaction(3)
 	buf.Add(m, m, m, m, m, m)
-
 	s.Equal(int64(1), buf.Stats().MetricsDropped.Get())
+	buf.EndTransaction(tx)
 }
 
 func (s *BufferSuiteTest) TestBufferBatchNotRemoved() {
@@ -682,8 +704,9 @@ func (s *BufferSuiteTest) TestBufferBatchNotRemoved() {
 
 	m := metric.New("cpu", map[string]string{}, map[string]interface{}{"value": 42.0}, time.Unix(0, 0))
 	buf.Add(m, m, m, m, m)
-	buf.Batch(2)
+	tx := buf.BeginTransaction(2)
 	s.Equal(5, buf.Len())
+	buf.EndTransaction(tx)
 }
 
 func (s *BufferSuiteTest) TestBufferBatchRejectAcceptNoop() {
@@ -692,9 +715,11 @@ func (s *BufferSuiteTest) TestBufferBatchRejectAcceptNoop() {
 
 	m := metric.New("cpu", map[string]string{}, map[string]interface{}{"value": 42.0}, time.Unix(0, 0))
 	buf.Add(m, m, m, m, m)
-	batch := buf.Batch(2)
-	buf.Reject(batch)
-	buf.Accept(batch)
+	tx := buf.BeginTransaction(2)
+	tx.KeepAll()
+	buf.EndTransaction(tx)
+	tx.AcceptAll()
+	buf.EndTransaction(tx)
 	s.Equal(5, buf.Len())
 }
 
@@ -734,10 +759,11 @@ func (s *BufferSuiteTest) TestBufferAddCallsMetricRejectWhenNotInBatch() {
 		},
 	}
 	buf.Add(mm, mm, mm, mm, mm)
-	batch := buf.Batch(2)
+	tx := buf.BeginTransaction(2)
 	buf.Add(mm, mm, mm, mm)
 	s.Equal(2, reject)
-	buf.Reject(batch)
+	tx.KeepAll()
+	buf.EndTransaction(tx)
 	s.Equal(4, reject)
 }
 
@@ -757,10 +783,11 @@ func (s *BufferSuiteTest) TestBufferRejectCallsMetricRejectWithOverwritten() {
 		},
 	}
 	buf.Add(mm, mm, mm, mm, mm)
-	batch := buf.Batch(5)
+	tx := buf.BeginTransaction(5)
 	buf.Add(mm, mm)
 	s.Equal(0, reject)
-	buf.Reject(batch)
+	tx.KeepAll()
+	buf.EndTransaction(tx)
 	s.Equal(2, reject)
 }
 
@@ -780,13 +807,14 @@ func (s *BufferSuiteTest) TestBufferAddOverwriteAndReject() {
 		},
 	}
 	buf.Add(mm, mm, mm, mm, mm)
-	batch := buf.Batch(5)
+	tx := buf.BeginTransaction(5)
 	buf.Add(mm, mm, mm, mm, mm)
 	buf.Add(mm, mm, mm, mm, mm)
 	buf.Add(mm, mm, mm, mm, mm)
 	buf.Add(mm, mm, mm, mm, mm)
 	s.Equal(15, reject)
-	buf.Reject(batch)
+	tx.KeepAll()
+	buf.EndTransaction(tx)
 	s.Equal(20, reject)
 }
 
@@ -812,7 +840,7 @@ func (s *BufferSuiteTest) TestBufferAddOverwriteAndRejectOffset() {
 	buf.Add(mm, mm, mm)
 	buf.Add(mm, mm, mm, mm)
 	s.Equal(2, reject)
-	batch := buf.Batch(5)
+	tx := buf.BeginTransaction(5)
 	buf.Add(mm, mm, mm, mm)
 	s.Equal(2, reject)
 	buf.Add(mm, mm, mm, mm)
@@ -821,7 +849,8 @@ func (s *BufferSuiteTest) TestBufferAddOverwriteAndRejectOffset() {
 	s.Equal(9, reject)
 	buf.Add(mm, mm, mm, mm)
 	s.Equal(13, reject)
-	buf.Accept(batch)
+	tx.AcceptAll()
+	buf.EndTransaction(tx)
 	s.Equal(13, reject)
 	s.Equal(5, accept)
 }
@@ -830,14 +859,16 @@ func (s *BufferSuiteTest) TestBufferRejectEmptyBatch() {
 	buf := s.newTestBuffer(5)
 	defer buf.Close()
 
-	batch := buf.Batch(2)
+	tx := buf.BeginTransaction(2)
 	buf.Add(metric.New("cpu", map[string]string{}, map[string]interface{}{"value": 42.0}, time.Unix(1, 0)))
-	buf.Reject(batch)
+	tx.KeepAll()
+	buf.EndTransaction(tx)
 	buf.Add(metric.New("cpu", map[string]string{}, map[string]interface{}{"value": 42.0}, time.Unix(2, 0)))
-	batch = buf.Batch(2)
-	for _, m := range batch {
+	tx = buf.BeginTransaction(2)
+	for _, m := range tx.Batch {
 		s.NotNil(m)
 	}
+	buf.EndTransaction(tx)
 }
 
 func (s *BufferSuiteTest) TestBufferFlushedPartial() {
@@ -847,10 +878,11 @@ func (s *BufferSuiteTest) TestBufferFlushedPartial() {
 	buf.Add(metric.New("cpu", map[string]string{}, map[string]interface{}{"value": 42.0}, time.Unix(1, 0)))
 	buf.Add(metric.New("cpu", map[string]string{}, map[string]interface{}{"value": 42.0}, time.Unix(2, 0)))
 	buf.Add(metric.New("cpu", map[string]string{}, map[string]interface{}{"value": 42.0}, time.Unix(3, 0)))
-	batch := buf.Batch(2)
-	s.Len(batch, 2)
+	tx := buf.BeginTransaction(2)
+	s.Len(tx.Batch, 2)
 
-	buf.Accept(batch)
+	tx.AcceptAll()
+	buf.EndTransaction(tx)
 	s.Equal(1, buf.Len())
 }
 
@@ -860,11 +892,46 @@ func (s *BufferSuiteTest) TestBufferFlushedFull() {
 
 	buf.Add(metric.New("cpu", map[string]string{}, map[string]interface{}{"value": 42.0}, time.Unix(1, 0)))
 	buf.Add(metric.New("cpu", map[string]string{}, map[string]interface{}{"value": 42.0}, time.Unix(2, 0)))
-	batch := buf.Batch(2)
-	s.Len(batch, 2)
+	tx := buf.BeginTransaction(2)
+	s.Len(tx.Batch, 2)
 
-	buf.Accept(batch)
+	tx.AcceptAll()
+	buf.EndTransaction(tx)
 	s.Equal(0, buf.Len())
+}
+
+func (s *BufferSuiteTest) TestPartialWriteBackToFront() {
+	buf := s.newTestBuffer(5)
+	defer buf.Close()
+
+	m := metric.New("cpu", map[string]string{}, map[string]interface{}{"value": 42.0}, time.Unix(0, 0))
+	buf.Add(m, m, m, m, m)
+
+	// Get a batch of all metrics but only reject the last one
+	tx := buf.BeginTransaction(5)
+	s.Len(tx.Batch, 5)
+	tx.Reject = []int{4}
+	buf.EndTransaction(tx)
+	s.Equal(4, buf.Len())
+
+	// Get the next batch which should miss the last metric
+	tx = buf.BeginTransaction(5)
+	s.Len(tx.Batch, 4)
+	tx.Accept = []int{3}
+	buf.EndTransaction(tx)
+	s.Equal(3, buf.Len())
+
+	// Now get the next batch and reject the remaining metrics
+	tx = buf.BeginTransaction(5)
+	s.Len(tx.Batch, 3)
+	tx.Accept = []int{0, 1, 2}
+	buf.EndTransaction(tx)
+	s.Equal(0, buf.Len())
+
+	s.Equal(int64(5), buf.Stats().MetricsAdded.Get(), "metrics added")
+	s.Equal(int64(4), buf.Stats().MetricsWritten.Get(), "metrics written")
+	s.Equal(int64(1), buf.Stats().MetricsRejected.Get(), "metrics rejected")
+	s.Equal(int64(0), buf.Stats().MetricsDropped.Get(), "metrics dropped")
 }
 
 type mockMetric struct {

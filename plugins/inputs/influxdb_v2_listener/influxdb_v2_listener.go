@@ -120,7 +120,7 @@ func (h *InfluxDBV2Listener) Init() error {
 	return nil
 }
 
-func (h *InfluxDBV2Listener) Gather(_ telegraf.Accumulator) error {
+func (*InfluxDBV2Listener) Gather(telegraf.Accumulator) error {
 	return nil
 }
 

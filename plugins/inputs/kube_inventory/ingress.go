@@ -15,11 +15,11 @@ func collectIngress(ctx context.Context, acc telegraf.Accumulator, ki *Kubernete
 		return
 	}
 	for _, i := range list.Items {
-		ki.gatherIngress(i, acc)
+		gatherIngress(i, acc)
 	}
 }
 
-func (ki *KubernetesInventory) gatherIngress(i netv1.Ingress, acc telegraf.Accumulator) {
+func gatherIngress(i netv1.Ingress, acc telegraf.Accumulator) {
 	creationTs := i.GetCreationTimestamp()
 	if creationTs.IsZero() {
 		return

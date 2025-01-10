@@ -25,7 +25,6 @@ import (
 	common_aws "github.com/influxdata/telegraf/plugins/common/aws"
 	common_http "github.com/influxdata/telegraf/plugins/common/http"
 	"github.com/influxdata/telegraf/plugins/outputs"
-	"github.com/influxdata/telegraf/plugins/serializers"
 )
 
 //go:embed sample.conf
@@ -56,7 +55,7 @@ type HTTP struct {
 	Log telegraf.Logger `toml:"-"`
 
 	client     *http.Client
-	serializer serializers.Serializer
+	serializer telegraf.Serializer
 
 	awsCfg *aws.Config
 	common_aws.CredentialConfig
@@ -70,7 +69,7 @@ func (*HTTP) SampleConfig() string {
 	return sampleConfig
 }
 
-func (h *HTTP) SetSerializer(serializer serializers.Serializer) {
+func (h *HTTP) SetSerializer(serializer telegraf.Serializer) {
 	h.serializer = serializer
 }
 

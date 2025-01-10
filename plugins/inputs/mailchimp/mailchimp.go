@@ -14,13 +14,12 @@ import (
 var sampleConfig string
 
 type MailChimp struct {
+	APIKey     string          `toml:"api_key"`
+	DaysOld    int             `toml:"days_old"`
+	CampaignID string          `toml:"campaign_id"`
+	Log        telegraf.Logger `toml:"-"`
+
 	api *chimpAPI
-
-	APIKey     string `toml:"api_key"`
-	DaysOld    int    `toml:"days_old"`
-	CampaignID string `toml:"campaign_id"`
-
-	Log telegraf.Logger `toml:"-"`
 }
 
 func (*MailChimp) SampleConfig() string {
@@ -28,7 +27,7 @@ func (*MailChimp) SampleConfig() string {
 }
 
 func (m *MailChimp) Init() error {
-	m.api = NewChimpAPI(m.APIKey, m.Log)
+	m.api = newChimpAPI(m.APIKey, m.Log)
 
 	return nil
 }
@@ -45,8 +44,8 @@ func (m *MailChimp) Gather(acc telegraf.Accumulator) error {
 			since = now.Add(-d).Format(time.RFC3339)
 		}
 
-		reports, err := m.api.GetReports(reportsParams{
-			SinceSendTime: since,
+		reports, err := m.api.getReports(reportsParams{
+			sinceSendTime: since,
 		})
 		if err != nil {
 			return err
@@ -57,7 +56,7 @@ func (m *MailChimp) Gather(acc telegraf.Accumulator) error {
 			gatherReport(acc, report, now)
 		}
 	} else {
-		report, err := m.api.GetReport(m.CampaignID)
+		report, err := m.api.getReport(m.CampaignID)
 		if err != nil {
 			return err
 		}

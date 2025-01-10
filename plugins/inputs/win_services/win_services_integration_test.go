@@ -50,7 +50,7 @@ func TestEmptyListIntegration(t *testing.T) {
 	}()
 
 	winServices := &WinServices{
-		ServiceNames: []string{},
+		ServiceNames: make([]string, 0),
 	}
 
 	require.NoError(t, winServices.Init())

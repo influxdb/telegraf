@@ -65,7 +65,7 @@ func (*Webhooks) SampleConfig() string {
 	return sampleConfig
 }
 
-func (wb *Webhooks) Gather(_ telegraf.Accumulator) error {
+func (*Webhooks) Gather(telegraf.Accumulator) error {
 	return nil
 }
 

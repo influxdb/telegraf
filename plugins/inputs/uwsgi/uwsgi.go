@@ -106,12 +106,12 @@ func (u *Uwsgi) gatherServer(acc telegraf.Accumulator, address *url.URL) error {
 		return fmt.Errorf("failed to decode json payload from %q: %w", address.String(), err)
 	}
 
-	u.gatherStatServer(acc, &s)
+	gatherStatServer(acc, &s)
 
 	return err
 }
 
-func (u *Uwsgi) gatherStatServer(acc telegraf.Accumulator, s *StatsServer) {
+func gatherStatServer(acc telegraf.Accumulator, s *StatsServer) {
 	fields := map[string]interface{}{
 		"listen_queue":        s.ListenQueue,
 		"listen_queue_errors": s.ListenQueueErrors,
@@ -128,12 +128,12 @@ func (u *Uwsgi) gatherStatServer(acc telegraf.Accumulator, s *StatsServer) {
 	}
 	acc.AddFields("uwsgi_overview", fields, tags)
 
-	u.gatherWorkers(acc, s)
-	u.gatherApps(acc, s)
-	u.gatherCores(acc, s)
+	gatherWorkers(acc, s)
+	gatherApps(acc, s)
+	gatherCores(acc, s)
 }
 
-func (u *Uwsgi) gatherWorkers(acc telegraf.Accumulator, s *StatsServer) {
+func gatherWorkers(acc telegraf.Accumulator, s *StatsServer) {
 	for _, w := range s.Workers {
 		fields := map[string]interface{}{
 			"requests":       w.Requests,
@@ -162,7 +162,7 @@ func (u *Uwsgi) gatherWorkers(acc telegraf.Accumulator, s *StatsServer) {
 	}
 }
 
-func (u *Uwsgi) gatherApps(acc telegraf.Accumulator, s *StatsServer) {
+func gatherApps(acc telegraf.Accumulator, s *StatsServer) {
 	for _, w := range s.Workers {
 		for _, a := range w.Apps {
 			fields := map[string]interface{}{
@@ -181,7 +181,7 @@ func (u *Uwsgi) gatherApps(acc telegraf.Accumulator, s *StatsServer) {
 	}
 }
 
-func (u *Uwsgi) gatherCores(acc telegraf.Accumulator, s *StatsServer) {
+func gatherCores(acc telegraf.Accumulator, s *StatsServer) {
 	for _, w := range s.Workers {
 		for _, c := range w.Cores {
 			fields := map[string]interface{}{

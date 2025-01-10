@@ -294,7 +294,7 @@ func (w *WinEventLog) shouldProcessField(field string) (should bool, list string
 	return false, "excluded"
 }
 
-func (w *WinEventLog) shouldExcludeEmptyField(field string, fieldType string, fieldValue interface{}) (should bool) {
+func (w *WinEventLog) shouldExcludeEmptyField(field, fieldType string, fieldValue interface{}) (should bool) {
 	if w.fieldEmptyFilter == nil || !w.fieldEmptyFilter.Match(field) {
 		return false
 	}
@@ -496,11 +496,7 @@ func (w *WinEventLog) renderRemoteMessage(event Event) (Event, error) {
 	return event, nil
 }
 
-func formatEventString(
-	messageFlag EvtFormatMessageFlag,
-	eventHandle EvtHandle,
-	publisherHandle EvtHandle,
-) (string, error) {
+func formatEventString(messageFlag EvtFormatMessageFlag, eventHandle, publisherHandle EvtHandle) (string, error) {
 	var bufferUsed uint32
 	err := _EvtFormatMessage(publisherHandle, eventHandle, 0, 0, 0, messageFlag,
 		0, nil, &bufferUsed)

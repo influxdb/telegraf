@@ -14,7 +14,7 @@ import (
 func TestFullMdstatProcFile(t *testing.T) {
 	filename := makeFakeMDStatFile([]byte(mdStatFileFull))
 	defer os.Remove(filename)
-	k := MdstatConf{
+	k := Mdstat{
 		FileName: filename,
 	}
 	acc := testutil.Accumulator{}
@@ -39,7 +39,7 @@ func TestFullMdstatProcFile(t *testing.T) {
 func TestMdstatSyncStart(t *testing.T) {
 	filename := makeFakeMDStatFile([]byte(mdStatSyncStart))
 	defer os.Remove(filename)
-	k := MdstatConf{
+	k := Mdstat{
 		FileName: filename,
 	}
 	acc := testutil.Accumulator{}
@@ -65,7 +65,7 @@ func TestFailedDiskMdStatProcFile1(t *testing.T) {
 	filename := makeFakeMDStatFile([]byte(mdStatFileFailedDisk))
 	defer os.Remove(filename)
 
-	k := MdstatConf{
+	k := Mdstat{
 		FileName: filename,
 	}
 
@@ -92,7 +92,7 @@ func TestEmptyMdStatProcFile1(t *testing.T) {
 	filename := makeFakeMDStatFile([]byte(mdStatFileEmpty))
 	defer os.Remove(filename)
 
-	k := MdstatConf{
+	k := Mdstat{
 		FileName: filename,
 	}
 
@@ -105,7 +105,7 @@ func TestInvalidMdStatProcFile1(t *testing.T) {
 	filename := makeFakeMDStatFile([]byte(mdStatFileInvalid))
 	defer os.Remove(filename)
 
-	k := MdstatConf{
+	k := Mdstat{
 		FileName: filename,
 	}
 

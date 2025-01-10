@@ -18,15 +18,6 @@ import (
 //go:embed sample.conf
 var sampleConfig string
 
-type NginxPlusAPI struct {
-	Urls            []string        `toml:"urls"`
-	APIVersion      int64           `toml:"api_version"`
-	ResponseTimeout config.Duration `toml:"response_timeout"`
-	tls.ClientConfig
-
-	client *http.Client
-}
-
 const (
 	// Default settings
 	defaultAPIVersion = 3
@@ -48,6 +39,15 @@ const (
 	streamServerZonesPath = "stream/server_zones"
 	streamUpstreamsPath   = "stream/upstreams"
 )
+
+type NginxPlusAPI struct {
+	Urls            []string        `toml:"urls"`
+	APIVersion      int64           `toml:"api_version"`
+	ResponseTimeout config.Duration `toml:"response_timeout"`
+	tls.ClientConfig
+
+	client *http.Client
+}
 
 func (*NginxPlusAPI) SampleConfig() string {
 	return sampleConfig

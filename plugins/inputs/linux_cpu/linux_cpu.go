@@ -19,6 +19,9 @@ import (
 	"github.com/influxdata/telegraf/plugins/inputs"
 )
 
+//go:embed sample.conf
+var sampleConfig string
+
 const (
 	defaultHostSys = "/sys"
 	cpufreq        = "cpufreq"
@@ -26,9 +29,9 @@ const (
 )
 
 type LinuxCPU struct {
-	Log       telegraf.Logger `toml:"-"`
 	PathSysfs string          `toml:"host_sys"`
 	Metrics   []string        `toml:"metrics"`
+	Log       telegraf.Logger `toml:"-"`
 	cpus      []cpu
 }
 
@@ -44,10 +47,7 @@ type prop struct {
 	optional bool
 }
 
-//go:embed sample.conf
-var sampleConfig string
-
-func (g *LinuxCPU) SampleConfig() string {
+func (*LinuxCPU) SampleConfig() string {
 	return sampleConfig
 }
 
@@ -172,14 +172,6 @@ func (g *LinuxCPU) discoverCpus() ([]cpu, error) {
 	return cpus, nil
 }
 
-func init() {
-	inputs.Add("linux_cpu", func() telegraf.Input {
-		return &LinuxCPU{
-			Metrics: []string{"cpufreq"},
-		}
-	})
-}
-
 func validatePath(propPath string) error {
 	f, err := os.Open(propPath)
 	if os.IsNotExist(err) {
@@ -210,4 +202,12 @@ func readUintFromFile(propPath string) (uint64, error) {
 	}
 
 	return strconv.ParseUint(string(buffer[:n-1]), 10, 64)
+}
+
+func init() {
+	inputs.Add("linux_cpu", func() telegraf.Input {
+		return &LinuxCPU{
+			Metrics: []string{"cpufreq"},
+		}
+	})
 }

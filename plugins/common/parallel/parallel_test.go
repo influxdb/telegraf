@@ -1,15 +1,15 @@
 package parallel_test
 
 import (
-	"fmt"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/require"
 
 	"github.com/influxdata/telegraf"
 	"github.com/influxdata/telegraf/metric"
 	"github.com/influxdata/telegraf/plugins/common/parallel"
 	"github.com/influxdata/telegraf/testutil"
-	"github.com/stretchr/testify/require"
 )
 
 func TestOrderedJobsStayOrdered(t *testing.T) {
@@ -31,7 +31,7 @@ func TestOrderedJobsStayOrdered(t *testing.T) {
 	p.Stop()
 
 	i := 0
-	require.Len(t, acc.Metrics, 20000, fmt.Sprintf("expected 20k metrics but got %d", len(acc.GetTelegrafMetrics())))
+	require.Len(t, acc.Metrics, 20000)
 	for _, m := range acc.GetTelegrafMetrics() {
 		v, ok := m.GetField("val")
 		require.True(t, ok)
@@ -63,7 +63,7 @@ func TestUnorderedJobsDontDropAnyJobs(t *testing.T) {
 	p.Stop()
 
 	actualTotal := int64(0)
-	require.Len(t, acc.Metrics, 20000, fmt.Sprintf("expected 20k metrics but got %d", len(acc.GetTelegrafMetrics())))
+	require.Len(t, acc.Metrics, 20000)
 	for _, m := range acc.GetTelegrafMetrics() {
 		v, ok := m.GetField("val")
 		require.True(t, ok)

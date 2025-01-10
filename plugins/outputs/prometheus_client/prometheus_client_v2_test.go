@@ -469,8 +469,11 @@ rpc_duration_seconds_count 2693
 		t.Run(tt.name, func(t *testing.T) {
 			ts.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 				w.WriteHeader(http.StatusOK)
-				_, err := w.Write(tt.data)
-				require.NoError(t, err)
+				if _, err := w.Write(tt.data); err != nil {
+					w.WriteHeader(http.StatusInternalServerError)
+					t.Error(err)
+					return
+				}
 			})
 
 			input := &inputs.Prometheus{

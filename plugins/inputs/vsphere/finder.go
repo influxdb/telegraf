@@ -263,6 +263,7 @@ func init() {
 		"Datastore":              {"parent", "info", "customValue"},
 		"ClusterComputeResource": {"parent", "customValue"},
 		"Datacenter":             {"parent", "customValue"},
+		"HostNumericSensorInfo":  {"parent", "temperature", "baseUnits"},
 	}
 
 	containers = map[string]interface{}{

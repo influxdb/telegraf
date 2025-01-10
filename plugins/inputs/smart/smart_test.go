@@ -53,7 +53,7 @@ func TestGatherAttributes(t *testing.T) {
 			err := s.Gather(&acc)
 
 			require.NoError(t, err)
-			require.Equal(t, 68, acc.NFields(), "Wrong number of fields gathered")
+			require.Equal(t, 70, acc.NFields(), "Wrong number of fields gathered")
 
 			for _, test := range testsAda0Attributes {
 				acc.AssertContainsTaggedFields(t, "smart_attribute", test.fields, test.tags)
@@ -172,7 +172,7 @@ func TestGatherNoAttributes(t *testing.T) {
 		err := s.Gather(&acc)
 
 		require.NoError(t, err)
-		require.Equal(t, 11, acc.NFields(), "Wrong number of fields gathered")
+		require.Equal(t, 13, acc.NFields(), "Wrong number of fields gathered")
 		acc.AssertDoesNotContainMeasurement(t, "smart_attribute")
 
 		for _, test := range testsAda0Device {
@@ -213,7 +213,7 @@ func TestGatherSATAInfo(t *testing.T) {
 	wg.Add(1)
 
 	sampleSmart.gatherDisk(acc, "", wg)
-	require.Equal(t, 106, acc.NFields(), "Wrong number of fields gathered")
+	require.Equal(t, 108, acc.NFields(), "Wrong number of fields gathered")
 	require.Equal(t, uint64(20), acc.NMetrics(), "Wrong number of metrics gathered")
 }
 
@@ -229,7 +229,7 @@ func TestGatherSATAInfo65(t *testing.T) {
 
 	wg.Add(1)
 	sampleSmart.gatherDisk(acc, "", wg)
-	require.Equal(t, 96, acc.NFields(), "Wrong number of fields gathered")
+	require.Equal(t, 98, acc.NFields(), "Wrong number of fields gathered")
 	require.Equal(t, uint64(18), acc.NMetrics(), "Wrong number of metrics gathered")
 }
 
@@ -294,7 +294,7 @@ func TestGatherSSD(t *testing.T) {
 
 	wg.Add(1)
 	sampleSmart.gatherDisk(acc, "", wg)
-	require.Equal(t, 110, acc.NFields(), "Wrong number of fields gathered")
+	require.Equal(t, 112, acc.NFields(), "Wrong number of fields gathered")
 	require.Equal(t, uint64(26), acc.NMetrics(), "Wrong number of metrics gathered")
 }
 
@@ -310,7 +310,7 @@ func TestGatherSSDRaid(t *testing.T) {
 
 	wg.Add(1)
 	sampleSmart.gatherDisk(acc, "", wg)
-	require.Equal(t, 77, acc.NFields(), "Wrong number of fields gathered")
+	require.Equal(t, 79, acc.NFields(), "Wrong number of fields gathered")
 	require.Equal(t, uint64(15), acc.NMetrics(), "Wrong number of metrics gathered")
 }
 
@@ -1492,6 +1492,8 @@ var (
 				"wear_leveling_count":       int64(185),
 				"pending_sector_count":      int64(0),
 				"reallocated_sectors_count": int64(0),
+				"power_cycle_count":         int64(14879),
+				"power_on_hours":            int64(2988),
 			},
 			map[string]string{
 				"device":    "ada0",

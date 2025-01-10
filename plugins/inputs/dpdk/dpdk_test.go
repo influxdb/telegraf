@@ -86,10 +86,9 @@ func Test_Init(t *testing.T) {
 	t.Run("when device_types and additional_commands are empty, then error should be returned", func(t *testing.T) {
 		pathToSocket, _ := createSocketForTest(t, "")
 		dpdk := Dpdk{
-			SocketPath:         pathToSocket,
-			DeviceTypes:        []string{},
-			AdditionalCommands: []string{},
-			Log:                testutil.Logger{},
+			SocketPath:  pathToSocket,
+			DeviceTypes: make([]string, 0),
+			Log:         testutil.Logger{},
 		}
 
 		err := dpdk.Init()
@@ -481,10 +480,6 @@ func Test_getCommandsAndParamsCombinations(t *testing.T) {
 
 		dpdk.DeviceTypes = []string{"ethdev"}
 		dpdk.ethdevCommands = []string{"/ethdev/stats", "/ethdev/xstats"}
-		var err error
-		dpdk.ethdevExcludedCommandsFilter, err = filter.Compile([]string{})
-		require.NoError(t, err)
-		dpdk.AdditionalCommands = []string{}
 		commands := dpdk.gatherCommands(mockAcc, dpdk.connectors[0])
 
 		require.ElementsMatch(t, commands, expectedCommands)
@@ -500,7 +495,6 @@ func Test_getCommandsAndParamsCombinations(t *testing.T) {
 
 		dpdk.DeviceTypes = []string{"rawdev"}
 		dpdk.rawdevCommands = []string{"/rawdev/xstats"}
-		dpdk.AdditionalCommands = []string{}
 		commands := dpdk.gatherCommands(mockAcc, dpdk.connectors[0])
 
 		require.ElementsMatch(t, commands, expectedCommands)
@@ -519,7 +513,6 @@ func Test_getCommandsAndParamsCombinations(t *testing.T) {
 		var err error
 		dpdk.ethdevExcludedCommandsFilter, err = filter.Compile([]string{"/ethdev/xstats"})
 		require.NoError(t, err)
-		dpdk.AdditionalCommands = []string{}
 		commands := dpdk.gatherCommands(mockAcc, dpdk.connectors[0])
 
 		require.ElementsMatch(t, commands, expectedCommands)
@@ -533,10 +526,6 @@ func Test_getCommandsAndParamsCombinations(t *testing.T) {
 
 		dpdk.DeviceTypes = []string{"ethdev"}
 		dpdk.ethdevCommands = []string{"/ethdev/stats", "/ethdev/xstats"}
-		var err error
-		dpdk.ethdevExcludedCommandsFilter, err = filter.Compile([]string{})
-		require.NoError(t, err)
-		dpdk.AdditionalCommands = []string{}
 		commands := dpdk.gatherCommands(mockAcc, dpdk.connectors[0])
 
 		require.Empty(t, commands)
@@ -607,7 +596,7 @@ func Test_Gather(t *testing.T) {
 		mockAcc := &testutil.Accumulator{}
 		dpdk := Dpdk{
 			Log:           testutil.Logger{},
-			PluginOptions: []string{},
+			PluginOptions: make([]string, 0),
 		}
 
 		require.NoError(t, dpdk.Init())
@@ -621,7 +610,6 @@ func Test_Gather(t *testing.T) {
 		mockAcc := &testutil.Accumulator{}
 		dpdk := Dpdk{
 			Log:                       testutil.Logger{},
-			PluginOptions:             []string{},
 			UnreachableSocketBehavior: unreachableSocketBehaviorIgnore,
 		}
 		require.NoError(t, dpdk.Init())
@@ -769,7 +757,6 @@ func Test_Gather(t *testing.T) {
 			MaxOutputLen: 1024,
 		}
 		mockConn, dpdk, mockAcc := prepareEnvironmentWithInitializedMessage(testInitMessage)
-		dpdk.MetadataFields = []string{}
 		defer mockConn.AssertExpectations(t)
 		dpdk.AdditionalCommands = []string{"/endpoint1"}
 		simulateResponse(mockConn, `{"/endpoint1":"myvalue"}`, nil)
@@ -801,7 +788,6 @@ func Test_Gather(t *testing.T) {
 func Test_Gather_MultiSocket(t *testing.T) {
 	t.Run("Test Gather without Metadata Fields", func(t *testing.T) {
 		mockConns, dpdk, mockAcc := prepareEnvironmentWithMultiSockets()
-		dpdk.MetadataFields = []string{}
 		defer func() {
 			for _, mockConn := range mockConns {
 				mockConn.AssertExpectations(t)

@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/influxdata/telegraf"
+	"github.com/influxdata/telegraf/internal"
 )
 
 const scalingFactor = float64(1000.0)
@@ -37,10 +38,7 @@ func (t *Temperature) Init() error {
 
 func (t *Temperature) Gather(acc telegraf.Accumulator) error {
 	// Get all sensors and honor the HOST_SYS environment variable
-	path := os.Getenv("HOST_SYS")
-	if path == "" {
-		path = "/sys"
-	}
+	path := internal.GetSysPath()
 
 	// Try to use the hwmon interface
 	temperatures, err := t.gatherHwmon(path)

@@ -179,7 +179,7 @@ func dmSetupStatus() ([]string, error) {
 		return nil, err
 	}
 	if string(out) == "No devices found\n" {
-		return []string{}, nil
+		return nil, nil
 	}
 
 	outString := strings.TrimRight(string(out), "\n")

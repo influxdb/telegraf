@@ -61,7 +61,7 @@ func (s *CSGO) Gather(acc telegraf.Accumulator) error {
 			}
 
 			// Generate the metric and add it to the accumulator
-			m, err := s.parseResponse(addr, response, t)
+			m, err := parseResponse(addr, response, t)
 			if err != nil {
 				acc.AddError(err)
 				return
@@ -74,7 +74,7 @@ func (s *CSGO) Gather(acc telegraf.Accumulator) error {
 	return nil
 }
 
-func (s *CSGO) parseResponse(addr, response string, t time.Time) (telegraf.Metric, error) {
+func parseResponse(addr, response string, t time.Time) (telegraf.Metric, error) {
 	rows := strings.Split(response, "\n")
 	if len(rows) < 2 {
 		return nil, errors.New("bad response")

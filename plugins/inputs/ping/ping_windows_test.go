@@ -261,7 +261,7 @@ func TestFatalPingGather(t *testing.T) {
 		"Fatal ping should not have packet measurements")
 }
 
-var UnreachablePingOutput = `
+var unreachablePingOutput = `
 Pinging www.google.pl [8.8.8.8] with 32 bytes of data:
 Request timed out.
 Request timed out.
@@ -273,7 +273,7 @@ Ping statistics for 8.8.8.8:
 `
 
 func mockUnreachableHostPinger(string, float64, ...string) (string, error) {
-	return UnreachablePingOutput, errors.New("so very bad")
+	return unreachablePingOutput, errors.New("so very bad")
 }
 
 // Reply from 185.28.251.217: TTL expired in transit.
@@ -312,7 +312,7 @@ func TestUnreachablePingGather(t *testing.T) {
 		"Fatal ping should not have packet measurements")
 }
 
-var TTLExpiredPingOutput = `
+var ttlExpiredPingOutput = `
 Pinging www.google.pl [8.8.8.8] with 32 bytes of data:
 Request timed out.
 Request timed out.
@@ -324,7 +324,7 @@ Ping statistics for 8.8.8.8:
 `
 
 func mockTTLExpiredPinger(string, float64, ...string) (string, error) {
-	return TTLExpiredPingOutput, errors.New("so very bad")
+	return ttlExpiredPingOutput, errors.New("so very bad")
 }
 
 // in case 'Destination net unreachable' ping app return receive packet which is not what we need

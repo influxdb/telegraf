@@ -115,13 +115,13 @@ func (m Metric) MatchAttributeAndPath(attribute, innerPath string) bool {
 func parseMbeanObjectName(name string) (string, []string) {
 	index := strings.Index(name, ":")
 	if index == -1 {
-		return name, []string{}
+		return name, nil
 	}
 
 	domain := name[:index]
 
 	if index+1 > len(name) {
-		return domain, []string{}
+		return domain, nil
 	}
 
 	return domain, strings.Split(name[index+1:], ",")

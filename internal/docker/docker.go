@@ -4,7 +4,7 @@ import "strings"
 
 // ParseImage Adapts some of the logic from the actual Docker library's image parsing routines:
 // https://github.com/docker/distribution/blob/release/2.7/reference/normalize.go
-func ParseImage(image string) (imageName string, imageVersion string) {
+func ParseImage(image string) (imageName, imageVersion string) {
 	domain := ""
 	remainder := ""
 

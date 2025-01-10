@@ -22,7 +22,7 @@ const (
 var mailchimpDatacenter = regexp.MustCompile("[a-z]+[0-9]+$")
 
 type chimpAPI struct {
-	Transport http.RoundTripper
+	transport http.RoundTripper
 	debug     bool
 
 	sync.Mutex
@@ -32,30 +32,30 @@ type chimpAPI struct {
 }
 
 type reportsParams struct {
-	Count          string
-	Offset         string
-	SinceSendTime  string
-	BeforeSendTime string
+	count          string
+	offset         string
+	sinceSendTime  string
+	beforeSendTime string
 }
 
 func (p *reportsParams) String() string {
 	v := url.Values{}
-	if p.Count != "" {
-		v.Set("count", p.Count)
+	if p.count != "" {
+		v.Set("count", p.count)
 	}
-	if p.Offset != "" {
-		v.Set("offset", p.Offset)
+	if p.offset != "" {
+		v.Set("offset", p.offset)
 	}
-	if p.BeforeSendTime != "" {
-		v.Set("before_send_time", p.BeforeSendTime)
+	if p.beforeSendTime != "" {
+		v.Set("before_send_time", p.beforeSendTime)
 	}
-	if p.SinceSendTime != "" {
-		v.Set("since_send_time", p.SinceSendTime)
+	if p.sinceSendTime != "" {
+		v.Set("since_send_time", p.sinceSendTime)
 	}
 	return v.Encode()
 }
 
-func NewChimpAPI(apiKey string, log telegraf.Logger) *chimpAPI {
+func newChimpAPI(apiKey string, log telegraf.Logger) *chimpAPI {
 	u := &url.URL{}
 	u.Scheme = "https"
 	u.Host = mailchimpDatacenter.FindString(apiKey) + ".api.mailchimp.com"
@@ -86,7 +86,7 @@ func chimpErrorCheck(body []byte) error {
 	return nil
 }
 
-func (a *chimpAPI) GetReports(params reportsParams) (reportsResponse, error) {
+func (a *chimpAPI) getReports(params reportsParams) (reportsResponse, error) {
 	a.Lock()
 	defer a.Unlock()
 	a.url.Path = reportsEndpoint
@@ -105,7 +105,7 @@ func (a *chimpAPI) GetReports(params reportsParams) (reportsResponse, error) {
 	return response, nil
 }
 
-func (a *chimpAPI) GetReport(campaignID string) (report, error) {
+func (a *chimpAPI) getReport(campaignID string) (report, error) {
 	a.Lock()
 	defer a.Unlock()
 	a.url.Path = fmt.Sprintf(reportsEndpointCampaign, campaignID)
@@ -126,7 +126,7 @@ func (a *chimpAPI) GetReport(campaignID string) (report, error) {
 
 func (a *chimpAPI) runChimp(params reportsParams) ([]byte, error) {
 	client := &http.Client{
-		Transport: a.Transport,
+		Transport: a.transport,
 		Timeout:   4 * time.Second,
 	}
 

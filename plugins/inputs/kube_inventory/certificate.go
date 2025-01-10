@@ -19,7 +19,7 @@ func collectSecrets(ctx context.Context, acc telegraf.Accumulator, ki *Kubernete
 		return
 	}
 	for _, i := range list.Items {
-		ki.gatherCertificates(i, acc)
+		gatherCertificates(i, acc)
 	}
 }
 
@@ -59,7 +59,7 @@ func getTags(cert *x509.Certificate) map[string]string {
 	return tags
 }
 
-func (ki *KubernetesInventory) gatherCertificates(r corev1.Secret, acc telegraf.Accumulator) {
+func gatherCertificates(r corev1.Secret, acc telegraf.Accumulator) {
 	now := time.Now()
 
 	for resourceName, val := range r.Data {

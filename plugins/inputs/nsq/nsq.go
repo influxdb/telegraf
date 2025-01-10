@@ -42,25 +42,15 @@ import (
 //go:embed sample.conf
 var sampleConfig string
 
-// Might add Lookupd endpoints for cluster discovery
-type NSQ struct {
-	Endpoints []string
-	tls.ClientConfig
-	httpClient *http.Client
-}
-
 const (
 	requestPattern = `%s/stats?format=json`
 )
 
-func init() {
-	inputs.Add("nsq", func() telegraf.Input {
-		return New()
-	})
-}
+type NSQ struct {
+	Endpoints []string `toml:"endpoints"`
 
-func New() *NSQ {
-	return &NSQ{}
+	tls.ClientConfig
+	httpClient *http.Client
 }
 
 func (*NSQ) SampleConfig() string {
@@ -304,4 +294,14 @@ type clientStats struct {
 	TLSVersion                    string `json:"tls_version"`
 	TLSNegotiatedProtocol         string `json:"tls_negotiated_protocol"`
 	TLSNegotiatedProtocolIsMutual bool   `json:"tls_negotiated_protocol_is_mutual"`
+}
+
+func newNSQ() *NSQ {
+	return &NSQ{}
+}
+
+func init() {
+	inputs.Add("nsq", func() telegraf.Input {
+		return newNSQ()
+	})
 }

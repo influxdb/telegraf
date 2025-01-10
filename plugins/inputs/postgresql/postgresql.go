@@ -16,6 +16,8 @@ import (
 //go:embed sample.conf
 var sampleConfig string
 
+var ignoredColumns = map[string]bool{"stats_reset": true}
+
 type Postgresql struct {
 	Databases          []string `toml:"databases"`
 	IgnoredDatabases   []string `toml:"ignored_databases"`
@@ -24,8 +26,6 @@ type Postgresql struct {
 
 	service *postgresql.Service
 }
-
-var ignoredColumns = map[string]bool{"stats_reset": true}
 
 func (*Postgresql) SampleConfig() string {
 	return sampleConfig
@@ -45,10 +45,6 @@ func (p *Postgresql) Init() error {
 
 func (p *Postgresql) Start(_ telegraf.Accumulator) error {
 	return p.service.Start()
-}
-
-func (p *Postgresql) Stop() {
-	p.service.Stop()
 }
 
 func (p *Postgresql) Gather(acc telegraf.Accumulator) error {
@@ -104,6 +100,10 @@ func (p *Postgresql) Gather(acc telegraf.Accumulator) error {
 	}
 
 	return bgWriterRow.Err()
+}
+
+func (p *Postgresql) Stop() {
+	p.service.Stop()
 }
 
 func (p *Postgresql) accRow(row *sql.Rows, acc telegraf.Accumulator, columns []string) error {

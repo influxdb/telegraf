@@ -68,12 +68,6 @@ func (n *NeoomBeaam) Start(telegraf.Accumulator) error {
 	return n.updateConfiguration()
 }
 
-func (n *NeoomBeaam) Stop() {
-	if n.client != nil {
-		n.client.CloseIdleConnections()
-	}
-}
-
 func (n *NeoomBeaam) Gather(acc telegraf.Accumulator) error {
 	// Refresh the config if requested
 	if n.RefreshConfig {
@@ -95,6 +89,12 @@ func (n *NeoomBeaam) Gather(acc telegraf.Accumulator) error {
 	}
 
 	return nil
+}
+
+func (n *NeoomBeaam) Stop() {
+	if n.client != nil {
+		n.client.CloseIdleConnections()
+	}
 }
 
 func (n *NeoomBeaam) updateConfiguration() error {

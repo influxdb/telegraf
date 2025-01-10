@@ -105,6 +105,10 @@ to use them.
   # queue_consume_arguments = { }
   # queue_consume_arguments = {"x-stream-offset" = "first"}
 
+  ## Additional queue arguments.
+  # queue_arguments = { }
+  # queue_arguments = {"x-max-length" = 100}
+
   ## A binding between the exchange and queue using this binding key is
   ## created.  If unset, no binding is created.
   binding_key = "#"

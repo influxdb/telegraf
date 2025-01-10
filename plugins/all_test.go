@@ -46,7 +46,7 @@ func testPluginDirectory(t *testing.T, directory string) {
 	require.NoError(t, err)
 }
 
-func parseSourceFile(t *testing.T, goPluginFile string, pluginCategory string) {
+func parseSourceFile(t *testing.T, goPluginFile, pluginCategory string) {
 	fset := token.NewFileSet()
 	node, err := parser.ParseFile(fset, goPluginFile, nil, parser.ParseComments)
 	require.NoError(t, err)
@@ -80,7 +80,7 @@ func resolvePluginFromImports(t *testing.T, imports []*ast.ImportSpec) string {
 	return filepath.Base(importPath)
 }
 
-func testBuildTags(t *testing.T, buildComment string, pluginCategory string, plugin string) {
+func testBuildTags(t *testing.T, buildComment, pluginCategory, plugin string) {
 	tags := strings.Split(buildComment, "||")
 	// tags might contain spaces and hence trim
 	tags = stringMap(tags, strings.TrimSpace)

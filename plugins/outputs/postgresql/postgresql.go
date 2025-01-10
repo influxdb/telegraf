@@ -51,6 +51,7 @@ type Postgresql struct {
 	Uint64Type                 string                  `toml:"uint64_type"`
 	RetryMaxBackoff            config.Duration         `toml:"retry_max_backoff"`
 	TagCacheSize               int                     `toml:"tag_cache_size"`
+	ColumnNameLenLimit         int                     `toml:"column_name_length_limit"`
 	LogLevel                   string                  `toml:"log_level"`
 	Logger                     telegraf.Logger         `toml:"-"`
 

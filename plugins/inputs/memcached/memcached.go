@@ -22,7 +22,82 @@ import (
 //go:embed sample.conf
 var sampleConfig string
 
-// Memcached is a memcached plugin
+var (
+	defaultTimeout = 5 * time.Second
+
+	// The list of metrics that should be sent
+	sendMetrics = []string{
+		"accepting_conns",
+		"auth_cmds",
+		"auth_errors",
+		"bytes",
+		"bytes_read",
+		"bytes_written",
+		"cas_badval",
+		"cas_hits",
+		"cas_misses",
+		"cmd_flush",
+		"cmd_get",
+		"cmd_set",
+		"cmd_touch",
+		"conn_yields",
+		"connection_structures",
+		"curr_connections",
+		"curr_items",
+		"decr_hits",
+		"decr_misses",
+		"delete_hits",
+		"delete_misses",
+		"evicted_active",
+		"evicted_unfetched",
+		"evictions",
+		"expired_unfetched",
+		"extstore_compact_lost",
+		"extstore_compact_rescues",
+		"extstore_compact_resc_cold",
+		"extstore_compact_resc_old",
+		"extstore_compact_skipped",
+		"extstore_page_allocs",
+		"extstore_page_evictions",
+		"extstore_page_reclaims",
+		"extstore_pages_free",
+		"extstore_pages_used",
+		"extstore_objects_evicted",
+		"extstore_objects_read",
+		"extstore_objects_written",
+		"extstore_objects_used",
+		"extstore_bytes_evicted",
+		"extstore_bytes_written",
+		"extstore_bytes_read",
+		"extstore_bytes_used",
+		"extstore_bytes_fragmented",
+		"extstore_limit_maxbytes",
+		"extstore_io_queue",
+		"get_expired",
+		"get_flushed",
+		"get_hits",
+		"get_misses",
+		"hash_bytes",
+		"hash_is_expanding",
+		"hash_power_level",
+		"incr_hits",
+		"incr_misses",
+		"limit_maxbytes",
+		"listen_disabled_num",
+		"max_connections",
+		"reclaimed",
+		"rejected_connections",
+		"store_no_memory",
+		"store_too_large",
+		"threads",
+		"total_connections",
+		"total_items",
+		"touch_hits",
+		"touch_misses",
+		"uptime",
+	}
+)
+
 type Memcached struct {
 	Servers     []string `toml:"servers"`
 	UnixSockets []string `toml:"unix_sockets"`
@@ -30,85 +105,10 @@ type Memcached struct {
 	common_tls.ClientConfig
 }
 
-var defaultTimeout = 5 * time.Second
-
-// The list of metrics that should be sent
-var sendMetrics = []string{
-	"accepting_conns",
-	"auth_cmds",
-	"auth_errors",
-	"bytes",
-	"bytes_read",
-	"bytes_written",
-	"cas_badval",
-	"cas_hits",
-	"cas_misses",
-	"cmd_flush",
-	"cmd_get",
-	"cmd_set",
-	"cmd_touch",
-	"conn_yields",
-	"connection_structures",
-	"curr_connections",
-	"curr_items",
-	"decr_hits",
-	"decr_misses",
-	"delete_hits",
-	"delete_misses",
-	"evicted_active",
-	"evicted_unfetched",
-	"evictions",
-	"expired_unfetched",
-	"extstore_compact_lost",
-	"extstore_compact_rescues",
-	"extstore_compact_resc_cold",
-	"extstore_compact_resc_old",
-	"extstore_compact_skipped",
-	"extstore_page_allocs",
-	"extstore_page_evictions",
-	"extstore_page_reclaims",
-	"extstore_pages_free",
-	"extstore_pages_used",
-	"extstore_objects_evicted",
-	"extstore_objects_read",
-	"extstore_objects_written",
-	"extstore_objects_used",
-	"extstore_bytes_evicted",
-	"extstore_bytes_written",
-	"extstore_bytes_read",
-	"extstore_bytes_used",
-	"extstore_bytes_fragmented",
-	"extstore_limit_maxbytes",
-	"extstore_io_queue",
-	"get_expired",
-	"get_flushed",
-	"get_hits",
-	"get_misses",
-	"hash_bytes",
-	"hash_is_expanding",
-	"hash_power_level",
-	"incr_hits",
-	"incr_misses",
-	"limit_maxbytes",
-	"listen_disabled_num",
-	"max_connections",
-	"reclaimed",
-	"rejected_connections",
-	"store_no_memory",
-	"store_too_large",
-	"threads",
-	"total_connections",
-	"total_items",
-	"touch_hits",
-	"touch_misses",
-	"uptime",
-}
-
 func (*Memcached) SampleConfig() string {
 	return sampleConfig
 }
 
-// Gather reads stats from all configured servers accumulates stats
 func (m *Memcached) Gather(acc telegraf.Accumulator) error {
 	if len(m.Servers) == 0 && len(m.UnixSockets) == 0 {
 		return m.gatherServer(":11211", false, acc)
@@ -125,11 +125,7 @@ func (m *Memcached) Gather(acc telegraf.Accumulator) error {
 	return nil
 }
 
-func (m *Memcached) gatherServer(
-	address string,
-	unix bool,
-	acc telegraf.Accumulator,
-) error {
+func (m *Memcached) gatherServer(address string, unix bool, acc telegraf.Accumulator) error {
 	var conn net.Conn
 	var err error
 	var dialer proxy.Dialer

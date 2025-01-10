@@ -93,7 +93,7 @@ func launchTests(packageFile string, images []string) error {
 	return nil
 }
 
-func runTest(image string, name string, packageFile string) error {
+func runTest(image, name, packageFile string) error {
 	c := Container{Name: name}
 	if err := c.Create(image); err != nil {
 		return err

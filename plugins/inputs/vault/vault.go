@@ -70,7 +70,7 @@ func (n *Vault) Init() error {
 	return nil
 }
 
-func (n *Vault) Start(_ telegraf.Accumulator) error {
+func (*Vault) Start(telegraf.Accumulator) error {
 	return nil
 }
 

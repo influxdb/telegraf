@@ -78,9 +78,7 @@ func (c *Container) Start() error {
 	}
 	c.container = cntnr
 
-	c.Logs = TestLogConsumer{
-		Msgs: []string{},
-	}
+	c.Logs = TestLogConsumer{}
 	c.container.FollowOutput(&c.Logs)
 	err = c.container.StartLogProducer(c.ctx)
 	if err != nil {

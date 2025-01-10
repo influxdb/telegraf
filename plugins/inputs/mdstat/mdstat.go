@@ -28,16 +28,12 @@ import (
 	"strings"
 
 	"github.com/influxdata/telegraf"
+	"github.com/influxdata/telegraf/internal"
 	"github.com/influxdata/telegraf/plugins/inputs"
 )
 
 //go:embed sample.conf
 var sampleConfig string
-
-const (
-	defaultHostProc = "/proc"
-	envProc         = "HOST_PROC"
-)
 
 var (
 	statusLineRE         = regexp.MustCompile(`(\d+) blocks .*\[(\d+)/(\d+)\] \[([U_]+)\]`)
@@ -47,6 +43,10 @@ var (
 	recoveryLineSpeedRE  = regexp.MustCompile(`speed=(.+)[A-Z]`)
 	componentDeviceRE    = regexp.MustCompile(`(.*)\[\d+\]`)
 )
+
+type Mdstat struct {
+	FileName string `toml:"file_name"`
+}
 
 type statusLine struct {
 	active int64
@@ -60,10 +60,6 @@ type recoveryLine struct {
 	pct          float64
 	finish       float64
 	speed        float64
-}
-
-type MdstatConf struct {
-	FileName string `toml:"file_name"`
 }
 
 func evalStatusLine(deviceLine, statusLineStr string) (statusLine, error) {
@@ -177,11 +173,11 @@ func evalComponentDevices(deviceFields []string) string {
 	return strings.Join(mdComponentDevices, ",")
 }
 
-func (*MdstatConf) SampleConfig() string {
+func (*Mdstat) SampleConfig() string {
 	return sampleConfig
 }
 
-func (k *MdstatConf) Gather(acc telegraf.Accumulator) error {
+func (k *Mdstat) Gather(acc telegraf.Accumulator) error {
 	data, err := k.getProcMdstat()
 	if err != nil {
 		return err
@@ -271,10 +267,10 @@ func (k *MdstatConf) Gather(acc telegraf.Accumulator) error {
 	return nil
 }
 
-func (k *MdstatConf) getProcMdstat() ([]byte, error) {
+func (k *Mdstat) getProcMdstat() ([]byte, error) {
 	var mdStatFile string
 	if k.FileName == "" {
-		mdStatFile = proc(envProc, defaultHostProc) + "/mdstat"
+		mdStatFile = internal.GetProcPath() + "/mdstat"
 	} else {
 		mdStatFile = k.FileName
 	}
@@ -293,15 +289,5 @@ func (k *MdstatConf) getProcMdstat() ([]byte, error) {
 }
 
 func init() {
-	inputs.Add("mdstat", func() telegraf.Input { return &MdstatConf{} })
-}
-
-// proc can be used to read file paths from env
-func proc(env, path string) string {
-	// try to read full file path
-	if p := os.Getenv(env); p != "" {
-		return p
-	}
-	// return default path
-	return path
+	inputs.Add("mdstat", func() telegraf.Input { return &Mdstat{} })
 }

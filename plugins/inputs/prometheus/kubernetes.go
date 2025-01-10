@@ -124,11 +124,11 @@ func shouldScrapePod(pod *corev1.Pod, p *Prometheus) bool {
 
 	var shouldScrape bool
 	switch p.MonitorKubernetesPodsMethod {
-	case MonitorMethodAnnotations: // must have 'true' annotation to be scraped
+	case monitorMethodAnnotations: // must have 'true' annotation to be scraped
 		shouldScrape = pod.Annotations != nil && pod.Annotations["prometheus.io/scrape"] == "true"
-	case MonitorMethodSettings: // will be scraped regardless of annotation
+	case monitorMethodSettings: // will be scraped regardless of annotation
 		shouldScrape = true
-	case MonitorMethodSettingsAndAnnotations: // will be scraped unless opts out with 'false' annotation
+	case monitorMethodSettingsAndAnnotations: // will be scraped unless opts out with 'false' annotation
 		shouldScrape = pod.Annotations == nil || pod.Annotations["prometheus.io/scrape"] != "false"
 	}
 
@@ -194,7 +194,7 @@ func (p *Prometheus) watchPod(ctx context.Context, clientset *kubernetes.Clients
 			if err != nil {
 				p.Log.Errorf("getting key from cache %s", err.Error())
 			}
-			podID := PodID(key)
+			podID := podID(key)
 			if shouldScrapePod(newPod, p) {
 				// When Informers re-Lists, pod might already be registered,
 				// do nothing if it is, register otherwise
@@ -209,7 +209,7 @@ func (p *Prometheus) watchPod(ctx context.Context, clientset *kubernetes.Clients
 		DeleteFunc: func(oldObj interface{}) {
 			key, err := cache.DeletionHandlingMetaNamespaceKeyFunc(oldObj)
 			if err == nil {
-				unregisterPod(PodID(key), p)
+				unregisterPod(podID(key), p)
 			}
 		},
 	})
@@ -280,7 +280,7 @@ func updateCadvisorPodList(p *Prometheus, req *http.Request) error {
 
 	// Updating pod list to be latest cadvisor response
 	p.lock.Lock()
-	p.kubernetesPods = make(map[PodID]URLAndAddress)
+	p.kubernetesPods = make(map[podID]urlAndAddress)
 
 	// Register pod only if it has an annotation to scrape, if it is ready,
 	// and if namespace and selectors are specified and match
@@ -419,7 +419,7 @@ func registerPod(pod *corev1.Pod, p *Prometheus) {
 			tags[k] = v
 		}
 	}
-	podURL := p.AddressToURL(targetURL, targetURL.Hostname())
+	podURL := addressToURL(targetURL, targetURL.Hostname())
 
 	// Locks earlier if using cAdvisor calls - makes a new list each time
 	// rather than updating and removing from the same list
@@ -427,12 +427,12 @@ func registerPod(pod *corev1.Pod, p *Prometheus) {
 		p.lock.Lock()
 		defer p.lock.Unlock()
 	}
-	p.kubernetesPods[PodID(pod.GetNamespace()+"/"+pod.GetName())] = URLAndAddress{
-		URL:         podURL,
-		Address:     targetURL.Hostname(),
-		OriginalURL: targetURL,
-		Tags:        tags,
-		Namespace:   pod.GetNamespace(),
+	p.kubernetesPods[podID(pod.GetNamespace()+"/"+pod.GetName())] = urlAndAddress{
+		url:         podURL,
+		address:     targetURL.Hostname(),
+		originalURL: targetURL,
+		tags:        tags,
+		namespace:   pod.GetNamespace(),
 	}
 }
 
@@ -446,15 +446,15 @@ func getScrapeURL(pod *corev1.Pod, p *Prometheus) (*url.URL, error) {
 
 	var scheme, pathAndQuery, port string
 
-	if p.MonitorKubernetesPodsMethod == MonitorMethodSettings ||
-		p.MonitorKubernetesPodsMethod == MonitorMethodSettingsAndAnnotations {
+	if p.MonitorKubernetesPodsMethod == monitorMethodSettings ||
+		p.MonitorKubernetesPodsMethod == monitorMethodSettingsAndAnnotations {
 		scheme = p.MonitorKubernetesPodsScheme
 		pathAndQuery = p.MonitorKubernetesPodsPath
 		port = strconv.Itoa(p.MonitorKubernetesPodsPort)
 	}
 
-	if p.MonitorKubernetesPodsMethod == MonitorMethodAnnotations ||
-		p.MonitorKubernetesPodsMethod == MonitorMethodSettingsAndAnnotations {
+	if p.MonitorKubernetesPodsMethod == monitorMethodAnnotations ||
+		p.MonitorKubernetesPodsMethod == monitorMethodSettingsAndAnnotations {
 		if ann := pod.Annotations["prometheus.io/scheme"]; ann != "" {
 			scheme = ann
 		}
@@ -489,12 +489,12 @@ func getScrapeURL(pod *corev1.Pod, p *Prometheus) (*url.URL, error) {
 	return base, nil
 }
 
-func unregisterPod(podID PodID, p *Prometheus) {
+func unregisterPod(podID podID, p *Prometheus) {
 	p.lock.Lock()
 	defer p.lock.Unlock()
 	if v, ok := p.kubernetesPods[podID]; ok {
 		p.Log.Debugf("registered a delete request for %s", podID)
 		delete(p.kubernetesPods, podID)
-		p.Log.Debugf("will stop scraping for %q", v.URL.String())
+		p.Log.Debugf("will stop scraping for %q", v.url.String())
 	}
 }

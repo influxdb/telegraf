@@ -7,13 +7,13 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/shirou/gopsutil/v4/process"
+	gopsprocess "github.com/shirou/gopsutil/v4/process"
 
 	"github.com/influxdata/telegraf"
-	"github.com/influxdata/telegraf/filter"
+	telegraf_filter "github.com/influxdata/telegraf/filter"
 )
 
-type Filter struct {
+type filter struct {
 	Name            string          `toml:"name"`
 	PidFiles        []string        `toml:"pid_files"`
 	SystemdUnits    []string        `toml:"systemd_units"`
@@ -29,13 +29,13 @@ type Filter struct {
 
 	filterSupervisorUnit string
 	filterCmds           []*regexp.Regexp
-	filterUser           filter.Filter
-	filterExecutable     filter.Filter
-	filterProcessName    filter.Filter
+	filterUser           telegraf_filter.Filter
+	filterExecutable     telegraf_filter.Filter
+	filterProcessName    telegraf_filter.Filter
 	finder               *processFinder
 }
 
-func (f *Filter) Init() error {
+func (f *filter) init() error {
 	if f.Name == "" {
 		return errors.New("filter must be named")
 	}
@@ -74,13 +74,13 @@ func (f *Filter) Init() error {
 	f.filterSupervisorUnit = strings.TrimSpace(strings.Join(f.SupervisorUnits, " "))
 
 	var err error
-	if f.filterUser, err = filter.Compile(f.Users); err != nil {
+	if f.filterUser, err = telegraf_filter.Compile(f.Users); err != nil {
 		return fmt.Errorf("compiling users filter for %q failed: %w", f.Name, err)
 	}
-	if f.filterExecutable, err = filter.Compile(f.Executables); err != nil {
+	if f.filterExecutable, err = telegraf_filter.Compile(f.Executables); err != nil {
 		return fmt.Errorf("compiling executables filter for %q failed: %w", f.Name, err)
 	}
-	if f.filterProcessName, err = filter.Compile(f.ProcessNames); err != nil {
+	if f.filterProcessName, err = telegraf_filter.Compile(f.ProcessNames); err != nil {
 		return fmt.Errorf("compiling process-names filter for %q failed: %w", f.Name, err)
 	}
 
@@ -89,7 +89,7 @@ func (f *Filter) Init() error {
 	return nil
 }
 
-func (f *Filter) ApplyFilter() ([]processGroup, error) {
+func (f *filter) applyFilter() ([]processGroup, error) {
 	// Determine processes on service level. if there is no constraint on the
 	// services, use all processes for matching.
 	var groups []processGroup
@@ -125,7 +125,7 @@ func (f *Filter) ApplyFilter() ([]processGroup, error) {
 		}
 		groups = append(groups, g...)
 	default:
-		procs, err := process.Processes()
+		procs, err := gopsprocess.Processes()
 		if err != nil {
 			return nil, err
 		}
@@ -135,7 +135,7 @@ func (f *Filter) ApplyFilter() ([]processGroup, error) {
 	// Filter by additional properties such as users, patterns etc
 	result := make([]processGroup, 0, len(groups))
 	for _, g := range groups {
-		var matched []*process.Process
+		var matched []*gopsprocess.Process
 		for _, p := range g.processes {
 			// Users
 			if f.filterUser != nil {
@@ -218,13 +218,13 @@ func (f *Filter) ApplyFilter() ([]processGroup, error) {
 	return result, nil
 }
 
-func getChildren(p *process.Process) ([]*process.Process, error) {
+func getChildren(p *gopsprocess.Process) ([]*gopsprocess.Process, error) {
 	children, err := p.Children()
 	// Check for cases that do not really mean error but rather means that there
 	// is no match.
 	switch {
 	case err == nil,
-		errors.Is(err, process.ErrorNoChildren),
+		errors.Is(err, gopsprocess.ErrorNoChildren),
 		strings.Contains(err.Error(), "exit status 1"):
 		return children, nil
 	}

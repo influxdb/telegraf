@@ -88,6 +88,8 @@ var (
 		"1":   "read_error_rate",
 		"5":   "reallocated_sectors_count",
 		"7":   "seek_error_rate",
+		"9":   "power_on_hours",
+		"12":  "power_cycle_count",
 		"10":  "spin_retry_count",
 		"184": "end_to_end_error",
 		"187": "uncorrectable_errors",

@@ -11,7 +11,6 @@ import (
 	"github.com/influxdata/telegraf"
 	"github.com/influxdata/telegraf/config"
 	"github.com/influxdata/telegraf/plugins/outputs"
-	"github.com/influxdata/telegraf/plugins/serializers"
 )
 
 //go:embed sample.conf
@@ -62,7 +61,7 @@ type EventHubs struct {
 
 	Hub          EventHubInterface
 	batchOptions []eventhub.BatchOption
-	serializer   serializers.Serializer
+	serializer   telegraf.Serializer
 }
 
 const (
@@ -104,7 +103,7 @@ func (e *EventHubs) Close() error {
 	return nil
 }
 
-func (e *EventHubs) SetSerializer(serializer serializers.Serializer) {
+func (e *EventHubs) SetSerializer(serializer telegraf.Serializer) {
 	e.serializer = serializer
 }
 

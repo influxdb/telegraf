@@ -9,41 +9,41 @@ import (
 	"time"
 
 	gopsnet "github.com/shirou/gopsutil/v4/net"
-	"github.com/shirou/gopsutil/v4/process"
+	gopsprocess "github.com/shirou/gopsutil/v4/process"
 
 	"github.com/influxdata/telegraf"
 	"github.com/influxdata/telegraf/metric"
 )
 
-type Process interface {
-	PID() PID
+type process interface {
 	Name() (string, error)
-	SetTag(string, string)
-	MemoryMaps(bool) (*[]process.MemoryMapsStat, error)
-	Metrics(string, *collectionConfig, time.Time) ([]telegraf.Metric, error)
+	MemoryMaps(bool) (*[]gopsprocess.MemoryMapsStat, error)
+	pid() pid
+	setTag(string, string)
+	metrics(string, *collectionConfig, time.Time) ([]telegraf.Metric, error)
 }
 
-type PIDFinder interface {
-	PidFile(path string) ([]PID, error)
-	Pattern(pattern string) ([]PID, error)
-	UID(user string) ([]PID, error)
-	FullPattern(path string) ([]PID, error)
-	Children(pid PID) ([]PID, error)
+type pidFinder interface {
+	pidFile(path string) ([]pid, error)
+	pattern(pattern string) ([]pid, error)
+	uid(user string) ([]pid, error)
+	fullPattern(path string) ([]pid, error)
+	children(pid pid) ([]pid, error)
 }
 
-type Proc struct {
+type proc struct {
 	hasCPUTimes bool
 	tags        map[string]string
-	*process.Process
+	*gopsprocess.Process
 }
 
-func newProc(pid PID) (Process, error) {
-	p, err := process.NewProcess(int32(pid))
+func newProc(pid pid) (process, error) {
+	p, err := gopsprocess.NewProcess(int32(pid))
 	if err != nil {
 		return nil, err
 	}
 
-	proc := &Proc{
+	proc := &proc{
 		Process:     p,
 		hasCPUTimes: false,
 		tags:        make(map[string]string),
@@ -51,15 +51,15 @@ func newProc(pid PID) (Process, error) {
 	return proc, nil
 }
 
-func (p *Proc) PID() PID {
-	return PID(p.Process.Pid)
+func (p *proc) pid() pid {
+	return pid(p.Process.Pid)
 }
 
-func (p *Proc) SetTag(k, v string) {
+func (p *proc) setTag(k, v string) {
 	p.tags[k] = v
 }
 
-func (p *Proc) percent(_ time.Duration) (float64, error) {
+func (p *proc) percent(_ time.Duration) (float64, error) {
 	cpuPerc, err := p.Process.Percent(time.Duration(0))
 	if !p.hasCPUTimes && err == nil {
 		p.hasCPUTimes = true
@@ -68,8 +68,8 @@ func (p *Proc) percent(_ time.Duration) (float64, error) {
 	return cpuPerc, err
 }
 
-// Add metrics a single Process
-func (p *Proc) Metrics(prefix string, cfg *collectionConfig, t time.Time) ([]telegraf.Metric, error) {
+// Add metrics a single process
+func (p *proc) metrics(prefix string, cfg *collectionConfig, t time.Time) ([]telegraf.Metric, error) {
 	if prefix != "" {
 		prefix += "_"
 	}
@@ -163,27 +163,27 @@ func (p *Proc) Metrics(prefix string, cfg *collectionConfig, t time.Time) ([]tel
 			for _, rlim := range rlims {
 				var name string
 				switch rlim.Resource {
-				case process.RLIMIT_CPU:
+				case gopsprocess.RLIMIT_CPU:
 					name = "cpu_time"
-				case process.RLIMIT_DATA:
+				case gopsprocess.RLIMIT_DATA:
 					name = "memory_data"
-				case process.RLIMIT_STACK:
+				case gopsprocess.RLIMIT_STACK:
 					name = "memory_stack"
-				case process.RLIMIT_RSS:
+				case gopsprocess.RLIMIT_RSS:
 					name = "memory_rss"
-				case process.RLIMIT_NOFILE:
+				case gopsprocess.RLIMIT_NOFILE:
 					name = "num_fds"
-				case process.RLIMIT_MEMLOCK:
+				case gopsprocess.RLIMIT_MEMLOCK:
 					name = "memory_locked"
-				case process.RLIMIT_AS:
+				case gopsprocess.RLIMIT_AS:
 					name = "memory_vms"
-				case process.RLIMIT_LOCKS:
+				case gopsprocess.RLIMIT_LOCKS:
 					name = "file_locks"
-				case process.RLIMIT_SIGPENDING:
+				case gopsprocess.RLIMIT_SIGPENDING:
 					name = "signals_pending"
-				case process.RLIMIT_NICE:
+				case gopsprocess.RLIMIT_NICE:
 					name = "nice_priority"
-				case process.RLIMIT_RTPRIO:
+				case gopsprocess.RLIMIT_RTPRIO:
 					name = "realtime_priority"
 				default:
 					continue

@@ -15,14 +15,14 @@ import (
 // Decoder structure
 type netflowv5Decoder struct{}
 
-func (d *netflowv5Decoder) Init() error {
+func (*netflowv5Decoder) init() error {
 	if err := initL4ProtoMapping(); err != nil {
 		return fmt.Errorf("initializing layer 4 protocol mapping failed: %w", err)
 	}
 	return nil
 }
 
-func (d *netflowv5Decoder) Decode(srcIP net.IP, payload []byte) ([]telegraf.Metric, error) {
+func (*netflowv5Decoder) decode(srcIP net.IP, payload []byte) ([]telegraf.Metric, error) {
 	src := srcIP.String()
 
 	// Decode the message

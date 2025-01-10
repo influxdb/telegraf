@@ -27,7 +27,7 @@ func (h *TestingHandler) SetMeasurement(name []byte) error {
 	return nil
 }
 
-func (h *TestingHandler) AddTag(key []byte, value []byte) error {
+func (h *TestingHandler) AddTag(key, value []byte) error {
 	k := make([]byte, 0, len(key))
 	v := make([]byte, 0, len(value))
 
@@ -43,7 +43,7 @@ func (h *TestingHandler) AddTag(key []byte, value []byte) error {
 	return nil
 }
 
-func (h *TestingHandler) AddInt(key []byte, value []byte) error {
+func (h *TestingHandler) AddInt(key, value []byte) error {
 	k := make([]byte, 0, len(key))
 	v := make([]byte, 0, len(value))
 
@@ -59,7 +59,7 @@ func (h *TestingHandler) AddInt(key []byte, value []byte) error {
 	return nil
 }
 
-func (h *TestingHandler) AddUint(key []byte, value []byte) error {
+func (h *TestingHandler) AddUint(key, value []byte) error {
 	k := make([]byte, 0, len(key))
 	v := make([]byte, 0, len(value))
 
@@ -75,7 +75,7 @@ func (h *TestingHandler) AddUint(key []byte, value []byte) error {
 	return nil
 }
 
-func (h *TestingHandler) AddFloat(key []byte, value []byte) error {
+func (h *TestingHandler) AddFloat(key, value []byte) error {
 	k := make([]byte, 0, len(key))
 	v := make([]byte, 0, len(value))
 
@@ -91,7 +91,7 @@ func (h *TestingHandler) AddFloat(key []byte, value []byte) error {
 	return nil
 }
 
-func (h *TestingHandler) AddString(key []byte, value []byte) error {
+func (h *TestingHandler) AddString(key, value []byte) error {
 	k := make([]byte, 0, len(key))
 	v := make([]byte, 0, len(value))
 
@@ -107,7 +107,7 @@ func (h *TestingHandler) AddString(key []byte, value []byte) error {
 	return nil
 }
 
-func (h *TestingHandler) AddBool(key []byte, value []byte) error {
+func (h *TestingHandler) AddBool(key, value []byte) error {
 	k := make([]byte, 0, len(key))
 	v := make([]byte, 0, len(value))
 
@@ -160,27 +160,27 @@ func (h *BenchmarkingHandler) SetMeasurement(_ []byte) error {
 	return nil
 }
 
-func (h *BenchmarkingHandler) AddTag(_ []byte, _ []byte) error {
+func (h *BenchmarkingHandler) AddTag(_, _ []byte) error {
 	return nil
 }
 
-func (h *BenchmarkingHandler) AddInt(_ []byte, _ []byte) error {
+func (h *BenchmarkingHandler) AddInt(_, _ []byte) error {
 	return nil
 }
 
-func (h *BenchmarkingHandler) AddUint(_ []byte, _ []byte) error {
+func (h *BenchmarkingHandler) AddUint(_, _ []byte) error {
 	return nil
 }
 
-func (h *BenchmarkingHandler) AddFloat(_ []byte, _ []byte) error {
+func (h *BenchmarkingHandler) AddFloat(_, _ []byte) error {
 	return nil
 }
 
-func (h *BenchmarkingHandler) AddString(_ []byte, _ []byte) error {
+func (h *BenchmarkingHandler) AddString(_, _ []byte) error {
 	return nil
 }
 
-func (h *BenchmarkingHandler) AddBool(_ []byte, _ []byte) error {
+func (h *BenchmarkingHandler) AddBool(_, _ []byte) error {
 	return nil
 }
 

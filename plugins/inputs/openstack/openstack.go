@@ -57,7 +57,6 @@ var (
 	typeStorage = regexp.MustCompile(`_errors$|_read$|_read_req$|_write$|_write_req$`)
 )
 
-// OpenStack is the main structure associated with a collection instance.
 type OpenStack struct {
 	// Configuration variables
 	IdentityEndpoint string          `toml:"authentication_endpoint"`
@@ -93,19 +92,10 @@ type OpenStack struct {
 	services map[string]bool
 }
 
-// convertTimeFormat, to convert time format based on HumanReadableTS
-func (o *OpenStack) convertTimeFormat(t time.Time) interface{} {
-	if o.HumanReadableTS {
-		return t.Format("2006-01-02T15:04:05.999999999Z07:00")
-	}
-	return t.UnixNano()
-}
-
 func (*OpenStack) SampleConfig() string {
 	return sampleConfig
 }
 
-// initialize performs any necessary initialization functions
 func (o *OpenStack) Init() error {
 	if len(o.EnabledServices) == 0 {
 		o.EnabledServices = []string{"services", "projects", "hypervisors", "flavors", "networks", "volumes"}
@@ -266,14 +256,6 @@ func (o *OpenStack) Start(telegraf.Accumulator) error {
 	return nil
 }
 
-func (o *OpenStack) Stop() {
-	if o.client != nil {
-		o.client.CloseIdleConnections()
-	}
-}
-
-// Gather gathers resources from the OpenStack API and accumulates metrics.  This
-// implements the Input interface.
 func (o *OpenStack) Gather(acc telegraf.Accumulator) error {
 	ctx := context.Background()
 	callDuration := make(map[string]interface{}, len(o.services))
@@ -342,6 +324,12 @@ func (o *OpenStack) Gather(acc telegraf.Accumulator) error {
 	}
 
 	return nil
+}
+
+func (o *OpenStack) Stop() {
+	if o.client != nil {
+		o.client.CloseIdleConnections()
+	}
 }
 
 func (o *OpenStack) availableServicesFromAuth(provider *gophercloud.ProviderClient) (bool, error) {
@@ -1067,7 +1055,14 @@ func (o *OpenStack) gatherServerDiagnostics(ctx context.Context, acc telegraf.Ac
 	return nil
 }
 
-// init registers a callback which creates a new OpenStack input instance.
+// convertTimeFormat, to convert time format based on HumanReadableTS
+func (o *OpenStack) convertTimeFormat(t time.Time) interface{} {
+	if o.HumanReadableTS {
+		return t.Format("2006-01-02T15:04:05.999999999Z07:00")
+	}
+	return t.UnixNano()
+}
+
 func init() {
 	inputs.Add("openstack", func() telegraf.Input {
 		return &OpenStack{

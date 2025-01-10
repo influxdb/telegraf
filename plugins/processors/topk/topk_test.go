@@ -109,7 +109,7 @@ func belongs(m telegraf.Metric, ms []telegraf.Metric) bool {
 	return false
 }
 
-func subSet(a []telegraf.Metric, b []telegraf.Metric) bool {
+func subSet(a, b []telegraf.Metric) bool {
 	subset := true
 	for _, m := range a {
 		if !belongs(m, b) {
@@ -120,11 +120,11 @@ func subSet(a []telegraf.Metric, b []telegraf.Metric) bool {
 	return subset
 }
 
-func equalSets(l1 []telegraf.Metric, l2 []telegraf.Metric) bool {
+func equalSets(l1, l2 []telegraf.Metric) bool {
 	return subSet(l1, l2) && subSet(l2, l1)
 }
 
-func runAndCompare(topk *TopK, metrics []telegraf.Metric, answer []telegraf.Metric, testID string, t *testing.T) {
+func runAndCompare(topk *TopK, metrics, answer []telegraf.Metric, testID string, t *testing.T) {
 	// Sleep for `period`, otherwise the processor will only
 	// cache the metrics, but it will not process them
 	time.Sleep(time.Duration(topk.Period))

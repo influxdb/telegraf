@@ -19,13 +19,12 @@ import (
 //go:embed sample.conf
 var sampleConfig string
 
+const defaultTimeout = 5 * time.Second
+
 type Powerdns struct {
-	UnixSockets []string
-
-	Log telegraf.Logger `toml:"-"`
+	UnixSockets []string        `toml:"unix_sockets"`
+	Log         telegraf.Logger `toml:"-"`
 }
-
-var defaultTimeout = 5 * time.Second
 
 func (*Powerdns) SampleConfig() string {
 	return sampleConfig

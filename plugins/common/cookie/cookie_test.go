@@ -63,7 +63,11 @@ func newFakeServer(t *testing.T) fakeServer {
 				authed()
 			case authEndpointWithBody:
 				body, err := io.ReadAll(r.Body)
-				require.NoError(t, err)
+				if err != nil {
+					w.WriteHeader(http.StatusInternalServerError)
+					t.Error(err)
+					return
+				}
 				if !cmp.Equal([]byte(reqBody), body) {
 					w.WriteHeader(http.StatusUnauthorized)
 					return
@@ -89,8 +93,11 @@ func newFakeServer(t *testing.T) fakeServer {
 					w.WriteHeader(http.StatusForbidden)
 					return
 				}
-				_, err := w.Write([]byte("good test response"))
-				require.NoError(t, err)
+				if _, err := w.Write([]byte("good test response")); err != nil {
+					w.WriteHeader(http.StatusInternalServerError)
+					t.Error(err)
+					return
+				}
 			}
 		})),
 		int32: &c,

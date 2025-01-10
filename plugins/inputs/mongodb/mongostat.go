@@ -12,18 +12,7 @@ import (
 )
 
 const (
-	MongosProcess = "mongos"
-)
-
-// Flags to determine cases when to activate/deactivate columns for output.
-const (
-	Always   = 1 << iota // always activate the column
-	Discover             // only active when mongostat is in discover mode
-	Repl                 // only active if one of the nodes being monitored is in a replset
-	Locks                // only active if node is capable of calculating lock info
-	AllOnly              // only active if mongostat was run with --all option
-	MMAPOnly             // only active if node has mmap-specific fields
-	WTOnly               // only active if node has wiredtiger-specific fields
+	mongosProcess = "mongos"
 )
 
 type mongoStatus struct {
@@ -557,48 +546,6 @@ type storageStats struct {
 	FreelistSearchScanned         int64 `bson:"freelist.search.scanned"`
 }
 
-// statHeader describes a single column for mongostat's terminal output, its formatting, and in which modes it should be displayed.
-type statHeader struct {
-	// The text to appear in the column's header cell
-	HeaderText string
-
-	// Bitmask containing flags to determine if this header is active or not
-	ActivateFlags int
-}
-
-// StatHeaders are the complete set of data metrics supported by mongostat.
-var StatHeaders = []statHeader{
-	{"", Always}, // placeholder for hostname column (blank header text)
-	{"insert", Always},
-	{"query", Always},
-	{"update", Always},
-	{"delete", Always},
-	{"getmore", Always},
-	{"command", Always},
-	{"% dirty", WTOnly},
-	{"% used", WTOnly},
-	{"flushes", Always},
-	{"mapped", MMAPOnly},
-	{"vsize", Always},
-	{"res", Always},
-	{"non-mapped", MMAPOnly | AllOnly},
-	{"faults", MMAPOnly},
-	{"lr|lw %", MMAPOnly | AllOnly},
-	{"lrt|lwt", MMAPOnly | AllOnly},
-	{"    locked db", Locks},
-	{"qr|qw", Always},
-	{"ar|aw", Always},
-	{"netIn", Always},
-	{"netOut", Always},
-	{"conn", Always},
-	{"set", Repl},
-	{"repl", Repl},
-	{"time", Always},
-}
-
-// NamespacedLocks stores information on the lockStatus of namespaces.
-type NamespacedLocks map[string]lockStatus
-
 // lockUsage stores information related to a namespace's lock usage.
 type lockUsage struct {
 	Namespace string
@@ -931,8 +878,8 @@ func diff(newVal, oldVal, sampleTime int64) (avg, newValue int64) {
 	return d / sampleTime, newVal
 }
 
-// NewStatLine constructs a statLine object from two mongoStatus objects.
-func NewStatLine(oldMongo, newMongo mongoStatus, key string, all bool, sampleSecs int64) *statLine {
+// newStatLine constructs a statLine object from two mongoStatus objects.
+func newStatLine(oldMongo, newMongo mongoStatus, key string, sampleSecs int64) *statLine {
 	oldStat := *oldMongo.ServerStatus
 	newStat := *newMongo.ServerStatus
 
@@ -1179,7 +1126,7 @@ func NewStatLine(oldMongo, newMongo mongoStatus, key string, all bool, sampleSec
 
 	returnVal.Time = newMongo.SampleTime
 	returnVal.IsMongos =
-		newStat.ShardCursorType != nil || strings.HasPrefix(newStat.Process, MongosProcess)
+		newStat.ShardCursorType != nil || strings.HasPrefix(newStat.Process, mongosProcess)
 
 	// BEGIN code modification
 	if oldStat.Mem.Supported.(bool) {
@@ -1190,7 +1137,7 @@ func NewStatLine(oldMongo, newMongo mongoStatus, key string, all bool, sampleSec
 		returnVal.Virtual = newStat.Mem.Virtual
 		returnVal.Resident = newStat.Mem.Resident
 
-		if !returnVal.IsMongos && all {
+		if !returnVal.IsMongos {
 			returnVal.NonMapped = newStat.Mem.Virtual - newStat.Mem.Mapped
 		}
 	}

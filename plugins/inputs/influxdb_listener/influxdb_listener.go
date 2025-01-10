@@ -76,7 +76,7 @@ func (*InfluxDBListener) SampleConfig() string {
 	return sampleConfig
 }
 
-func (h *InfluxDBListener) Gather(_ telegraf.Accumulator) error {
+func (*InfluxDBListener) Gather(telegraf.Accumulator) error {
 	return nil
 }
 

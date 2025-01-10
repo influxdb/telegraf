@@ -19,7 +19,7 @@ func TestJolokia2_makeReadRequests(t *testing.T) {
 			expected: []ReadRequest{
 				{
 					Mbean:      "test:foo=bar",
-					Attributes: []string{},
+					Attributes: make([]string, 0),
 				},
 			},
 		}, {

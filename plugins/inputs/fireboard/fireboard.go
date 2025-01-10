@@ -87,7 +87,7 @@ func (r *Fireboard) Gather(acc telegraf.Accumulator) error {
 	}
 	// Range over all devices, gathering stats. Returns early in case of any error.
 	for _, s := range stats {
-		r.gatherTemps(s, acc)
+		gatherTemps(s, acc)
 	}
 	return nil
 }
@@ -105,7 +105,7 @@ func scale(n int) string {
 }
 
 // Gathers stats from a single device, adding them to the accumulator
-func (r *Fireboard) gatherTemps(s fireboardStats, acc telegraf.Accumulator) {
+func gatherTemps(s fireboardStats, acc telegraf.Accumulator) {
 	// Construct lookup for scale values
 
 	for _, t := range s.LatestTemps {

@@ -52,14 +52,11 @@ var testProtoBufGlobalBufferUsageRecord = &pb.LanzRecord{
 }
 
 func TestLanzGeneratesMetrics(t *testing.T) {
-	var acc testutil.Accumulator
-
-	l := NewLanz()
-
-	l.Servers = append(l.Servers,
+	l := &Lanz{Servers: []string{
 		"tcp://switch01.int.example.com:50001",
 		"tcp://switch02.int.example.com:50001",
-	)
+	}}
+
 	deviceURL1, err := url.Parse(l.Servers[0])
 	if err != nil {
 		t.Fail()
@@ -69,6 +66,7 @@ func TestLanzGeneratesMetrics(t *testing.T) {
 		t.Fail()
 	}
 
+	var acc testutil.Accumulator
 	msgToAccumulator(&acc, testProtoBufCongestionRecord1, deviceURL1)
 	acc.Wait(1)
 

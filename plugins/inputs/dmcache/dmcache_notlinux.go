@@ -11,5 +11,5 @@ func (*DMCache) Gather(_ telegraf.Accumulator) error {
 }
 
 func dmSetupStatus() ([]string, error) {
-	return []string{}, nil
+	return make([]string, 0), nil
 }

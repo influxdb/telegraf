@@ -530,8 +530,8 @@ var fieldMappingsIPFIX = map[uint16][]fieldMapping{
 
 // Decoder structure
 type netflowDecoder struct {
-	PENFiles []string
-	Log      telegraf.Logger
+	penFiles []string
+	log      telegraf.Logger
 
 	templates     map[string]netflow.NetFlowTemplateSystem
 	mappingsV9    map[uint16]fieldMapping
@@ -542,7 +542,7 @@ type netflowDecoder struct {
 	sync.Mutex
 }
 
-func (d *netflowDecoder) Decode(srcIP net.IP, payload []byte) ([]telegraf.Metric, error) {
+func (d *netflowDecoder) decode(srcIP net.IP, payload []byte) ([]telegraf.Metric, error) {
 	var metrics []telegraf.Metric
 
 	t := time.Now()
@@ -563,7 +563,7 @@ func (d *netflowDecoder) Decode(srcIP net.IP, payload []byte) ([]telegraf.Metric
 	if err := netflow.DecodeMessageVersion(buf, templates, &msg9, &msg10); err != nil {
 		if errors.Is(err, netflow.ErrorTemplateNotFound) {
 			msg := "Skipping packet until the device resends the required template..."
-			d.Log.Warnf("%v. %s", err, msg)
+			d.log.Warnf("%v. %s", err, msg)
 			return nil, nil
 		}
 		return nil, fmt.Errorf("decoding message failed: %w", err)
@@ -587,7 +587,7 @@ func (d *netflowDecoder) Decode(srcIP net.IP, payload []byte) ([]telegraf.Metric
 					for _, value := range record.ScopesValues {
 						decodedFields, err := d.decodeValueV9(value)
 						if err != nil {
-							d.Log.Errorf("decoding option record %+v failed: %v", record, err)
+							d.log.Errorf("decoding option record %+v failed: %v", record, err)
 							continue
 						}
 						for _, field := range decodedFields {
@@ -597,7 +597,7 @@ func (d *netflowDecoder) Decode(srcIP net.IP, payload []byte) ([]telegraf.Metric
 					for _, value := range record.OptionsValues {
 						decodedFields, err := d.decodeValueV9(value)
 						if err != nil {
-							d.Log.Errorf("decoding option record %+v failed: %v", record, err)
+							d.log.Errorf("decoding option record %+v failed: %v", record, err)
 							continue
 						}
 						for _, field := range decodedFields {
@@ -616,7 +616,7 @@ func (d *netflowDecoder) Decode(srcIP net.IP, payload []byte) ([]telegraf.Metric
 					for _, value := range record.Values {
 						decodedFields, err := d.decodeValueV9(value)
 						if err != nil {
-							d.Log.Errorf("decoding record %+v failed: %v", record, err)
+							d.log.Errorf("decoding record %+v failed: %v", record, err)
 							continue
 						}
 						for _, field := range decodedFields {
@@ -643,7 +643,7 @@ func (d *netflowDecoder) Decode(srcIP net.IP, payload []byte) ([]telegraf.Metric
 					for _, value := range record.ScopesValues {
 						decodedFields, err := d.decodeValueIPFIX(value)
 						if err != nil {
-							d.Log.Errorf("decoding option record %+v failed: %v", record, err)
+							d.log.Errorf("decoding option record %+v failed: %v", record, err)
 							continue
 						}
 						for _, field := range decodedFields {
@@ -653,7 +653,7 @@ func (d *netflowDecoder) Decode(srcIP net.IP, payload []byte) ([]telegraf.Metric
 					for _, value := range record.OptionsValues {
 						decodedFields, err := d.decodeValueIPFIX(value)
 						if err != nil {
-							d.Log.Errorf("decoding option record %+v failed: %v", record, err)
+							d.log.Errorf("decoding option record %+v failed: %v", record, err)
 							continue
 						}
 						for _, field := range decodedFields {
@@ -673,7 +673,7 @@ func (d *netflowDecoder) Decode(srcIP net.IP, payload []byte) ([]telegraf.Metric
 					for _, value := range record.Values {
 						decodedFields, err := d.decodeValueIPFIX(value)
 						if err != nil {
-							d.Log.Errorf("decoding value %+v failed: %v", value, err)
+							d.log.Errorf("decoding value %+v failed: %v", value, err)
 							continue
 						}
 						for _, field := range decodedFields {
@@ -691,7 +691,7 @@ func (d *netflowDecoder) Decode(srcIP net.IP, payload []byte) ([]telegraf.Metric
 	return metrics, nil
 }
 
-func (d *netflowDecoder) Init() error {
+func (d *netflowDecoder) init() error {
 	if err := initL4ProtoMapping(); err != nil {
 		return fmt.Errorf("initializing layer 4 protocol mapping failed: %w", err)
 	}
@@ -703,8 +703,8 @@ func (d *netflowDecoder) Init() error {
 	d.mappingsV9 = make(map[uint16]fieldMapping)
 	d.mappingsIPFIX = make(map[uint16]fieldMapping)
 	d.mappingsPEN = make(map[string]fieldMapping)
-	for _, fn := range d.PENFiles {
-		d.Log.Debugf("Loading PEN mapping file %q...", fn)
+	for _, fn := range d.penFiles {
+		d.log.Debugf("Loading PEN mapping file %q...", fn)
 		mappings, err := loadMapping(fn)
 		if err != nil {
 			return err
@@ -719,7 +719,7 @@ func (d *netflowDecoder) Init() error {
 			d.mappingsPEN[k] = v
 		}
 	}
-	d.Log.Infof("Loaded %d PEN mappings...", len(d.mappingsPEN))
+	d.log.Infof("Loaded %d PEN mappings...", len(d.mappingsPEN))
 
 	d.logged = make(map[string]bool)
 
@@ -783,7 +783,7 @@ func (d *netflowDecoder) decodeValueV9(field netflow.DataField) ([]telegraf.Fiel
 	// Return the raw data if no mapping was found
 	key := fmt.Sprintf("type_%d", elementID)
 	if !d.logged[key] {
-		d.Log.Debugf("unknown Netflow v9 data field %v", field)
+		d.log.Debugf("unknown Netflow v9 data field %v", field)
 		d.logged[key] = true
 	}
 	v, err := decodeHex(raw)
@@ -817,7 +817,7 @@ func (d *netflowDecoder) decodeValueIPFIX(field netflow.DataField) ([]telegraf.F
 			return []telegraf.Field{{Key: name, Value: v}}, nil
 		}
 		if !d.logged[key] {
-			d.Log.Debugf("unknown IPFIX PEN data field %v", field)
+			d.log.Debugf("unknown IPFIX PEN data field %v", field)
 			d.logged[key] = true
 		}
 		name := fmt.Sprintf("type_%d_%s%d", field.Pen, prefix, elementID)
@@ -866,7 +866,7 @@ func (d *netflowDecoder) decodeValueIPFIX(field netflow.DataField) ([]telegraf.F
 	// Return the raw data if no mapping was found
 	key := fmt.Sprintf("type_%d", elementID)
 	if !d.logged[key] {
-		d.Log.Debugf("unknown IPFIX data field %v", field)
+		d.log.Debugf("unknown IPFIX data field %v", field)
 		d.logged[key] = true
 	}
 	v, err := decodeHex(raw)

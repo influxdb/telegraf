@@ -214,7 +214,7 @@ func TestGather(t *testing.T) {
 	}
 }
 
-// fackeExecCommand is a helper function that mock
+// fakeExecCommand is a helper function that mock
 // the exec.Command call (and call the test binary)
 func fakeExecCommand(command string, args ...string) *exec.Cmd {
 	cs := []string{"-test.run=TestHelperProcess", "--", command}
@@ -536,7 +536,7 @@ func TestGatherV2(t *testing.T) {
 	}
 }
 
-// fackeExecCommandV2 is a helper function that mock
+// fakeExecCommandV2 is a helper function that mock
 // the exec.Command call (and call the test binary)
 func fakeExecCommandV2(command string, args ...string) *exec.Cmd {
 	cs := []string{"-test.run=TestHelperProcessV2", "--", command}
@@ -820,14 +820,10 @@ func Test_parsePowerStatus(t *testing.T) {
 		},
 	}
 
-	ipmi := &Ipmi{
-		Log: testutil.Logger{},
-	}
-
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			var acc testutil.Accumulator
-			err := ipmi.parseChassisPowerStatus(&acc, tt.args.hostname, tt.args.cmdOut, tt.args.measuredAt)
+			err := parseChassisPowerStatus(&acc, tt.args.hostname, tt.args.cmdOut, tt.args.measuredAt)
 			require.NoError(t, err)
 			testutil.RequireMetricsEqual(t, tt.expected, acc.GetTelegrafMetrics(), testutil.IgnoreTime())
 		})
