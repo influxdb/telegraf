@@ -103,6 +103,15 @@ Debug](https://grokdebug.herokuapp.com) application quite useful!
   ##   %{COMBINED_LOG_FORMAT} (access logs + referrer & agent)
   grok_patterns = ["%{COMBINED_LOG_FORMAT}"]
 
+  ## This is a list of patterns to count the given log file(s) for.
+  ## Note that adding patterns here increases processing time. The most
+  ## efficient configuration is to have one pattern.
+  grok_tag_patterns = [ 
+    { tag_name = "code", tag_value = "2XX", pattern = " 2\d{2} " },
+    { tag_name = "code", tag_value = "3XX", pattern = " 3\d{2} " },
+    { tag_name = "code", tag_value = "4XX", pattern = ""%{WORD:method} %{PATH:path} HTTP/.?\..?" 4\d{2} " },
+    { tag_name = "code", tag_value = "5XX", pattern = ""%{WORD:method} %{PATH:path} HTTP/.?\..?" 5\d{2} " }
+  ]
   ## Full path(s) to custom pattern files.
   grok_custom_pattern_files = []
 
@@ -192,6 +201,29 @@ current machine timezone configuration. Lastly, if using a timezone from the
 list of Unix
 [timezones](https://en.wikipedia.org/wiki/List_of_tz_database_time_zones), grok
 will offset the timestamp accordingly.
+
+### Named pattern Examples
+
+This example input and config parses a file using a custom timestamp conversion:
+
+```text
+2017-02-21 13:10:34 Error sample line
+2017-02-21 13:10:35 Warning sample line
+2017-02-21 13:10:36 Error sample line
+```
+
+```toml
+[[inputs.file]]
+  grok_tag_patterns = [ 
+    { tag_name = "severite", tag_value = "Error", pattern = " Error " },
+    { tag_name = "severite", tag_value = "Warning", pattern = " Warning " }
+ ]
+```
+
+```text
+file,severite=Error lines=2i
+file,severite=Warning lines=1i
+```
 
 #### TOML Escaping
 
