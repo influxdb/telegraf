@@ -33,6 +33,12 @@ type Checker interface {
 	Check(metrics []telegraf.Metric) bool
 }
 
+type DeferredChecker interface {
+	Init()
+	Check(currentTime time.Time) bool
+	Process(metrics []telegraf.Metric)
+}
+
 type Health struct {
 	ServiceAddress string          `toml:"service_address"`
 	ReadTimeout    config.Duration `toml:"read_timeout"`
@@ -41,10 +47,12 @@ type Health struct {
 	BasicPassword  string          `toml:"basic_password"`
 	common_tls.ServerConfig
 
-	Compares []*Compares     `toml:"compares"`
-	Contains []*Contains     `toml:"contains"`
-	Log      telegraf.Logger `toml:"-"`
-	checkers []Checker
+	Compares           []*Compares           `toml:"compares"`
+	Contains           []*Contains           `toml:"contains"`
+	TimeBetweenMetrics []*TimeBetweenMetrics `toml:"time_between_metrics"`
+	Log                telegraf.Logger       `toml:"-"`
+	checkers           []Checker
+	deferredCheckers   []DeferredChecker
 
 	wg      sync.WaitGroup
 	server  *http.Server
@@ -93,7 +101,13 @@ func (h *Health) Init() error {
 	for i := range h.Contains {
 		h.checkers = append(h.checkers, h.Contains[i])
 	}
-
+	h.deferredCheckers = make([]DeferredChecker, 0)
+	for i := range h.TimeBetweenMetrics {
+		h.deferredCheckers = append(h.deferredCheckers, h.TimeBetweenMetrics[i])
+	}
+	for _, deferredChecker := range h.deferredCheckers {
+		deferredChecker.Init()
+	}
 	return nil
 }
 
@@ -141,9 +155,20 @@ func (h *Health) listen() (net.Listener, error) {
 	return net.Listen(h.network, h.address)
 }
 
+func (h *Health) deferredCheck() bool {
+	current_time := time.Now()
+	for _, deferredChecker := range h.deferredCheckers {
+		if !deferredChecker.Check(current_time) {
+			return false
+		}
+	}
+	return true
+
+}
+
 func (h *Health) ServeHTTP(rw http.ResponseWriter, _ *http.Request) {
 	var code = http.StatusOK
-	if !h.isHealthy() {
+	if !h.isHealthy() || !h.deferredCheck() {
 		code = http.StatusServiceUnavailable
 	}
 
@@ -160,7 +185,9 @@ func (h *Health) Write(metrics []telegraf.Metric) error {
 			healthy = false
 		}
 	}
-
+	for _, deferredChecker := range h.deferredCheckers {
+		deferredChecker.Process(metrics)
+	}
 	h.setHealthy(healthy)
 	return nil
 }
