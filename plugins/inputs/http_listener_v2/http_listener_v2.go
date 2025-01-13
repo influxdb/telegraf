@@ -52,6 +52,7 @@ type HTTPListenerV2 struct {
 	Path           string            `toml:"path" deprecated:"1.20.0;1.35.0;use 'paths' instead"`
 	Paths          []string          `toml:"paths"`
 	PathTag        bool              `toml:"path_tag"`
+	QueryTag       bool              `toml:"query_tag"`
 	Methods        []string          `toml:"methods"`
 	HTTPHeaders    map[string]string `toml:"http_headers"`
 	DataSource     string            `toml:"data_source"`
@@ -293,6 +294,7 @@ func (h *HTTPListenerV2) serveWrite(res http.ResponseWriter, req *http.Request) 
 		})
 	}
 
+	queryParams := req.URL.Query()
 	for _, m := range metrics {
 		for headerName, measurementName := range h.HTTPHeaderTags {
 			headerValues := req.Header.Get(headerName)
@@ -303,6 +305,14 @@ func (h *HTTPListenerV2) serveWrite(res http.ResponseWriter, req *http.Request) 
 
 		if h.PathTag {
 			m.AddTag(pathTag, req.URL.Path)
+		}
+
+		if h.QueryTag {
+			for key, values := range queryParams {
+				if len(values) > 0 {
+					m.AddTag(key, values[0])  // Only use the first value of the query parameter
+				}
+			}
 		}
 
 		h.acc.AddMetric(m)
