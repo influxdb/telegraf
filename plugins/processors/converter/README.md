@@ -1,12 +1,12 @@
 # Converter Processor Plugin
 
-The converter processor is used to change the type of tag or field values.  In
+The converter processor is used to change the type of tag or field values. In
 addition to changing field types it can convert between fields and tags.
 
 Values that cannot be converted are dropped.
 
 **Note:** When converting tags to fields, take care to ensure the series is
-still uniquely identifiable.  Fields with the same series key (measurement +
+still uniquely identifiable. Fields with the same series key (measurement +
 tags) will overwrite one another.
 
 **Note on large strings being converted to numeric types:** When converting a
@@ -66,6 +66,12 @@ See the [CONFIGURATION.md][CONFIGURATION.md] for more details.
     unsigned = []
     boolean = []
     float = []
+
+    ## Optional field to use for converting base64 encoding of IEEE 754 Float32 values 
+    ## i.e. data_json_content_state_openconfig-platform-psu:output-power":"RKeAAA=="
+    ## into a float32 value 1340
+
+    # base64_ieee_float32 = []
 
     ## Optional field to use as metric timestamp
     # timestamp = []

@@ -770,6 +770,34 @@ func TestMeasurement(t *testing.T) {
 				),
 			},
 		},
+		{
+			name: "float32 from ieee754 float32 encoded as base64",
+			converter: &Converter{
+				Fields: &Conversion{
+					Base64IEEEFloat32: []string{"a", "b"},
+				},
+			},
+			input: testutil.MustMetric(
+				"cpu",
+				map[string]string{},
+				map[string]interface{}{
+					"a": "QlAAAA==",
+					"b": "QlgAAA==",
+				},
+				time.Unix(0, 0),
+			),
+			expected: []telegraf.Metric{
+				testutil.MustMetric(
+					"cpu",
+					map[string]string{},
+					map[string]interface{}{
+						"a": float32(52),
+						"b": float32(54),
+					},
+					time.Unix(0, 0),
+				),
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
