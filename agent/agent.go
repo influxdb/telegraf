@@ -378,6 +378,12 @@ func (a *Agent) startInputs(
 
 			return nil, fmt.Errorf("starting input %s: %w", input.LogName(), err)
 		}
+		if err := input.Probe(); err != nil {
+			// Probe failures are not fatal to Telegraf itself, so simply skip
+			// adding the input.
+			log.Printf("I! [agent] Failed to probe %s, shutting down plugin: %s", input.LogName(), err)
+			continue
+		}
 		unit.inputs = append(unit.inputs, input)
 	}
 

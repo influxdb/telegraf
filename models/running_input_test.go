@@ -1,9 +1,11 @@
 package models
 
 import (
+	"errors"
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/influxdata/telegraf"
@@ -485,6 +487,71 @@ func TestRunningInputMakeMetricWithGatherEndTimeSource(t *testing.T) {
 	actual := ri.MakeMetric(m)
 
 	require.Equal(t, expected, actual)
+}
+
+func TestRunningInputProbing(t *testing.T) {
+	probeErr := errors.New("probing error")
+	for _, tt := range []struct {
+		name                 string
+		input                telegraf.Input
+		startupErrorBehavior string
+		expectedError        bool
+	}{
+		{
+			name:                 "non-probing plugin with probe value set",
+			input:                &mockInput{},
+			startupErrorBehavior: "probe",
+			expectedError:        false,
+		},
+		{
+			name:                 "non-probing plugin with probe value not set",
+			input:                &mockInput{},
+			startupErrorBehavior: "ignore",
+			expectedError:        false,
+		},
+		{
+			name:                 "probing plugin with probe value set",
+			input:                &mockProbingInput{probeErr},
+			startupErrorBehavior: "probe",
+			expectedError:        true,
+		},
+		{
+			name:                 "probing plugin with probe value not set",
+			input:                &mockProbingInput{probeErr},
+			startupErrorBehavior: "ignore",
+			expectedError:        false,
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			ri := NewRunningInput(tt.input, &InputConfig{
+				Name:                 "TestRunningInput",
+				StartupErrorBehavior: tt.startupErrorBehavior,
+			})
+			ri.log = testutil.Logger{}
+			err := ri.Probe()
+			if tt.expectedError {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
+type mockProbingInput struct {
+	probeReturn error
+}
+
+func (m *mockProbingInput) SampleConfig() string {
+	return ""
+}
+
+func (m *mockProbingInput) Gather(_ telegraf.Accumulator) error {
+	return nil
+}
+
+func (m *mockProbingInput) Probe() error {
+	return m.probeReturn
 }
 
 type mockInput struct{}
