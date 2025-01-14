@@ -9,8 +9,7 @@ import (
 	"time"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/stretchr/testify/require"
-
+	"github.com/influxdata/tail"
 	"github.com/influxdata/telegraf"
 	"github.com/influxdata/telegraf/config"
 	"github.com/influxdata/telegraf/metric"
@@ -19,6 +18,7 @@ import (
 	"github.com/influxdata/telegraf/plugins/parsers/influx"
 	"github.com/influxdata/telegraf/plugins/parsers/json"
 	"github.com/influxdata/telegraf/testutil"
+	"github.com/stretchr/testify/require"
 )
 
 func newInfluxParser() (telegraf.Parser, error) {
@@ -799,4 +799,125 @@ func TestStatePersistence(t *testing.T) {
 	actualState, ok := pi.GetState().(map[string]int64)
 	require.True(t, ok, "state is not a map[string]int64")
 	require.Equal(t, expectedState, actualState)
+}
+
+func TestGetSeekInfo(t *testing.T) {
+	tests := []struct {
+		name          string
+		offsets       map[string]int64
+		file          string
+		fromBeginning bool
+		readStart     string
+		expected      *tail.SeekInfo
+	}{
+		{
+			name:          "Read from beginning when from_beginning set to true",
+			offsets:       map[string]int64{"test.log": 100},
+			file:          "test.log",
+			fromBeginning: true,
+			expected: &tail.SeekInfo{
+				Whence: 0,
+				Offset: 0,
+			},
+		},
+		{
+			name:      "Read from beginning when read_start set to beginning",
+			offsets:   map[string]int64{"test.log": 100},
+			file:      "test.log",
+			readStart: "beginning",
+			expected: &tail.SeekInfo{
+				Whence: 0,
+				Offset: 0,
+			},
+		},
+		{
+			name:      "Read from end when read_start set to end",
+			offsets:   map[string]int64{"test.log": 100},
+			file:      "test.log",
+			readStart: "end",
+			expected: &tail.SeekInfo{
+				Whence: 2,
+				Offset: 0,
+			},
+		},
+		{
+			name:      "Read from end when offset not exists and read_start set to save-offset-or-end",
+			offsets:   map[string]int64{},
+			file:      "test.log",
+			readStart: "save-offset-or-end",
+			expected: &tail.SeekInfo{
+				Whence: 2,
+				Offset: 0,
+			},
+		},
+		{
+			name:      "Read from offset when offset exists and read_start set to save-offset-or-end",
+			offsets:   map[string]int64{"test.log": 100},
+			file:      "test.log",
+			readStart: "save-offset-or-end",
+			expected: &tail.SeekInfo{
+				Whence: 0,
+				Offset: 100,
+			},
+		},
+		{
+			name:      "Read from start when offset not exists and read_start set to save-offset-or-start",
+			offsets:   map[string]int64{},
+			file:      "test.log",
+			readStart: "save-offset-or-beginning",
+			expected: &tail.SeekInfo{
+				Whence: 0,
+				Offset: 0,
+			},
+		},
+		{
+			name:      "Read from offset when offset exists and read_start set to save-offset-or-end",
+			offsets:   map[string]int64{"test.log": 100},
+			file:      "test.log",
+			readStart: "save-offset-or-beginning",
+			expected: &tail.SeekInfo{
+				Whence: 0,
+				Offset: 100,
+			},
+		},
+		{
+			name:          "Ignore from_beginning when read_start is set",
+			offsets:       map[string]int64{"test.log": 100},
+			file:          "test.log",
+			fromBeginning: true,
+			readStart:     "save-offset-or-beginning",
+			expected: &tail.SeekInfo{
+				Whence: 0,
+				Offset: 100,
+			},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			logger := &testutil.CaptureLogger{}
+			tt := NewTestTail()
+			tt.Log = logger
+			tt.ReadStart = test.readStart
+			tt.FromBeginning = test.fromBeginning
+
+			require.NoError(t, tt.Init())
+			tt.offsets = test.offsets
+
+			seekInfo, err := tt.getSeekInfo(test.file, test.fromBeginning)
+			require.NoError(t, err)
+			require.Equal(t, test.expected, seekInfo)
+		})
+	}
+
+	t.Run("Return error when read_start is invalid", func(t *testing.T) {
+		logger := &testutil.CaptureLogger{}
+		tt := NewTestTail()
+		tt.Log = logger
+		tt.ReadStart = "invalid"
+
+		require.NoError(t, tt.Init())
+		_, err := tt.getSeekInfo("test.log", false)
+		require.Error(t, err)
+	})
 }

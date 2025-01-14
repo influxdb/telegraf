@@ -41,6 +41,7 @@ type semaphore chan empty
 type Tail struct {
 	Files               []string `toml:"files"`
 	FromBeginning       bool     `toml:"from_beginning"`
+	ReadStart           string   `toml:"read_start"`
 	Pipe                bool     `toml:"pipe"`
 	WatchMethod         string   `toml:"watch_method"`
 	MaxUndeliveredLines int      `toml:"max_undelivered_lines"`
@@ -162,6 +163,54 @@ func (t *Tail) Start(acc telegraf.Accumulator) error {
 	return err
 }
 
+func (t *Tail) getSeekInfo(file string, fromBeginning bool) (*tail.SeekInfo, error) {
+	var seek *tail.SeekInfo
+
+	seekStart := &tail.SeekInfo{
+		Whence: 0,
+		Offset: 0,
+	}
+	seekEnd := &tail.SeekInfo{
+		Whence: 2,
+		Offset: 0,
+	}
+
+	if fromBeginning && t.ReadStart == "" {
+		return seekStart, nil
+	}
+
+	switch t.ReadStart {
+	case "end":
+		seek = seekEnd
+	case "beginning":
+		seek = seekStart
+	case "", "save-offset-or-end":
+		if offset, ok := t.offsets[file]; ok {
+			t.Log.Debugf("Using offset %d for %q", offset, file)
+			seek = &tail.SeekInfo{
+				Whence: 0,
+				Offset: offset,
+			}
+		} else {
+			seek = seekEnd
+		}
+	case "save-offset-or-beginning":
+		if offset, ok := t.offsets[file]; ok {
+			t.Log.Debugf("Using offset %d for %q", offset, file)
+			seek = &tail.SeekInfo{
+				Whence: 0,
+				Offset: offset,
+			}
+		} else {
+			seek = seekStart
+		}
+	default:
+		return nil, errors.New("invalid 'read_start' setting")
+	}
+
+	return seek, nil
+}
+
 func (t *Tail) tailNewFiles(fromBeginning bool) error {
 	var poll bool
 	if t.WatchMethod == "poll" {
@@ -180,20 +229,9 @@ func (t *Tail) tailNewFiles(fromBeginning bool) error {
 				continue
 			}
 
-			var seek *tail.SeekInfo
-			if !t.Pipe && !fromBeginning {
-				if offset, ok := t.offsets[file]; ok {
-					t.Log.Debugf("Using offset %d for %q", offset, file)
-					seek = &tail.SeekInfo{
-						Whence: 0,
-						Offset: offset,
-					}
-				} else {
-					seek = &tail.SeekInfo{
-						Whence: 2,
-						Offset: 0,
-					}
-				}
+			seek, err := t.getSeekInfo(file, fromBeginning)
+			if err != nil {
+				return err
 			}
 
 			tailer, err := tail.TailFile(file,
@@ -379,7 +417,7 @@ func (t *Tail) receiver(parser telegraf.Parser, tailer *tail.Tail) {
 
 func (t *Tail) Stop() {
 	for _, tailer := range t.tailers {
-		if !t.Pipe && !t.FromBeginning {
+		if !t.Pipe {
 			// store offset for resume
 			offset, err := tailer.Tell()
 			if err == nil {
