@@ -1,6 +1,7 @@
 package github
 
 import (
+	"fmt"
 	"strconv"
 	"time"
 
@@ -73,6 +74,26 @@ type pullRequest struct {
 type pullRequestReviewComment struct {
 	File    string `json:"path"`
 	Comment string `json:"body"`
+}
+
+type workflowJob struct {
+	RunAttempt  int    `json:"run_attempt"`
+	HeadBranch  string `json:"head_branch"`
+	CreatedAt   string `json:"created_at"`
+	StartedAt   string `json:"started_at"`
+	CompletedAt string `json:"completed_at"`
+	Name        string `json:"name"`
+	Conclusion  string `json:"conclusion"`
+}
+
+type workflowRun struct {
+	HeadBranch   string `json:"head_branch"`
+	CreatedAt    string `json:"created_at"`
+	RunStartedAt string `json:"run_started_at"`
+	UpdatedAt    string `json:"updated_at"`
+	RunAttempt   int    `json:"run_attempt"`
+	Name         string `json:"name"`
+	Conclusion   string `json:"conclusion"`
 }
 
 type release struct {
@@ -642,6 +663,96 @@ func (s watchEvent) NewMetric() telegraf.Metric {
 		"stars":  s.Repository.Stars,
 		"forks":  s.Repository.Forks,
 		"issues": s.Repository.Issues,
+	}
+	m := metric.New(meas, t, f, time.Now())
+	return m
+}
+
+type workflowJobEvent struct {
+	Action      string      `json:"action"`
+	WorkflowJob workflowJob `json:"workflow_job"`
+	Repository  repository  `json:"repository"`
+	Sender      sender      `json:"sender"`
+}
+
+func (s workflowJobEvent) NewMetric() telegraf.Metric {
+	event := "workflow_job"
+	t := map[string]string{
+		"event":      event,
+		"action":     s.Action,
+		"repository": s.Repository.Repository,
+		"private":    strconv.FormatBool(s.Repository.Private),
+		"user":       s.Sender.User,
+		"admin":      strconv.FormatBool(s.Sender.Admin),
+		"name":       s.WorkflowJob.Name,
+		"conclusion": s.WorkflowJob.Conclusion,
+	}
+	createdAt, createdAtErr := time.Parse(time.RFC3339, s.WorkflowJob.CreatedAt)
+	if createdAtErr != nil {
+		fmt.Errorf("error parsing createdAt %q: %w", s.WorkflowJob.CreatedAt, createdAtErr)
+	}
+	startedAt, startedAtErr := time.Parse(time.RFC3339, s.WorkflowJob.StartedAt)
+	if startedAtErr != nil {
+		fmt.Errorf("error parsing createdAt %q: %w", s.WorkflowJob.StartedAt, startedAtErr)
+	}
+	completedAt, completedAtErr := time.Parse(time.RFC3339, s.WorkflowJob.CompletedAt)
+	if completedAtErr != nil {
+		fmt.Errorf("error parsing createdAt %q: %w", s.WorkflowJob.CompletedAt, completedAtErr)
+	}
+	var runTime int64 = 0
+	var queueTime int64 = 0
+	if s.Action == "in_progress" {
+		queueTime = startedAt.Sub(createdAt).Milliseconds()
+	}
+	if s.Action == "completed" {
+		runTime = completedAt.Sub(startedAt).Milliseconds()
+	}
+	f := map[string]interface{}{
+		"run_attempt": s.WorkflowJob.RunAttempt,
+		"queue_time":  queueTime,
+		"run_time":    runTime,
+		"head_branch": s.WorkflowJob.HeadBranch,
+	}
+	m := metric.New(meas, t, f, time.Now())
+	return m
+}
+
+type workflowRunEvent struct {
+	Action      string      `json:"action"`
+	WorkflowRun workflowRun `json:"workflow_run"`
+	Repository  repository  `json:"repository"`
+	Sender      sender      `json:"sender"`
+}
+
+func (s workflowRunEvent) NewMetric() telegraf.Metric {
+	event := "workflow_run"
+	t := map[string]string{
+		"event":      event,
+		"action":     s.Action,
+		"repository": s.Repository.Repository,
+		"private":    strconv.FormatBool(s.Repository.Private),
+		"user":       s.Sender.User,
+		"admin":      strconv.FormatBool(s.Sender.Admin),
+		"name":       s.WorkflowRun.Name,
+		"conclusion": s.WorkflowRun.Conclusion,
+	}
+	var runTime int64 = 0
+	startedAt, startedAtErr := time.Parse(time.RFC3339, s.WorkflowRun.RunStartedAt)
+	if startedAtErr != nil {
+		fmt.Errorf("error parsing startedAt %q: %w", s.WorkflowRun.RunStartedAt, startedAtErr)
+	}
+	updatedAt, updatedAtErr := time.Parse(time.RFC3339, s.WorkflowRun.UpdatedAt)
+	if updatedAtErr != nil {
+		fmt.Errorf("error parsing updatedAt %q: %w", s.WorkflowRun.UpdatedAt, updatedAtErr)
+	}
+
+	if s.Action == "completed" {
+		runTime = updatedAt.Sub(startedAt).Milliseconds()
+	}
+	f := map[string]interface{}{
+		"run_attempt": s.WorkflowRun.RunAttempt,
+		"run_time":    runTime,
+		"head_branch": s.WorkflowRun.HeadBranch,
 	}
 	m := metric.New(meas, t, f, time.Now())
 	return m

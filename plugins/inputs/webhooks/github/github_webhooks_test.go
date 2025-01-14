@@ -126,6 +126,14 @@ func TestEventWithSignatureSuccess(t *testing.T) {
 	GithubWebhookRequestWithSignature(t, "watch", WatchEventJSON(), generateSignature("signature", []byte(WatchEventJSON())), http.StatusOK)
 }
 
+func TestWorkflowJob(t *testing.T) {
+	GithubWebhookRequest(t, "workflow_job", WorkflowJobJSON())
+}
+
+func TestWorkflowRun(t *testing.T) {
+	GithubWebhookRequest(t, "workflow_run", WorkflowRunJSON())
+}
+
 func TestCheckSignatureSuccess(t *testing.T) {
 	if !checkSignature("my_little_secret", []byte("random-signature-body"), "sha1=3dca279e731c97c38e3019a075dee9ebbd0a99f0") {
 		t.Errorf("check signature failed")
