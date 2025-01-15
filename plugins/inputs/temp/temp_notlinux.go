@@ -25,7 +25,7 @@ func (t *Temperature) Init() error {
 	return nil
 }
 
-func (t *Temperature) Gather(acc telegraf.Accumulator) error {
+func (*Temperature) Gather(acc telegraf.Accumulator) error {
 	temps, err := sensors.SensorsTemperatures()
 	if err != nil {
 		var sensorsWarnings *sensors.Warnings

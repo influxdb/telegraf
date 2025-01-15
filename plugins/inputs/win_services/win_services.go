@@ -89,7 +89,7 @@ func (m *winSvcMgr) ListServices() ([]string, error) {
 type mgProvider struct {
 }
 
-func (rmr *mgProvider) Connect() (WinServiceManager, error) {
+func (*mgProvider) Connect() (WinServiceManager, error) {
 	h, err := windows.OpenSCManager(nil, nil, windows.GENERIC_READ)
 	if err != nil {
 		return nil, err

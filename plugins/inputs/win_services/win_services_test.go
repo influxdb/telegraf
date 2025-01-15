@@ -39,7 +39,7 @@ type FakeSvcMgr struct {
 	testData testData
 }
 
-func (m *FakeSvcMgr) Disconnect() error {
+func (*FakeSvcMgr) Disconnect() error {
 	return nil
 }
 
@@ -77,7 +77,7 @@ type FakeWinSvc struct {
 	testData serviceTestInfo
 }
 
-func (m *FakeWinSvc) Close() error {
+func (*FakeWinSvc) Close() error {
 	return nil
 }
 func (m *FakeWinSvc) Config() (mgr.Config, error) {

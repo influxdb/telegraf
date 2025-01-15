@@ -153,7 +153,7 @@ func extractCounterInfoFromCounterPath(counterPath string) (computer string, obj
 	return computer, object, instance, counter, nil
 }
 
-func (m *WinPerfCounters) SampleConfig() string {
+func (*WinPerfCounters) SampleConfig() string {
 	return sampleConfig
 }
 

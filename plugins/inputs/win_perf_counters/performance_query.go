@@ -69,7 +69,7 @@ type performanceQueryImpl struct {
 
 type performanceQueryCreatorImpl struct{}
 
-func (m performanceQueryCreatorImpl) NewPerformanceQuery(_ string, maxBufferSize uint32) PerformanceQuery {
+func (performanceQueryCreatorImpl) NewPerformanceQuery(_ string, maxBufferSize uint32) PerformanceQuery {
 	return &performanceQueryImpl{maxBufferSize: maxBufferSize}
 }
 
@@ -181,7 +181,7 @@ func (m *performanceQueryImpl) ExpandWildCardPath(counterPath string) ([]string,
 }
 
 // GetFormattedCounterValueDouble computes a displayable value for the specified counter
-func (m *performanceQueryImpl) GetFormattedCounterValueDouble(hCounter pdhCounterHandle) (float64, error) {
+func (*performanceQueryImpl) GetFormattedCounterValueDouble(hCounter pdhCounterHandle) (float64, error) {
 	var counterType uint32
 	var value pdhFmtCountervalueDouble
 
@@ -287,7 +287,7 @@ func (m *performanceQueryImpl) CollectDataWithTime() (time.Time, error) {
 	return mtime, nil
 }
 
-func (m *performanceQueryImpl) IsVistaOrNewer() bool {
+func (*performanceQueryImpl) IsVistaOrNewer() bool {
 	return PdhAddEnglishCounterSupported()
 }
 

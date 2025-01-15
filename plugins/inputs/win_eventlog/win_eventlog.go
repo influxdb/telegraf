@@ -113,7 +113,7 @@ func (w *WinEventLog) Stop() {
 }
 
 func (w *WinEventLog) GetState() interface{} {
-	bookmarkXML, err := w.renderBookmark(w.bookmark)
+	bookmarkXML, err := renderBookmark(w.bookmark)
 	if err != nil {
 		w.Log.Errorf("State-persistence failed, cannot render bookmark: %v", err)
 		return ""
@@ -381,7 +381,7 @@ func (w *WinEventLog) fetchEvents(subsHandle EvtHandle) ([]Event, error) {
 	return events, evterr
 }
 
-func (w *WinEventLog) renderBookmark(bookmark EvtHandle) (string, error) {
+func renderBookmark(bookmark EvtHandle) (string, error) {
 	var bufferUsed, propertyCount uint32
 
 	buf := make([]byte, bufferSize)
