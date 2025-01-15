@@ -24,6 +24,12 @@ import (
 //go:embed sample.conf
 var sampleConfig string
 
+const (
+	// tag sets used for including redfish OData link parent data
+	tagSetChassisLocation = "chassis.location"
+	tagSetChassis         = "chassis"
+)
+
 type Redfish struct {
 	Address          string          `toml:"address"`
 	Username         config.Secret   `toml:"username"`
@@ -39,12 +45,6 @@ type Redfish struct {
 	tls.ClientConfig
 	baseURL *url.URL
 }
-
-const (
-	// tag sets used for including redfish OData link parent data
-	tagSetChassisLocation = "chassis.location"
-	tagSetChassis         = "chassis"
-)
 
 type system struct {
 	Hostname string `json:"hostname"`
@@ -215,6 +215,41 @@ func (r *Redfish) Init() error {
 	return nil
 }
 
+func (r *Redfish) Gather(acc telegraf.Accumulator) error {
+	address, _, err := net.SplitHostPort(r.baseURL.Host)
+	if err != nil {
+		address = r.baseURL.Host
+	}
+
+	system, err := r.getComputerSystem(r.ComputerSystemID)
+	if err != nil {
+		return err
+	}
+
+	for _, link := range system.Links.Chassis {
+		chassis, err := r.getChassis(link.Ref)
+		if err != nil {
+			return err
+		}
+
+		for _, metric := range r.IncludeMetrics {
+			var err error
+			switch metric {
+			case "thermal":
+				err = r.gatherThermal(acc, address, system, chassis)
+			case "power":
+				err = r.gatherPower(acc, address, system, chassis)
+			default:
+				return fmt.Errorf("unknown metric requested: %s", metric)
+			}
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
 func (r *Redfish) getData(address string, payload interface{}) error {
 	req, err := http.NewRequest("GET", address, nil)
 	if err != nil {
@@ -321,41 +356,6 @@ func setChassisTags(chassis *chassis, tags map[string]string) {
 	tags["chassis_serialnumber"] = chassis.SerialNumber
 	tags["chassis_state"] = chassis.Status.State
 	tags["chassis_health"] = chassis.Status.Health
-}
-
-func (r *Redfish) Gather(acc telegraf.Accumulator) error {
-	address, _, err := net.SplitHostPort(r.baseURL.Host)
-	if err != nil {
-		address = r.baseURL.Host
-	}
-
-	system, err := r.getComputerSystem(r.ComputerSystemID)
-	if err != nil {
-		return err
-	}
-
-	for _, link := range system.Links.Chassis {
-		chassis, err := r.getChassis(link.Ref)
-		if err != nil {
-			return err
-		}
-
-		for _, metric := range r.IncludeMetrics {
-			var err error
-			switch metric {
-			case "thermal":
-				err = r.gatherThermal(acc, address, system, chassis)
-			case "power":
-				err = r.gatherPower(acc, address, system, chassis)
-			default:
-				return fmt.Errorf("unknown metric requested: %s", metric)
-			}
-			if err != nil {
-				return err
-			}
-		}
-	}
-	return nil
 }
 
 func (r *Redfish) gatherThermal(acc telegraf.Accumulator, address string, system *system, chassis *chassis) error {

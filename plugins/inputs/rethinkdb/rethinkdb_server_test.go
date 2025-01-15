@@ -37,7 +37,7 @@ func TestAddClusterStats(t *testing.T) {
 	err := server.addClusterStats(&acc)
 	require.NoError(t, err)
 
-	for _, metric := range ClusterTracking {
+	for _, metric := range clusterTracking {
 		require.True(t, acc.HasIntValue(metric))
 	}
 }
@@ -48,7 +48,7 @@ func TestAddMemberStats(t *testing.T) {
 	err := server.addMemberStats(&acc)
 	require.NoError(t, err)
 
-	for _, metric := range MemberTracking {
+	for _, metric := range memberTracking {
 		require.True(t, acc.HasIntValue(metric))
 	}
 }
@@ -59,7 +59,7 @@ func TestAddTableStats(t *testing.T) {
 	err := server.addTableStats(&acc)
 	require.NoError(t, err)
 
-	for _, metric := range TableTracking {
+	for _, metric := range tableTracking {
 		require.True(t, acc.HasIntValue(metric))
 	}
 

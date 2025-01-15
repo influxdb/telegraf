@@ -21,7 +21,7 @@ import (
 var sampleConfig string
 
 type Raindrops struct {
-	Urls       []string
+	Urls       []string `toml:"urls"`
 	httpClient *http.Client
 }
 

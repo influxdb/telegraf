@@ -2,6 +2,7 @@ package redis
 
 import (
 	"bufio"
+
 	"fmt"
 	"strings"
 	"testing"
@@ -17,19 +18,19 @@ import (
 
 type testClient struct{}
 
-func (*testClient) BaseTags() map[string]string {
+func (*testClient) baseTags() map[string]string {
 	return map[string]string{"host": "redis.net"}
 }
 
-func (*testClient) Info() *redis.StringCmd {
+func (*testClient) info() *redis.StringCmd {
 	return nil
 }
 
-func (*testClient) Do(string, ...interface{}) (interface{}, error) {
+func (*testClient) do(string, ...interface{}) (interface{}, error) {
 	return 2, nil
 }
 
-func (*testClient) Close() error {
+func (*testClient) close() error {
 	return nil
 }
 
@@ -67,15 +68,15 @@ func TestRedis_Commands(t *testing.T) {
 
 	tc := &testClient{}
 
-	rc := &RedisCommand{
+	rc := &redisCommand{
 		Command: []interface{}{"llen", "test-list"},
 		Field:   redisListKey,
 		Type:    "integer",
 	}
 
 	r := &Redis{
-		Commands: []*RedisCommand{rc},
-		clients:  []Client{tc},
+		Commands: []*redisCommand{rc},
+		clients:  []client{tc},
 	}
 
 	err := r.gatherCommandValues(tc, &acc)
@@ -389,17 +390,17 @@ func TestRedis_GatherErrorstatsLine(t *testing.T) {
 	var acc testutil.Accumulator
 	globalTags := map[string]string{}
 
-	gatherErrorstatsLine("FOO", "BAR", &acc, globalTags)
+	gatherErrorStatsLine("FOO", "BAR", &acc, globalTags)
 	require.Len(t, acc.Errors, 1)
 	require.Equal(t, "invalid line for \"FOO\": BAR", acc.Errors[0].Error())
 
 	acc = testutil.Accumulator{}
-	gatherErrorstatsLine("FOO", "BAR=a", &acc, globalTags)
+	gatherErrorStatsLine("FOO", "BAR=a", &acc, globalTags)
 	require.Len(t, acc.Errors, 1)
 	require.Equal(t, "parsing value in line \"BAR=a\" failed: strconv.ParseInt: parsing \"a\": invalid syntax", acc.Errors[0].Error())
 
 	acc = testutil.Accumulator{}
-	gatherErrorstatsLine("FOO", "BAR=77", &acc, globalTags)
+	gatherErrorStatsLine("FOO", "BAR=77", &acc, globalTags)
 	require.Empty(t, acc.Errors)
 }
 

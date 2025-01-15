@@ -34,7 +34,7 @@ func TestAddEngineStats(t *testing.T) {
 		"written_docs_per_sec",
 		"total_writes",
 	}
-	engine.AddEngineStats(keys, &acc, tags)
+	engine.addEngineStats(keys, &acc, tags)
 
 	for _, metric := range keys {
 		require.True(t, acc.HasInt64Field("rethinkdb_engine", metric))
@@ -65,7 +65,7 @@ func TestAddEngineStatsPartial(t *testing.T) {
 		"total_reads",
 		"total_writes",
 	}
-	engine.AddEngineStats(keys, &acc, tags)
+	engine.addEngineStats(keys, &acc, tags)
 
 	for _, metric := range missingKeys {
 		require.False(t, acc.HasInt64Field("rethinkdb", metric))
@@ -105,7 +105,7 @@ func TestAddStorageStats(t *testing.T) {
 		"disk_usage_preallocated_bytes",
 	}
 
-	storage.AddStats(&acc, tags)
+	storage.addStats(&acc, tags)
 
 	for _, metric := range keys {
 		require.True(t, acc.HasInt64Field("rethinkdb", metric))

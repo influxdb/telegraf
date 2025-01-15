@@ -14,7 +14,7 @@ import (
 )
 
 var connect_url, authKey, username, password string
-var server *Server
+var server *server
 
 func init() {
 	connect_url = os.Getenv("RETHINKDB_URL")
@@ -28,18 +28,18 @@ func init() {
 
 func testSetup(m *testing.M) {
 	var err error
-	server = &Server{URL: &url.URL{Host: connect_url}}
+	server = &server{url: &url.URL{Host: connect_url}}
 
 	if authKey {
 		server.session, _ = gorethink.Connect(gorethink.ConnectOpts{
-			Address:          server.URL.Host,
+			Address:          server.url.Host,
 			AuthKey:          authKey,
 			HandshakeVersion: gorethink.HandshakeV0_4,
 			DiscoverHosts:    false,
 		})
 	} else {
 		server.session, _ = gorethink.Connect(gorethink.ConnectOpts{
-			Address:          server.URL.Host,
+			Address:          server.url.Host,
 			Username:         username,
 			Password:         password,
 			HandshakeVersion: gorethink.HandshakeV1_0,

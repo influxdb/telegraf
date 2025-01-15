@@ -29,7 +29,7 @@ func TestRiak(t *testing.T) {
 	require.NoError(t, err)
 
 	// Create a new Riak instance with our given test server
-	riak := NewRiak()
+	riak := newRiak()
 	riak.Servers = []string{ts.URL}
 
 	// Create a test accumulator

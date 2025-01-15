@@ -16,25 +16,14 @@ import (
 //go:embed sample.conf
 var sampleConfig string
 
-// Type Riak gathers statistics from one or more Riak instances
 type Riak struct {
 	// Servers is a slice of servers as http addresses (ex. http://127.0.0.1:8098)
-	Servers []string
+	Servers []string `toml:"servers"`
 
 	client *http.Client
 }
 
-// NewRiak return a new instance of Riak with a default http client
-func NewRiak() *Riak {
-	tr := &http.Transport{ResponseHeaderTimeout: 3 * time.Second}
-	client := &http.Client{
-		Transport: tr,
-		Timeout:   4 * time.Second,
-	}
-	return &Riak{client: client}
-}
-
-// Type riakStats represents the data that is received from Riak
+// Type riakStats represents the data received from Riak
 type riakStats struct {
 	CPUAvg1                  int64  `json:"cpu_avg1"`
 	CPUAvg15                 int64  `json:"cpu_avg15"`
@@ -88,7 +77,6 @@ func (*Riak) SampleConfig() string {
 	return sampleConfig
 }
 
-// Reads stats from all configured servers.
 func (r *Riak) Gather(acc telegraf.Accumulator) error {
 	// Default to a single server at localhost (default port) if none specified
 	if len(r.Servers) == 0 {
@@ -103,7 +91,6 @@ func (r *Riak) Gather(acc telegraf.Accumulator) error {
 	return nil
 }
 
-// Gathers stats from a single server, adding them to the accumulator
 func (r *Riak) gatherServer(s string, acc telegraf.Accumulator) error {
 	// Parse the given URL to extract the server tag
 	u, err := url.Parse(s)
@@ -190,8 +177,18 @@ func (r *Riak) gatherServer(s string, acc telegraf.Accumulator) error {
 	return nil
 }
 
+// newRiak return a new instance of Riak with a default http client
+func newRiak() *Riak {
+	tr := &http.Transport{ResponseHeaderTimeout: 3 * time.Second}
+	client := &http.Client{
+		Transport: tr,
+		Timeout:   4 * time.Second,
+	}
+	return &Riak{client: client}
+}
+
 func init() {
 	inputs.Add("riak", func() telegraf.Input {
-		return NewRiak()
+		return newRiak()
 	})
 }

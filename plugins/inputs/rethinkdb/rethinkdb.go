@@ -16,18 +16,16 @@ import (
 //go:embed sample.conf
 var sampleConfig string
 
-type RethinkDB struct {
-	Servers []string
-}
+var localhost = &server{url: &url.URL{Host: "127.0.0.1:28015"}}
 
-var localhost = &Server{URL: &url.URL{Host: "127.0.0.1:28015"}}
+type RethinkDB struct {
+	Servers []string `toml:"servers"`
+}
 
 func (*RethinkDB) SampleConfig() string {
 	return sampleConfig
 }
 
-// Reads stats from all configured servers accumulates stats.
-// Returns one of the errors encountered while gather stats (if any).
 func (r *RethinkDB) Gather(acc telegraf.Accumulator) error {
 	if len(r.Servers) == 0 {
 		return gatherServer(localhost, acc)
@@ -47,7 +45,7 @@ func (r *RethinkDB) Gather(acc telegraf.Accumulator) error {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			acc.AddError(gatherServer(&Server{URL: u}, acc))
+			acc.AddError(gatherServer(&server{url: u}, acc))
 		}()
 	}
 
@@ -56,23 +54,23 @@ func (r *RethinkDB) Gather(acc telegraf.Accumulator) error {
 	return nil
 }
 
-func gatherServer(server *Server, acc telegraf.Accumulator) error {
+func gatherServer(server *server, acc telegraf.Accumulator) error {
 	var err error
 	connectOpts := gorethink.ConnectOpts{
-		Address:       server.URL.Host,
+		Address:       server.url.Host,
 		DiscoverHosts: false,
 	}
-	if server.URL.User != nil {
-		pwd, set := server.URL.User.Password()
+	if server.url.User != nil {
+		pwd, set := server.url.User.Password()
 		if set && pwd != "" {
 			connectOpts.AuthKey = pwd
 			connectOpts.HandshakeVersion = gorethink.HandshakeV0_4
 		}
 	}
-	if server.URL.Scheme == "rethinkdb2" && server.URL.User != nil {
-		pwd, set := server.URL.User.Password()
+	if server.url.Scheme == "rethinkdb2" && server.url.User != nil {
+		pwd, set := server.url.User.Password()
 		if set && pwd != "" {
-			connectOpts.Username = server.URL.User.Username()
+			connectOpts.Username = server.url.User.Username()
 			connectOpts.Password = pwd
 			connectOpts.HandshakeVersion = gorethink.HandshakeV1_0
 		}

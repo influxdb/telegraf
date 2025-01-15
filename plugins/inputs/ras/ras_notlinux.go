@@ -17,14 +17,14 @@ type Ras struct {
 	Log telegraf.Logger `toml:"-"`
 }
 
+func (*Ras) SampleConfig() string { return sampleConfig }
+
 func (r *Ras) Init() error {
-	r.Log.Warn("current platform is not supported")
+	r.Log.Warn("Current platform is not supported")
 	return nil
 }
-func (*Ras) SampleConfig() string                { return sampleConfig }
-func (*Ras) Gather(_ telegraf.Accumulator) error { return nil }
-func (*Ras) Start(_ telegraf.Accumulator) error  { return nil }
-func (*Ras) Stop()                               {}
+
+func (*Ras) Gather(telegraf.Accumulator) error { return nil }
 
 func init() {
 	inputs.Add("ras", func() telegraf.Input {

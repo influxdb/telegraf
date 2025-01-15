@@ -39,12 +39,12 @@ type RiemannSocketListener struct {
 	SocketMode      string           `toml:"socket_mode"`
 	common_tls.ServerConfig
 
-	wg sync.WaitGroup
-
 	Log telegraf.Logger `toml:"-"`
 
+	wg sync.WaitGroup
 	telegraf.Accumulator
 }
+
 type setReadBufferer interface {
 	SetReadBuffer(sizeInBytes int) error
 }
@@ -57,6 +57,73 @@ type riemannListener struct {
 
 	connections    map[string]net.Conn
 	connectionsMtx sync.Mutex
+}
+
+func (*RiemannSocketListener) SampleConfig() string {
+	return sampleConfig
+}
+
+func (rsl *RiemannSocketListener) Start(acc telegraf.Accumulator) error {
+	ctx, cancelFunc := context.WithCancel(context.Background())
+	go rsl.processOsSignals(cancelFunc)
+	rsl.Accumulator = acc
+	if rsl.ServiceAddress == "" {
+		rsl.Log.Warnf("Using default service_address tcp://:5555")
+		rsl.ServiceAddress = "tcp://:5555"
+	}
+	spl := strings.SplitN(rsl.ServiceAddress, "://", 2)
+	if len(spl) != 2 {
+		return fmt.Errorf("invalid service address: %s", rsl.ServiceAddress)
+	}
+
+	protocol := spl[0]
+	addr := spl[1]
+
+	switch protocol {
+	case "tcp", "tcp4", "tcp6":
+		tlsCfg, err := rsl.ServerConfig.TLSConfig()
+		if err != nil {
+			return err
+		}
+
+		var l net.Listener
+		if tlsCfg == nil {
+			l, err = net.Listen(protocol, addr)
+		} else {
+			l, err = tls.Listen(protocol, addr, tlsCfg)
+		}
+		if err != nil {
+			return err
+		}
+
+		rsl.Log.Infof("Listening on %s://%s", protocol, l.Addr())
+
+		rsl := &riemannListener{
+			Listener:              l,
+			RiemannSocketListener: rsl,
+			sockType:              spl[0],
+		}
+
+		rsl.wg = sync.WaitGroup{}
+		rsl.wg.Add(1)
+		go func() {
+			defer rsl.wg.Done()
+			rsl.listen(ctx)
+		}()
+	default:
+		return fmt.Errorf("unknown protocol %q in %q", protocol, rsl.ServiceAddress)
+	}
+
+	return nil
+}
+
+func (*RiemannSocketListener) Gather(telegraf.Accumulator) error {
+	return nil
+}
+
+func (rsl *RiemannSocketListener) Stop() {
+	rsl.wg.Done()
+	rsl.wg.Wait()
 }
 
 func (rsl *riemannListener) listen(ctx context.Context) {
@@ -147,8 +214,6 @@ func (rsl *riemannListener) removeConnection(c net.Conn) {
 	delete(rsl.connections, c.RemoteAddr().String())
 	rsl.connectionsMtx.Unlock()
 }
-
-// Utilities
 
 /*
 readMessages will read Riemann messages in binary format
@@ -271,68 +336,6 @@ func (rsl *riemannListener) riemannReturnErrorResponse(conn net.Conn, errorMessa
 	}
 }
 
-func (*RiemannSocketListener) SampleConfig() string {
-	return sampleConfig
-}
-
-func (*RiemannSocketListener) Gather(telegraf.Accumulator) error {
-	return nil
-}
-
-func (rsl *RiemannSocketListener) Start(acc telegraf.Accumulator) error {
-	ctx, cancelFunc := context.WithCancel(context.Background())
-	go rsl.processOsSignals(cancelFunc)
-	rsl.Accumulator = acc
-	if rsl.ServiceAddress == "" {
-		rsl.Log.Warnf("Using default service_address tcp://:5555")
-		rsl.ServiceAddress = "tcp://:5555"
-	}
-	spl := strings.SplitN(rsl.ServiceAddress, "://", 2)
-	if len(spl) != 2 {
-		return fmt.Errorf("invalid service address: %s", rsl.ServiceAddress)
-	}
-
-	protocol := spl[0]
-	addr := spl[1]
-
-	switch protocol {
-	case "tcp", "tcp4", "tcp6":
-		tlsCfg, err := rsl.ServerConfig.TLSConfig()
-		if err != nil {
-			return err
-		}
-
-		var l net.Listener
-		if tlsCfg == nil {
-			l, err = net.Listen(protocol, addr)
-		} else {
-			l, err = tls.Listen(protocol, addr, tlsCfg)
-		}
-		if err != nil {
-			return err
-		}
-
-		rsl.Log.Infof("Listening on %s://%s", protocol, l.Addr())
-
-		rsl := &riemannListener{
-			Listener:              l,
-			RiemannSocketListener: rsl,
-			sockType:              spl[0],
-		}
-
-		rsl.wg = sync.WaitGroup{}
-		rsl.wg.Add(1)
-		go func() {
-			defer rsl.wg.Done()
-			rsl.listen(ctx)
-		}()
-	default:
-		return fmt.Errorf("unknown protocol %q in %q", protocol, rsl.ServiceAddress)
-	}
-
-	return nil
-}
-
 // Handle cancellations from the process
 func (rsl *RiemannSocketListener) processOsSignals(cancelFunc context.CancelFunc) {
 	signalChan := make(chan os.Signal, 1)
@@ -345,11 +348,6 @@ func (rsl *RiemannSocketListener) processOsSignals(cancelFunc context.CancelFunc
 			return
 		}
 	}
-}
-
-func (rsl *RiemannSocketListener) Stop() {
-	rsl.wg.Done()
-	rsl.wg.Wait()
 }
 
 func newRiemannSocketListener() *RiemannSocketListener {
