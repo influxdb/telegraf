@@ -380,7 +380,7 @@ func (d *sflowv5Decoder) decodeRawHeaderSample(record *sflow.SampledHeader) (map
 			fields["vlan_priority"] = l.Priority
 			fields["vlan_drop_eligible"] = l.DropEligible
 		case *layers.IPv4:
-			fields["ip_version"] = l.Version
+			fields["ip_version"] = decodePacketIPVersion(l.Version)
 			fields["ipv4_inet_header_len"] = l.IHL
 			fields["src_tos"] = l.TOS
 			fields["ipv4_total_len"] = l.Length
@@ -404,7 +404,7 @@ func (d *sflowv5Decoder) decodeRawHeaderSample(record *sflow.SampledHeader) (map
 			fields["fragment_offset"] = l.FragOffset
 			fields["ip_total_len"] = l.Length
 		case *layers.IPv6:
-			fields["ip_version"] = l.Version
+			fields["ip_version"] = decodePacketIPVersion(l.Version)
 			fields["ipv6_total_len"] = l.Length
 			fields["ttl"] = l.HopLimit
 			fields["protocol"] = mapL4Proto(uint8(l.NextHeader))

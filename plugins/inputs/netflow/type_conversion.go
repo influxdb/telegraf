@@ -328,6 +328,17 @@ func decodeIPVersion(b []byte) (interface{}, error) {
 	return strconv.FormatUint(uint64(b[0]), 10), nil
 }
 
+func decodePacketIPVersion(v uint8) string {
+	switch v {
+	case 4:
+		return "IPv4"
+	case 6:
+		return "IPv6"
+	default:
+		return "unknown"
+	}
+}
+
 func decodeDirection(b []byte) (interface{}, error) {
 	switch b[0] {
 	case 0:
