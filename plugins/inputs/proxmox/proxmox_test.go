@@ -4,9 +4,12 @@ import (
 	"net/url"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/influxdata/telegraf"
+	"github.com/influxdata/telegraf/metric"
 	"github.com/influxdata/telegraf/testutil"
 )
 
@@ -24,7 +27,7 @@ var lxcCurrentStatusTestData = `{"data":{"vmid":"111","type":"lxc","uptime":2078
 var qemuCurrentStatusTestData = `{"data":{"name":"qemu1","status":"running","maxdisk":10737418240,"cpu":0.029336643550795,"vmid":"113",` +
 	`"uptime":2159739,"disk":0,"maxmem":2147483648,"mem":1722451796}}`
 
-func performTestRequest(_ *Proxmox, apiURL, _ string, _ url.Values) ([]byte, error) {
+func performTestRequest(apiURL, _ string, _ url.Values) ([]byte, error) {
 	var bytedata = []byte("")
 
 	if strings.HasSuffix(apiURL, "dns") {
@@ -46,103 +49,208 @@ func performTestRequest(_ *Proxmox, apiURL, _ string, _ url.Values) ([]byte, err
 	return bytedata, nil
 }
 
-func setUp(t *testing.T) *Proxmox {
-	px := &Proxmox{
-		requestFunction: performTestRequest,
-		NodeName:        "testnode",
-	}
-
-	require.NoError(t, px.Init())
-
-	// Override logger for test
-	px.Log = testutil.Logger{}
-	return px
-}
-
 func TestGetNodeSearchDomain(t *testing.T) {
-	px := setUp(t)
+	px := &Proxmox{
+		NodeName: "testnode",
+		Log:      testutil.Logger{},
+	}
+	require.NoError(t, px.Init())
+	px.requestFunction = performTestRequest
 
-	err := getNodeSearchDomain(px)
-
-	require.NoError(t, err)
+	require.NoError(t, px.getNodeSearchDomain())
 	require.Equal(t, "test.example.com", px.nodeSearchDomain)
 }
 
 func TestGatherLxcData(t *testing.T) {
-	px := setUp(t)
-	px.nodeSearchDomain = "test.example.com"
-
-	acc := &testutil.Accumulator{}
-	gatherLxcData(px, acc)
-
-	require.Equal(t, 15, acc.NFields())
-	testFields := map[string]interface{}{
-		"status":               "running",
-		"uptime":               int64(2078164),
-		"cpuload":              float64(0.00371567669193613),
-		"mem_used":             int64(98500608),
-		"mem_total":            int64(536870912),
-		"mem_free":             int64(438370304),
-		"mem_used_percentage":  float64(18.34716796875),
-		"swap_used":            int64(9412608),
-		"swap_total":           int64(536870912),
-		"swap_free":            int64(527458304),
-		"swap_used_percentage": float64(1.75323486328125),
-		"disk_used":            int64(744189952),
-		"disk_total":           int64(5217320960),
-		"disk_free":            int64(4473131008),
-		"disk_used_percentage": float64(14.26383306117322),
+	px := &Proxmox{
+		NodeName:         "testnode",
+		Log:              testutil.Logger{},
+		nodeSearchDomain: "test.example.com",
 	}
-	testTags := map[string]string{
-		"node_fqdn": "testnode.test.example.com",
-		"vm_name":   "container1",
-		"vm_fqdn":   "container1.test.example.com",
-		"vm_type":   "lxc",
+	require.NoError(t, px.Init())
+	px.requestFunction = performTestRequest
+
+	var acc testutil.Accumulator
+	px.gatherVMData(&acc, lxc)
+
+	expected := []telegraf.Metric{
+		metric.New(
+			"proxmox",
+			map[string]string{
+				"node_fqdn": "testnode.test.example.com",
+				"vm_name":   "container1",
+				"vm_fqdn":   "container1.test.example.com",
+				"vm_type":   "lxc",
+			},
+			map[string]interface{}{
+				"status":               "running",
+				"uptime":               int64(2078164),
+				"cpuload":              float64(0.00371567669193613),
+				"mem_used":             int64(98500608),
+				"mem_total":            int64(536870912),
+				"mem_free":             int64(438370304),
+				"mem_used_percentage":  float64(18.34716796875),
+				"swap_used":            int64(9412608),
+				"swap_total":           int64(536870912),
+				"swap_free":            int64(527458304),
+				"swap_used_percentage": float64(1.75323486328125),
+				"disk_used":            int64(744189952),
+				"disk_total":           int64(5217320960),
+				"disk_free":            int64(4473131008),
+				"disk_used_percentage": float64(14.26383306117322),
+			},
+			time.Unix(0, 0),
+		),
 	}
-	acc.AssertContainsTaggedFields(t, "proxmox", testFields, testTags)
+	testutil.RequireMetricsEqual(t, expected, acc.GetTelegrafMetrics(), testutil.IgnoreTime())
 }
 
 func TestGatherQemuData(t *testing.T) {
-	px := setUp(t)
-	px.nodeSearchDomain = "test.example.com"
-
-	acc := &testutil.Accumulator{}
-	gatherQemuData(px, acc)
-
-	require.Equal(t, 15, acc.NFields())
-	testFields := map[string]interface{}{
-		"status":               "running",
-		"uptime":               int64(2159739),
-		"cpuload":              float64(0.029336643550795),
-		"mem_used":             int64(1722451796),
-		"mem_total":            int64(2147483648),
-		"mem_free":             int64(425031852),
-		"mem_used_percentage":  float64(80.20791206508875),
-		"swap_used":            int64(0),
-		"swap_total":           int64(0),
-		"swap_free":            int64(0),
-		"swap_used_percentage": float64(0),
-		"disk_used":            int64(0),
-		"disk_total":           int64(10737418240),
-		"disk_free":            int64(10737418240),
-		"disk_used_percentage": float64(0),
+	px := &Proxmox{
+		NodeName:         "testnode",
+		Log:              testutil.Logger{},
+		nodeSearchDomain: "test.example.com",
 	}
-	testTags := map[string]string{
-		"node_fqdn": "testnode.test.example.com",
-		"vm_name":   "qemu1",
-		"vm_fqdn":   "qemu1.test.example.com",
-		"vm_type":   "qemu",
+	require.NoError(t, px.Init())
+	px.requestFunction = performTestRequest
+
+	var acc testutil.Accumulator
+	px.gatherVMData(&acc, qemu)
+
+	expected := []telegraf.Metric{
+		metric.New(
+			"proxmox",
+			map[string]string{
+				"node_fqdn": "testnode.test.example.com",
+				"vm_name":   "qemu1",
+				"vm_fqdn":   "qemu1.test.example.com",
+				"vm_type":   "qemu",
+			},
+			map[string]interface{}{
+				"status":               "running",
+				"uptime":               int64(2159739),
+				"cpuload":              float64(0.029336643550795),
+				"mem_used":             int64(1722451796),
+				"mem_total":            int64(2147483648),
+				"mem_free":             int64(425031852),
+				"mem_used_percentage":  float64(80.20791206508875),
+				"swap_used":            int64(0),
+				"swap_total":           int64(0),
+				"swap_free":            int64(0),
+				"swap_used_percentage": float64(0),
+				"disk_used":            int64(0),
+				"disk_total":           int64(10737418240),
+				"disk_free":            int64(10737418240),
+				"disk_used_percentage": float64(0),
+			},
+			time.Unix(0, 0),
+		),
 	}
-	acc.AssertContainsTaggedFields(t, "proxmox", testFields, testTags)
+	testutil.RequireMetricsEqual(t, expected, acc.GetTelegrafMetrics(), testutil.IgnoreTime())
+}
+
+func TestGatherLxcDataWithID(t *testing.T) {
+	px := &Proxmox{
+		NodeName:              "testnode",
+		AdditionalVmstatsTags: []string{"vmid"},
+		Log:                   testutil.Logger{},
+		nodeSearchDomain:      "test.example.com",
+	}
+	require.NoError(t, px.Init())
+	px.requestFunction = performTestRequest
+
+	var acc testutil.Accumulator
+	px.gatherVMData(&acc, lxc)
+
+	expected := []telegraf.Metric{
+		metric.New(
+			"proxmox",
+			map[string]string{
+				"node_fqdn": "testnode.test.example.com",
+				"vm_name":   "container1",
+				"vm_fqdn":   "container1.test.example.com",
+				"vm_type":   "lxc",
+				"vm_id":     "111",
+			},
+			map[string]interface{}{
+				"status":               "running",
+				"uptime":               int64(2078164),
+				"cpuload":              float64(0.00371567669193613),
+				"mem_used":             int64(98500608),
+				"mem_total":            int64(536870912),
+				"mem_free":             int64(438370304),
+				"mem_used_percentage":  float64(18.34716796875),
+				"swap_used":            int64(9412608),
+				"swap_total":           int64(536870912),
+				"swap_free":            int64(527458304),
+				"swap_used_percentage": float64(1.75323486328125),
+				"disk_used":            int64(744189952),
+				"disk_total":           int64(5217320960),
+				"disk_free":            int64(4473131008),
+				"disk_used_percentage": float64(14.26383306117322),
+			},
+			time.Unix(0, 0),
+		),
+	}
+	testutil.RequireMetricsEqual(t, expected, acc.GetTelegrafMetrics(), testutil.IgnoreTime())
+}
+
+func TestGatherQemuDataWithID(t *testing.T) {
+	px := &Proxmox{
+		NodeName:              "testnode",
+		AdditionalVmstatsTags: []string{"vmid"},
+		Log:                   testutil.Logger{},
+		nodeSearchDomain:      "test.example.com",
+	}
+	require.NoError(t, px.Init())
+	px.requestFunction = performTestRequest
+
+	var acc testutil.Accumulator
+	px.gatherVMData(&acc, qemu)
+
+	expected := []telegraf.Metric{
+		metric.New(
+			"proxmox",
+			map[string]string{
+				"node_fqdn": "testnode.test.example.com",
+				"vm_name":   "qemu1",
+				"vm_fqdn":   "qemu1.test.example.com",
+				"vm_type":   "qemu",
+				"vm_id":     "113",
+			},
+			map[string]interface{}{
+				"status":               "running",
+				"uptime":               int64(2159739),
+				"cpuload":              float64(0.029336643550795),
+				"mem_used":             int64(1722451796),
+				"mem_total":            int64(2147483648),
+				"mem_free":             int64(425031852),
+				"mem_used_percentage":  float64(80.20791206508875),
+				"swap_used":            int64(0),
+				"swap_total":           int64(0),
+				"swap_free":            int64(0),
+				"swap_used_percentage": float64(0),
+				"disk_used":            int64(0),
+				"disk_total":           int64(10737418240),
+				"disk_free":            int64(10737418240),
+				"disk_used_percentage": float64(0),
+			},
+			time.Unix(0, 0),
+		),
+	}
+	testutil.RequireMetricsEqual(t, expected, acc.GetTelegrafMetrics(), testutil.IgnoreTime())
 }
 
 func TestGather(t *testing.T) {
-	px := setUp(t)
-	px.nodeSearchDomain = "test.example.com"
+	px := &Proxmox{
+		NodeName: "testnode",
+		Log:      testutil.Logger{},
+	}
+	require.NoError(t, px.Init())
+	px.requestFunction = performTestRequest
 
-	acc := &testutil.Accumulator{}
-	err := px.Gather(acc)
-	require.NoError(t, err)
+	var acc testutil.Accumulator
+	require.NoError(t, px.Gather(&acc))
 
 	// Results from both tests above
 	require.Equal(t, 30, acc.NFields())
