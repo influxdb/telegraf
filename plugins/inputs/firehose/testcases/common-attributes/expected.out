@@ -1,0 +1,1 @@
+test,device=pc,deployment=prod,path=/telegraf value=42i 1734625715000000000

@@ -1,0 +1,5 @@
+{
+    "x-amz-firehose-request-id": "telegraf-test-id",
+    "x-amz-firehose-access-key": "secret",
+    "x-amz-firehose-common-attributes": "{\"commonAttributes\": {\"deployment\": \"prod\", \"device\": \"pc\"}}"
+}
