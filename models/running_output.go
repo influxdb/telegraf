@@ -24,6 +24,7 @@ const (
 // OutputConfig containing name and filter
 type OutputConfig struct {
 	Name                 string
+	Source               string
 	Alias                string
 	ID                   string
 	StartupErrorBehavior string

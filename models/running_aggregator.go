@@ -70,6 +70,7 @@ func NewRunningAggregator(aggregator telegraf.Aggregator, config *AggregatorConf
 // AggregatorConfig is the common config for all aggregators.
 type AggregatorConfig struct {
 	Name         string
+	Source       string
 	Alias        string
 	ID           string
 	DropOriginal bool

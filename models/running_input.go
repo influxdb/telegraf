@@ -83,6 +83,7 @@ func NewRunningInput(input telegraf.Input, config *InputConfig) *RunningInput {
 // InputConfig is the common config for all inputs.
 type InputConfig struct {
 	Name                 string
+	Source               string
 	Alias                string
 	ID                   string
 	Interval             time.Duration

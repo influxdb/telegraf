@@ -224,22 +224,23 @@ func runApp(args []string, outputBuffer io.Writer, pprof Server, c TelegrafConfi
 		filters := processFilterFlags(cCtx)
 
 		g := GlobalFlags{
-			config:                 cCtx.StringSlice("config"),
-			configDir:              cCtx.StringSlice("config-directory"),
-			testWait:               cCtx.Int("test-wait"),
-			configURLRetryAttempts: cCtx.Int("config-url-retry-attempts"),
-			configURLWatchInterval: cCtx.Duration("config-url-watch-interval"),
-			watchConfig:            cCtx.String("watch-config"),
-			watchInterval:          cCtx.Duration("watch-interval"),
-			pidFile:                cCtx.String("pidfile"),
-			plugindDir:             cCtx.String("plugin-directory"),
-			password:               cCtx.String("password"),
-			oldEnvBehavior:         cCtx.Bool("old-env-behavior"),
-			test:                   cCtx.Bool("test"),
-			debug:                  cCtx.Bool("debug"),
-			once:                   cCtx.Bool("once"),
-			quiet:                  cCtx.Bool("quiet"),
-			unprotected:            cCtx.Bool("unprotected"),
+			config:                  cCtx.StringSlice("config"),
+			configDir:               cCtx.StringSlice("config-directory"),
+			testWait:                cCtx.Int("test-wait"),
+			configURLRetryAttempts:  cCtx.Int("config-url-retry-attempts"),
+			configURLWatchInterval:  cCtx.Duration("config-url-watch-interval"),
+			watchConfig:             cCtx.String("watch-config"),
+			watchInterval:           cCtx.Duration("watch-interval"),
+			pidFile:                 cCtx.String("pidfile"),
+			plugindDir:              cCtx.String("plugin-directory"),
+			password:                cCtx.String("password"),
+			oldEnvBehavior:          cCtx.Bool("old-env-behavior"),
+			printPluginConfigSource: cCtx.Bool("print-plugin-config-source"),
+			test:                    cCtx.Bool("test"),
+			debug:                   cCtx.Bool("debug"),
+			once:                    cCtx.Bool("once"),
+			quiet:                   cCtx.Bool("quiet"),
+			unprotected:             cCtx.Bool("unprotected"),
 		}
 
 		w := WindowFlags{
@@ -307,6 +308,10 @@ func runApp(args []string, outputBuffer io.Writer, pprof Server, c TelegrafConfi
 				&cli.BoolFlag{
 					Name:  "old-env-behavior",
 					Usage: "switch back to pre v1.27 environment replacement behavior",
+				},
+				&cli.BoolFlag{
+					Name:  "print-plugin-config-source",
+					Usage: "print the source for a given plugin",
 				},
 				&cli.BoolFlag{
 					Name:  "once",

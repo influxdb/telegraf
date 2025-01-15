@@ -34,22 +34,23 @@ import (
 var stop chan struct{}
 
 type GlobalFlags struct {
-	config                 []string
-	configDir              []string
-	testWait               int
-	configURLRetryAttempts int
-	configURLWatchInterval time.Duration
-	watchConfig            string
-	watchInterval          time.Duration
-	pidFile                string
-	plugindDir             string
-	password               string
-	oldEnvBehavior         bool
-	test                   bool
-	debug                  bool
-	once                   bool
-	quiet                  bool
-	unprotected            bool
+	config                  []string
+	configDir               []string
+	testWait                int
+	configURLRetryAttempts  int
+	configURLWatchInterval  time.Duration
+	watchConfig             string
+	watchInterval           time.Duration
+	pidFile                 string
+	plugindDir              string
+	password                string
+	oldEnvBehavior          bool
+	printPluginConfigSource bool
+	test                    bool
+	debug                   bool
+	once                    bool
+	quiet                   bool
+	unprotected             bool
 }
 
 type WindowFlags struct {
@@ -105,6 +106,8 @@ func (t *Telegraf) Init(pprofErr <-chan error, f Filters, g GlobalFlags, w Windo
 
 	// Set environment replacement behavior
 	config.OldEnvVarReplacement = g.oldEnvBehavior
+
+	config.PrintPluginConfigSource = g.printPluginConfigSource
 }
 
 func (t *Telegraf) ListSecretStores() ([]string, error) {
@@ -389,14 +392,14 @@ func (t *Telegraf) runAgent(ctx context.Context, reloadConfig bool) error {
 		len(outputs.Outputs),
 		len(secretstores.SecretStores),
 	)
-	log.Printf("I! Loaded inputs: %s", strings.Join(c.InputNames(), " "))
-	log.Printf("I! Loaded aggregators: %s", strings.Join(c.AggregatorNames(), " "))
-	log.Printf("I! Loaded processors: %s", strings.Join(c.ProcessorNames(), " "))
-	log.Printf("I! Loaded secretstores: %s", strings.Join(c.SecretstoreNames(), " "))
+	log.Printf("I! Loaded inputs: %s\n%s", strings.Join(c.InputNames(), " "), c.InputNamesWithSources())
+	log.Printf("I! Loaded aggregators: %s\n%s", strings.Join(c.AggregatorNames(), " "), c.AggregatorNamesWithSources())
+	log.Printf("I! Loaded processors: %s\n%s", strings.Join(c.ProcessorNames(), " "), c.ProcessorNamesWithSources())
+	log.Printf("I! Loaded secretstores: %s\n%s", strings.Join(c.SecretstoreNames(), " "), c.SecretstoreNamesWithSources())
 	if !t.once && (t.test || t.testWait != 0) {
 		log.Print("W! " + color.RedString("Outputs are not used in testing mode!"))
 	} else {
-		log.Printf("I! Loaded outputs: %s", strings.Join(c.OutputNames(), " "))
+		log.Printf("I! Loaded outputs: %s\n%s", strings.Join(c.OutputNames(), " "), c.OutputNamesWithSources())
 	}
 	log.Printf("I! Tags enabled: %s", c.ListTags())
 
