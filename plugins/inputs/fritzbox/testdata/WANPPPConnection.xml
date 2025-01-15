@@ -1,0 +1,38 @@
+<?xml version="1.0"?>
+<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/" s:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/">
+<s:Body>
+<u:GetInfoResponse xmlns:u="urn:dslforum-org:service:WANPPPConnection:1">
+<NewEnable>1</NewEnable>
+<NewConnectionStatus>Connected</NewConnectionStatus>
+<NewPossibleConnectionTypes>IP_Routed, IP_Bridged</NewPossibleConnectionTypes>
+<NewConnectionType>IP_Routed</NewConnectionType>
+<NewName>internet</NewName>
+<NewUptime>369434</NewUptime>
+<NewUpstreamMaxBitRate>44213433</NewUpstreamMaxBitRate>
+<NewDownstreamMaxBitRate>68038668</NewDownstreamMaxBitRate>
+<NewLastConnectionError>ERROR_NONE</NewLastConnectionError>
+<NewIdleDisconnectTime>0</NewIdleDisconnectTime>
+<NewRSIPAvailable>0</NewRSIPAvailable>
+<NewUserName>5511248654630001@setup.t-online.de</NewUserName>
+<NewNATEnabled>1</NewNATEnabled>
+<NewExternalIPAddress>217.238.141.33</NewExternalIPAddress>
+<NewDNSServers>2003:180:2:7000::53, 2003:180:2:9000::53,217.237.151.115,217.237.148.102</NewDNSServers>
+<NewMACAddress>dc:39:6f:3a:bc:40</NewMACAddress>
+<NewConnectionTrigger>AlwaysOn</NewConnectionTrigger>
+<NewLastAuthErrorInfo></NewLastAuthErrorInfo>
+<NewMaxCharsUsername>128</NewMaxCharsUsername>
+<NewMinCharsUsername>3</NewMinCharsUsername>
+<NewAllowedCharsUsername>0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-._@()#/%[]{}*+§$&amp;=?!:;,</NewAllowedCharsUsername>
+<NewMaxCharsPassword>64</NewMaxCharsPassword>
+<NewMinCharsPassword>3</NewMinCharsPassword>
+<NewAllowedCharsPassword>0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-._@()#/%[]{}*+§$&amp;=?!:;,</NewAllowedCharsPassword>
+<NewTransportType>PPPoE</NewTransportType>
+<NewRouteProtocolRx>Off</NewRouteProtocolRx>
+<NewPPPoEServiceName></NewPPPoEServiceName>
+<NewRemoteIPAddress></NewRemoteIPAddress>
+<NewPPPoEACName>MUNJ20</NewPPPoEACName>
+<NewDNSEnabled>1</NewDNSEnabled>
+<NewDNSOverrideAllowed>1</NewDNSOverrideAllowed>
+</u:GetInfoResponse>
+</s:Body>
+</s:Envelope>

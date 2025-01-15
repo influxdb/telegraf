@@ -1,0 +1,39 @@
+<?xml version="1.0"?>
+<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/" s:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/">
+<s:Body>
+<u:GetInfoResponse xmlns:u="urn:dslforum-org:service:WANDSLInterfaceConfig:1">
+<NewEnable>1</NewEnable>
+<NewStatus>Up</NewStatus>
+<NewDataPath>Fast</NewDataPath>
+<NewUpstreamCurrRate>46719</NewUpstreamCurrRate>
+<NewDownstreamCurrRate>249065</NewDownstreamCurrRate>
+<NewUpstreamMaxRate>48873</NewUpstreamMaxRate>
+<NewDownstreamMaxRate>249065</NewDownstreamMaxRate>
+<NewUpstreamNoiseMargin>80</NewUpstreamNoiseMargin>
+<NewDownstreamNoiseMargin>60</NewDownstreamNoiseMargin>
+<NewUpstreamAttenuation>80</NewUpstreamAttenuation>
+<NewDownstreamAttenuation>140</NewDownstreamAttenuation>
+<NewATURVendor>41564d00</NewATURVendor>
+<NewATURCountry>0400</NewATURCountry>
+<NewUpstreamPower>498</NewUpstreamPower>
+<NewDownstreamPower>513</NewDownstreamPower>
+</u:GetInfoResponse>
+<u:GetStatisticsTotalResponse xmlns:u="urn:dslforum-org:service:WANDSLInterfaceConfig:1">
+<NewReceiveBlocks>490282831</NewReceiveBlocks>
+<NewTransmitBlocks>254577751</NewTransmitBlocks>
+<NewCellDelin>0</NewCellDelin>
+<NewLinkRetrain>2</NewLinkRetrain>
+<NewInitErrors>0</NewInitErrors>
+<NewInitTimeouts>0</NewInitTimeouts>
+<NewLossOfFraming>0</NewLossOfFraming>
+<NewErroredSecs>25</NewErroredSecs>
+<NewSeverelyErroredSecs>0</NewSeverelyErroredSecs>
+<NewFECErrors>0</NewFECErrors>
+<NewATUCFECErrors>0</NewATUCFECErrors>
+<NewHECErrors>0</NewHECErrors>
+<NewATUCHECErrors>0</NewATUCHECErrors>
+<NewCRCErrors>53</NewCRCErrors>
+<NewATUCCRCErrors>13</NewATUCCRCErrors>
+</u:GetStatisticsTotalResponse>
+</s:Body>
+</s:Envelope>

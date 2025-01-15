@@ -1,0 +1,30 @@
+<?xml version="1.0"?>
+<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/" s:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/">
+<s:Body>
+<u:GetInfoResponse xmlns:u="urn:dslforum-org:service:WLANConfiguration:1">
+<NewEnable>1</NewEnable>
+<NewStatus>Up</NewStatus>
+<NewMaxBitRate>Auto</NewMaxBitRate>
+<NewChannel>13</NewChannel>
+<NewSSID>MOCK1234</NewSSID>
+<NewBeaconType>11i</NewBeaconType>
+<NewX_AVM-DE_PossibleBeaconTypes>None,11i,WPAand11i,11iandWPA3</NewX_AVM-DE_PossibleBeaconTypes>
+<NewMACAddressControlEnabled>0</NewMACAddressControlEnabled>
+<NewStandard>n</NewStandard>
+<NewBSSID>00:00:00:00:00:00</NewBSSID>
+<NewBasicEncryptionModes>None</NewBasicEncryptionModes>
+<NewBasicAuthenticationMode>None</NewBasicAuthenticationMode>
+<NewMaxCharsSSID>32</NewMaxCharsSSID>
+<NewMinCharsSSID>1</NewMinCharsSSID>
+<NewAllowedCharsSSID>0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz</NewAllowedCharsSSID>
+<NewMinCharsPSK>64</NewMinCharsPSK>
+<NewMaxCharsPSK>64</NewMaxCharsPSK>
+<NewAllowedCharsPSK>0123456789ABCDEFabcdef</NewAllowedCharsPSK>
+<NewX_AVM-DE_FrequencyBand>2400</NewX_AVM-DE_FrequencyBand>
+<NewX_AVM-DE_WLANGlobalEnable>1</NewX_AVM-DE_WLANGlobalEnable>
+</u:GetInfoResponse>
+<u:GetTotalAssociationsResponse xmlns:u="urn:dslforum-org:service:WLANConfiguration:1">
+<NewTotalAssociations>11</NewTotalAssociations>
+</u:GetTotalAssociationsResponse>
+</s:Body>
+</s:Envelope>
