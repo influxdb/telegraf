@@ -8,6 +8,7 @@ import (
 	"net"
 	"net/http"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -20,7 +21,6 @@ import (
 	"github.com/influxdata/telegraf"
 	"github.com/influxdata/telegraf/config"
 	"github.com/influxdata/telegraf/filter"
-	"github.com/influxdata/telegraf/internal"
 	"github.com/influxdata/telegraf/internal/limiter"
 	"github.com/influxdata/telegraf/metric"
 	common_aws "github.com/influxdata/telegraf/plugins/common/aws"
@@ -31,7 +31,6 @@ import (
 //go:embed sample.conf
 var sampleConfig string
 
-// CloudWatch contains the configuration and cache for the cloudwatch plugin.
 type CloudWatch struct {
 	StatisticExclude []string        `toml:"statistic_exclude"`
 	StatisticInclude []string        `toml:"statistic_include"`
@@ -51,38 +50,41 @@ type CloudWatch struct {
 	IncludeLinkedAccounts bool                `toml:"include_linked_accounts"`
 	MetricFormat          string              `toml:"metric_format"`
 	Log                   telegraf.Logger     `toml:"-"`
+	common_aws.CredentialConfig
 
 	client          cloudwatchClient
+	nsFilter        filter.Filter
 	statFilter      filter.Filter
-	metricCache     *metricCache
+	cache           *metricCache
 	queryDimensions map[string]*map[string]string
 	windowStart     time.Time
 	windowEnd       time.Time
-
-	common_aws.CredentialConfig
 }
 
-// cloudwatchMetric defines a simplified Cloudwatch metric.
 type cloudwatchMetric struct {
-	StatisticExclude *[]string    `toml:"statistic_exclude"`
-	StatisticInclude *[]string    `toml:"statistic_include"`
 	MetricNames      []string     `toml:"names"`
 	Dimensions       []*dimension `toml:"dimensions"`
+	StatisticExclude *[]string    `toml:"statistic_exclude"`
+	StatisticInclude *[]string    `toml:"statistic_include"`
 }
 
-// dimension defines a simplified Cloudwatch dimension (provides metric filtering).
 type dimension struct {
 	Name         string `toml:"name"`
 	Value        string `toml:"value"`
 	valueMatcher filter.Filter
 }
 
-// metricCache caches metrics, their filters, and generated queries.
 type metricCache struct {
 	ttl     time.Duration
 	built   time.Time
 	metrics []filteredMetric
 	queries map[string][]types.MetricDataQuery
+}
+
+type filteredMetric struct {
+	metrics    []types.Metric
+	accounts   []string
+	statFilter filter.Filter
 }
 
 type cloudwatchClient interface {
@@ -95,10 +97,12 @@ func (*CloudWatch) SampleConfig() string {
 }
 
 func (c *CloudWatch) Init() error {
+	// For backward compatibility
 	if len(c.Namespace) != 0 {
 		c.Namespaces = append(c.Namespaces, c.Namespace)
 	}
 
+	// Check user settings
 	switch c.MetricFormat {
 	case "":
 		c.MetricFormat = "sparse"
@@ -107,22 +111,69 @@ func (c *CloudWatch) Init() error {
 		return fmt.Errorf("invalid metric_format: %s", c.MetricFormat)
 	}
 
-	err := c.initializeCloudWatch()
+	// Setup the cloudwatch client
+	proxyFunc, err := c.HTTPProxy.Proxy()
 	if err != nil {
-		return err
+		return fmt.Errorf("creating proxy failed: %w", err)
 	}
 
-	// Set config level filter (won't change throughout life of plugin).
+	creds, err := c.CredentialConfig.Credentials()
+	if err != nil {
+		return fmt.Errorf("getting credentials failed: %w", err)
+	}
+
+	c.client = cloudwatch.NewFromConfig(creds, func(options *cloudwatch.Options) {
+		if c.CredentialConfig.EndpointURL != "" && c.CredentialConfig.Region != "" {
+			options.BaseEndpoint = &c.CredentialConfig.EndpointURL
+		}
+
+		options.ClientLogMode = 0
+		options.HTTPClient = &http.Client{
+			// use values from DefaultTransport
+			Transport: &http.Transport{
+				Proxy: proxyFunc,
+				DialContext: (&net.Dialer{
+					Timeout:   30 * time.Second,
+					KeepAlive: 30 * time.Second,
+					DualStack: true,
+				}).DialContext,
+				MaxIdleConns:          100,
+				IdleConnTimeout:       90 * time.Second,
+				TLSHandshakeTimeout:   10 * time.Second,
+				ExpectContinueTimeout: 1 * time.Second,
+			},
+			Timeout: time.Duration(c.Timeout),
+		}
+	})
+
+	// Initialize filter for metric dimensions to include
+	for _, m := range c.Metrics {
+		for _, dimension := range m.Dimensions {
+			matcher, err := filter.NewIncludeExcludeFilter([]string{dimension.Value}, nil)
+			if err != nil {
+				return fmt.Errorf("creating dimension filter for dimension %q failed: %w", dimension, err)
+			}
+			dimension.valueMatcher = matcher
+		}
+	}
+
+	// Initialize statistics-type filter
 	c.statFilter, err = filter.NewIncludeExcludeFilter(c.StatisticInclude, c.StatisticExclude)
 	if err != nil {
-		return err
+		return fmt.Errorf("creating statistics filter failed: %w", err)
+	}
+
+	// Initialize namespace filter
+	c.nsFilter, err = filter.Compile(c.Namespaces)
+	if err != nil {
+		return fmt.Errorf("creating namespace filter failed: %w", err)
 	}
 
 	return nil
 }
 
 func (c *CloudWatch) Gather(acc telegraf.Accumulator) error {
-	filteredMetrics, err := getFilteredMetrics(c)
+	filteredMetrics, err := c.getFilteredMetrics()
 	if err != nil {
 		return err
 	}
@@ -156,7 +207,7 @@ func (c *CloudWatch) Gather(acc telegraf.Accumulator) error {
 			<-lmtr.C
 			go func(n string, inm []types.MetricDataQuery) {
 				defer wg.Done()
-				result, err := c.gatherMetrics(c.getDataInputs(inm))
+				result, err := c.gatherMetrics(inm)
 				if err != nil {
 					acc.AddError(err)
 					return
@@ -174,182 +225,107 @@ func (c *CloudWatch) Gather(acc telegraf.Accumulator) error {
 	return nil
 }
 
-func (c *CloudWatch) initializeCloudWatch() error {
-	proxyFunc, err := c.HTTPProxy.Proxy()
-	if err != nil {
-		return err
+func (c *CloudWatch) getFilteredMetrics() ([]filteredMetric, error) {
+	if c.cache != nil && c.cache.metrics != nil && time.Since(c.cache.built) < c.cache.ttl {
+		return c.cache.metrics, nil
 	}
 
-	awsCreds, err := c.CredentialConfig.Credentials()
-	if err != nil {
-		return err
+	// Get all metrics from cloudwatch for filtering
+	params := &cloudwatch.ListMetricsInput{
+		IncludeLinkedAccounts: &c.IncludeLinkedAccounts,
+	}
+	if c.RecentlyActive == "PT3H" {
+		params.RecentlyActive = types.RecentlyActivePt3h
 	}
 
-	c.client = cloudwatch.NewFromConfig(awsCreds, func(options *cloudwatch.Options) {
-		if c.CredentialConfig.EndpointURL != "" && c.CredentialConfig.Region != "" {
-			options.BaseEndpoint = &c.CredentialConfig.EndpointURL
+	// Return the subset of metrics matching the namespace and at one of the
+	// metric definitions if any
+	var metrics []types.Metric
+	var accounts []string
+	for {
+		resp, err := c.client.ListMetrics(context.Background(), params)
+		if err != nil {
+			c.Log.Errorf("failed to list metrics: %v", err)
+			break
 		}
-
-		options.ClientLogMode = 0
-		options.HTTPClient = &http.Client{
-			// use values from DefaultTransport
-			Transport: &http.Transport{
-				Proxy: proxyFunc,
-				DialContext: (&net.Dialer{
-					Timeout:   30 * time.Second,
-					KeepAlive: 30 * time.Second,
-					DualStack: true,
-				}).DialContext,
-				MaxIdleConns:          100,
-				IdleConnTimeout:       90 * time.Second,
-				TLSHandshakeTimeout:   10 * time.Second,
-				ExpectContinueTimeout: 1 * time.Second,
-			},
-			Timeout: time.Duration(c.Timeout),
-		}
-	})
-
-	// Initialize regex matchers for each dimension value.
-	for _, m := range c.Metrics {
-		for _, dimension := range m.Dimensions {
-			matcher, err := filter.NewIncludeExcludeFilter([]string{dimension.Value}, nil)
-			if err != nil {
-				return err
-			}
-
-			dimension.valueMatcher = matcher
-		}
-	}
-
-	return nil
-}
-
-type filteredMetric struct {
-	metrics    []types.Metric
-	accounts   []string
-	statFilter filter.Filter
-}
-
-// getFilteredMetrics returns metrics specified in the config file or metrics listed from Cloudwatch.
-func getFilteredMetrics(c *CloudWatch) ([]filteredMetric, error) {
-	if c.metricCache != nil && c.metricCache.isValid() {
-		return c.metricCache.metrics, nil
-	}
-
-	fMetrics := make([]filteredMetric, 0)
-
-	// check for provided metric filter
-	if c.Metrics != nil {
-		for _, m := range c.Metrics {
-			metrics := make([]types.Metric, 0)
-			var accounts []string
-			if !hasWildcard(m.Dimensions) {
-				dimensions := make([]types.Dimension, 0, len(m.Dimensions))
+		c.Log.Tracef("got %d metrics with %d accounts", len(resp.Metrics), len(resp.OwningAccounts))
+		for i, m := range resp.Metrics {
+			if c.Log.Level().Includes(telegraf.Trace) {
+				dims := make([]string, 0, len(m.Dimensions))
 				for _, d := range m.Dimensions {
-					dimensions = append(dimensions, types.Dimension{
-						Name:  aws.String(d.Name),
-						Value: aws.String(d.Value),
-					})
+					dims = append(dims, *d.Name+"="+*d.Value)
 				}
-				for _, name := range m.MetricNames {
-					for _, namespace := range c.Namespaces {
-						metrics = append(metrics, types.Metric{
-							Namespace:  aws.String(namespace),
-							MetricName: aws.String(name),
-							Dimensions: dimensions,
-						})
-					}
+				a := "none"
+				if len(resp.OwningAccounts) > 0 {
+					a = resp.OwningAccounts[i]
 				}
-				if c.IncludeLinkedAccounts {
-					_, allAccounts := c.fetchNamespaceMetrics()
-					accounts = append(accounts, allAccounts...)
-				}
-			} else {
-				allMetrics, allAccounts := c.fetchNamespaceMetrics()
-
-				for _, name := range m.MetricNames {
-					for i, singleMetric := range allMetrics {
-						if isSelected(name, singleMetric, m.Dimensions) {
-							for _, namespace := range c.Namespaces {
-								metrics = append(metrics, types.Metric{
-									Namespace:  aws.String(namespace),
-									MetricName: aws.String(name),
-									Dimensions: singleMetric.Dimensions,
-								})
-							}
-							if c.IncludeLinkedAccounts {
-								accounts = append(accounts, allAccounts[i])
-							}
-						}
-					}
-				}
+				c.Log.Tracef("  metric %3d: %s (%s): %s [%s]\n", i, *m.MetricName, *m.Namespace, strings.Join(dims, ", "), a)
 			}
 
-			if m.StatisticExclude == nil {
-				m.StatisticExclude = &c.StatisticExclude
+			if c.nsFilter != nil && !c.nsFilter.Match(*m.Namespace) {
+				c.Log.Trace("  -> rejected by namespace")
+				continue
 			}
-			if m.StatisticInclude == nil {
-				m.StatisticInclude = &c.StatisticInclude
+
+			if len(c.Metrics) > 0 && !slices.ContainsFunc(c.Metrics, func(cm *cloudwatchMetric) bool {
+				return metricMatch(cm, m)
+			}) {
+				c.Log.Trace("  -> rejected by metric mismatch")
+				continue
 			}
-			statFilter, err := filter.NewIncludeExcludeFilter(*m.StatisticInclude, *m.StatisticExclude)
-			if err != nil {
-				return nil, err
+			c.Log.Trace("  -> keeping metric")
+
+			metrics = append(metrics, m)
+			if len(resp.OwningAccounts) > 0 {
+				accounts = append(accounts, resp.OwningAccounts[i])
 			}
-			fMetrics = append(fMetrics, filteredMetric{
-				metrics:    metrics,
-				statFilter: statFilter,
-				accounts:   accounts,
-			})
 		}
+
+		if resp.NextToken == nil {
+			break
+		}
+		params.NextToken = resp.NextToken
+	}
+
+	var filtered []filteredMetric
+	if len(c.Metrics) == 0 {
+		filtered = append(filtered, filteredMetric{
+			metrics:    metrics,
+			accounts:   accounts,
+			statFilter: c.statFilter,
+		})
 	} else {
-		metrics, accounts := c.fetchNamespaceMetrics()
-		fMetrics = []filteredMetric{
-			{
-				metrics:    metrics,
-				statFilter: c.statFilter,
-				accounts:   accounts,
-			},
+		for idx, cm := range c.Metrics {
+			var entry filteredMetric
+			if cm.StatisticInclude == nil && cm.StatisticExclude == nil {
+				entry.statFilter = c.statFilter
+			} else {
+				f, err := filter.NewIncludeExcludeFilter(*cm.StatisticInclude, *cm.StatisticExclude)
+				if err != nil {
+					return nil, fmt.Errorf("creating statistics filter for metric %d failed: %w", idx+1, err)
+				}
+				entry.statFilter = f
+			}
+
+			for i, m := range metrics {
+				if metricMatch(cm, m) {
+					entry.metrics = append(entry.metrics, m)
+					if len(accounts) > 0 {
+						entry.accounts = append(entry.accounts, accounts[i])
+					}
+				}
+			}
+			filtered = append(filtered, entry)
 		}
 	}
-	c.metricCache = &metricCache{
-		metrics: fMetrics,
+
+	c.cache = &metricCache{
+		metrics: filtered,
 		built:   time.Now(),
 		ttl:     time.Duration(c.CacheTTL),
 	}
-	return fMetrics, nil
-}
 
-// fetchNamespaceMetrics retrieves available metrics for a given CloudWatch namespace.
-func (c *CloudWatch) fetchNamespaceMetrics() ([]types.Metric, []string) {
-	metrics := make([]types.Metric, 0)
-	var accounts []string
-	for _, namespace := range c.Namespaces {
-		params := &cloudwatch.ListMetricsInput{
-			Dimensions:            make([]types.DimensionFilter, 0),
-			Namespace:             aws.String(namespace),
-			IncludeLinkedAccounts: &c.IncludeLinkedAccounts,
-		}
-		if c.RecentlyActive == "PT3H" {
-			params.RecentlyActive = types.RecentlyActivePt3h
-		}
-
-		for {
-			resp, err := c.client.ListMetrics(context.Background(), params)
-			if err != nil {
-				c.Log.Errorf("failed to list metrics with namespace %s: %v", namespace, err)
-				// skip problem namespace on error and continue to next namespace
-				break
-			}
-			metrics = append(metrics, resp.Metrics...)
-			accounts = append(accounts, resp.OwningAccounts...)
-
-			if resp.NextToken == nil {
-				break
-			}
-			params.NextToken = resp.NextToken
-		}
-	}
-	return metrics, accounts
+	return filtered, nil
 }
 
 func (c *CloudWatch) updateWindow(relativeTo time.Time) {
@@ -368,8 +344,8 @@ func (c *CloudWatch) updateWindow(relativeTo time.Time) {
 
 // getDataQueries gets all of the possible queries so we can maximize the request payload.
 func (c *CloudWatch) getDataQueries(filteredMetrics []filteredMetric) map[string][]types.MetricDataQuery {
-	if c.metricCache != nil && c.metricCache.queries != nil && c.metricCache.isValid() {
-		return c.metricCache.queries
+	if c.cache != nil && c.cache.queries != nil && c.cache.metrics != nil && time.Since(c.cache.built) < c.cache.ttl {
+		return c.cache.queries
 	}
 
 	c.queryDimensions = make(map[string]*map[string]string)
@@ -417,25 +393,27 @@ func (c *CloudWatch) getDataQueries(filteredMetrics []filteredMetric) map[string
 		return nil
 	}
 
-	if c.metricCache == nil {
-		c.metricCache = &metricCache{
+	if c.cache == nil {
+		c.cache = &metricCache{
 			queries: dataQueries,
 			built:   time.Now(),
 			ttl:     time.Duration(c.CacheTTL),
 		}
 	} else {
-		c.metricCache.queries = dataQueries
+		c.cache.queries = dataQueries
 	}
 
 	return dataQueries
 }
 
-// gatherMetrics gets metric data from Cloudwatch.
-func (c *CloudWatch) gatherMetrics(
-	params *cloudwatch.GetMetricDataInput,
-) ([]types.MetricDataResult, error) {
-	results := make([]types.MetricDataResult, 0)
+func (c *CloudWatch) gatherMetrics(queries []types.MetricDataQuery) ([]types.MetricDataResult, error) {
+	params := &cloudwatch.GetMetricDataInput{
+		StartTime:         aws.Time(c.windowStart),
+		EndTime:           aws.Time(c.windowEnd),
+		MetricDataQueries: queries,
+	}
 
+	results := make([]types.MetricDataResult, 0)
 	for {
 		resp, err := c.client.GetMetricData(context.Background(), params)
 		if err != nil {
@@ -489,84 +467,13 @@ func (c *CloudWatch) aggregateMetrics(acc telegraf.Accumulator, metricDataResult
 	}
 }
 
-func sanitizeMeasurement(namespace string) string {
-	namespace = strings.ReplaceAll(namespace, "/", "_")
-	namespace = snakeCase(namespace)
-	return "cloudwatch_" + namespace
-}
-
-func snakeCase(s string) string {
-	s = internal.SnakeCase(s)
-	s = strings.ReplaceAll(s, " ", "_")
-	s = strings.ReplaceAll(s, "__", "_")
-	return s
-}
-
-// ctod converts cloudwatch dimensions to regular dimensions.
-func ctod(cDimensions []types.Dimension) *map[string]string {
-	dimensions := make(map[string]string, len(cDimensions))
-	for i := range cDimensions {
-		dimensions[snakeCase(*cDimensions[i].Name)] = *cDimensions[i].Value
-	}
-	return &dimensions
-}
-
-func (c *CloudWatch) getDataInputs(dataQueries []types.MetricDataQuery) *cloudwatch.GetMetricDataInput {
-	return &cloudwatch.GetMetricDataInput{
-		StartTime:         aws.Time(c.windowStart),
-		EndTime:           aws.Time(c.windowEnd),
-		MetricDataQueries: dataQueries,
-	}
-}
-
-// isValid checks the validity of the metric cache.
-func (f *metricCache) isValid() bool {
-	return f.metrics != nil && time.Since(f.built) < f.ttl
-}
-
-func hasWildcard(dimensions []*dimension) bool {
-	for _, d := range dimensions {
-		if d.Value == "" || strings.ContainsAny(d.Value, "*?[") {
-			return true
-		}
-	}
-	return false
-}
-
-func isSelected(name string, cloudwatchMetric types.Metric, dimensions []*dimension) bool {
-	if name != *cloudwatchMetric.MetricName {
-		return false
-	}
-	if len(cloudwatchMetric.Dimensions) != len(dimensions) {
-		return false
-	}
-	for _, d := range dimensions {
-		selected := false
-		for _, d2 := range cloudwatchMetric.Dimensions {
-			if d.Name == *d2.Name {
-				if d.Value == "" || d.valueMatcher.Match(*d2.Value) {
-					selected = true
-				}
-			}
-		}
-		if !selected {
-			return false
-		}
-	}
-	return true
-}
-
-func newCloudWatch() *CloudWatch {
-	return &CloudWatch{
-		CacheTTL:  config.Duration(time.Hour),
-		RateLimit: 25,
-		Timeout:   config.Duration(time.Second * 5),
-		BatchSize: 500,
-	}
-}
-
 func init() {
 	inputs.Add("cloudwatch", func() telegraf.Input {
-		return newCloudWatch()
+		return &CloudWatch{
+			CacheTTL:  config.Duration(time.Hour),
+			RateLimit: 25,
+			Timeout:   config.Duration(time.Second * 5),
+			BatchSize: 500,
+		}
 	})
 }
