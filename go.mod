@@ -77,7 +77,7 @@ require (
 	github.com/docker/go-connections v0.5.0
 	github.com/dustin/go-humanize v1.0.1
 	github.com/dynatrace-oss/dynatrace-metric-utils-go v0.5.0
-	github.com/eclipse/paho.golang v0.21.0
+	github.com/eclipse/paho.golang v0.22.0
 	github.com/eclipse/paho.mqtt.golang v1.5.0
 	github.com/facebook/time v0.0.0-20240626113945-18207c5d8ddc
 	github.com/fatih/color v1.18.0

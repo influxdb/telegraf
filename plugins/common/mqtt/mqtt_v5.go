@@ -32,9 +32,9 @@ func NewMQTTv5Client(cfg *MqttConfig) (*mqttv5Client, error) {
 		KeepAlive:      uint16(cfg.KeepAlive),
 		OnConnectError: cfg.OnConnectionLost,
 	}
-	opts.ConnectPacketBuilder = func(c *mqttv5.Connect, _ *url.URL) *mqttv5.Connect {
+	opts.ConnectPacketBuilder = func(c *mqttv5.Connect, _ *url.URL) (*mqttv5.Connect, error) {
 		c.CleanStart = cfg.PersistentSession
-		return c
+		return c, nil
 	}
 
 	if time.Duration(cfg.ConnectionTimeout) >= 1*time.Second {
