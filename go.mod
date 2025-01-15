@@ -178,7 +178,7 @@ require (
 	github.com/seancfoley/ipaddress-go v1.7.0
 	github.com/sensu/sensu-go/api/core/v2 v2.16.0
 	github.com/shirou/gopsutil/v4 v4.24.10
-	github.com/showwin/speedtest-go v1.7.9
+	github.com/showwin/speedtest-go v1.7.10
 	github.com/signalfx/golib/v3 v3.3.54
 	github.com/sijms/go-ora/v2 v2.8.22
 	github.com/sirupsen/logrus v1.9.3
