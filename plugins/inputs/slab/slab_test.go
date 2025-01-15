@@ -12,7 +12,7 @@ import (
 )
 
 func TestSlab(t *testing.T) {
-	slabStats := SlabStats{
+	slabStats := Slab{
 		statFile: path.Join("testdata", "slabinfo"),
 		useSudo:  false,
 	}

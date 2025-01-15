@@ -103,6 +103,74 @@ func (s *Slurm) Init() error {
 	return nil
 }
 
+func (s *Slurm) Gather(acc telegraf.Accumulator) (err error) {
+	auth := context.WithValue(
+		context.Background(),
+		goslurm.ContextAPIKeys,
+		map[string]goslurm.APIKey{
+			"user":  {Key: s.Username},
+			"token": {Key: s.Token},
+		},
+	)
+
+	if s.endpointMap["diag"] {
+		diagResp, respRaw, err := s.client.SlurmAPI.SlurmV0038Diag(auth).Execute()
+		if err != nil {
+			return fmt.Errorf("error getting diag: %w", err)
+		}
+		if diag, ok := diagResp.GetStatisticsOk(); ok {
+			s.gatherDiagMetrics(acc, diag)
+		}
+		respRaw.Body.Close()
+	}
+
+	if s.endpointMap["jobs"] {
+		jobsResp, respRaw, err := s.client.SlurmAPI.SlurmV0038GetJobs(auth).Execute()
+		if err != nil {
+			return fmt.Errorf("error getting jobs: %w", err)
+		}
+		if jobs, ok := jobsResp.GetJobsOk(); ok {
+			s.gatherJobsMetrics(acc, jobs)
+		}
+		respRaw.Body.Close()
+	}
+
+	if s.endpointMap["nodes"] {
+		nodesResp, respRaw, err := s.client.SlurmAPI.SlurmV0038GetNodes(auth).Execute()
+		if err != nil {
+			return fmt.Errorf("error getting nodes: %w", err)
+		}
+		if nodes, ok := nodesResp.GetNodesOk(); ok {
+			s.gatherNodesMetrics(acc, nodes)
+		}
+		respRaw.Body.Close()
+	}
+
+	if s.endpointMap["partitions"] {
+		partitionsResp, respRaw, err := s.client.SlurmAPI.SlurmV0038GetPartitions(auth).Execute()
+		if err != nil {
+			return fmt.Errorf("error getting partitions: %w", err)
+		}
+		if partitions, ok := partitionsResp.GetPartitionsOk(); ok {
+			s.gatherPartitionsMetrics(acc, partitions)
+		}
+		respRaw.Body.Close()
+	}
+
+	if s.endpointMap["reservations"] {
+		reservationsResp, respRaw, err := s.client.SlurmAPI.SlurmV0038GetReservations(auth).Execute()
+		if err != nil {
+			return fmt.Errorf("error getting reservations: %w", err)
+		}
+		if reservations, ok := reservationsResp.GetReservationsOk(); ok {
+			s.gatherReservationsMetrics(acc, reservations)
+		}
+		respRaw.Body.Close()
+	}
+
+	return nil
+}
+
 func parseTres(tres string) map[string]interface{} {
 	tresKVs := strings.Split(tres, ",")
 	parsedValues := make(map[string]interface{}, len(tresKVs))
@@ -397,74 +465,6 @@ func (s *Slurm) gatherReservationsMetrics(acc telegraf.Accumulator, reservations
 
 		acc.AddFields("slurm_reservations", records, tags)
 	}
-}
-
-func (s *Slurm) Gather(acc telegraf.Accumulator) (err error) {
-	auth := context.WithValue(
-		context.Background(),
-		goslurm.ContextAPIKeys,
-		map[string]goslurm.APIKey{
-			"user":  {Key: s.Username},
-			"token": {Key: s.Token},
-		},
-	)
-
-	if s.endpointMap["diag"] {
-		diagResp, respRaw, err := s.client.SlurmAPI.SlurmV0038Diag(auth).Execute()
-		if err != nil {
-			return fmt.Errorf("error getting diag: %w", err)
-		}
-		if diag, ok := diagResp.GetStatisticsOk(); ok {
-			s.gatherDiagMetrics(acc, diag)
-		}
-		respRaw.Body.Close()
-	}
-
-	if s.endpointMap["jobs"] {
-		jobsResp, respRaw, err := s.client.SlurmAPI.SlurmV0038GetJobs(auth).Execute()
-		if err != nil {
-			return fmt.Errorf("error getting jobs: %w", err)
-		}
-		if jobs, ok := jobsResp.GetJobsOk(); ok {
-			s.gatherJobsMetrics(acc, jobs)
-		}
-		respRaw.Body.Close()
-	}
-
-	if s.endpointMap["nodes"] {
-		nodesResp, respRaw, err := s.client.SlurmAPI.SlurmV0038GetNodes(auth).Execute()
-		if err != nil {
-			return fmt.Errorf("error getting nodes: %w", err)
-		}
-		if nodes, ok := nodesResp.GetNodesOk(); ok {
-			s.gatherNodesMetrics(acc, nodes)
-		}
-		respRaw.Body.Close()
-	}
-
-	if s.endpointMap["partitions"] {
-		partitionsResp, respRaw, err := s.client.SlurmAPI.SlurmV0038GetPartitions(auth).Execute()
-		if err != nil {
-			return fmt.Errorf("error getting partitions: %w", err)
-		}
-		if partitions, ok := partitionsResp.GetPartitionsOk(); ok {
-			s.gatherPartitionsMetrics(acc, partitions)
-		}
-		respRaw.Body.Close()
-	}
-
-	if s.endpointMap["reservations"] {
-		reservationsResp, respRaw, err := s.client.SlurmAPI.SlurmV0038GetReservations(auth).Execute()
-		if err != nil {
-			return fmt.Errorf("error getting reservations: %w", err)
-		}
-		if reservations, ok := reservationsResp.GetReservationsOk(); ok {
-			s.gatherReservationsMetrics(acc, reservations)
-		}
-		respRaw.Body.Close()
-	}
-
-	return nil
 }
 
 func init() {

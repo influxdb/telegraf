@@ -17,12 +17,14 @@ type Slab struct {
 	Log telegraf.Logger `toml:"-"`
 }
 
+func (*Slab) SampleConfig() string { return sampleConfig }
+
 func (s *Slab) Init() error {
-	s.Log.Warn("current platform is not supported")
+	s.Log.Warn("Current platform is not supported")
 	return nil
 }
-func (*Slab) SampleConfig() string                { return sampleConfig }
-func (*Slab) Gather(_ telegraf.Accumulator) error { return nil }
+
+func (*Slab) Gather(telegraf.Accumulator) error { return nil }
 
 func init() {
 	inputs.Add("slab", func() telegraf.Input {

@@ -19,9 +19,9 @@ func TestUDPHeader(t *testing.T) {
 	require.NoError(t, err)
 
 	expected := udpHeader{
-		SourcePort:      1,
-		DestinationPort: 2,
-		UDPLength:       3,
+		sourcePort:      1,
+		destinationPort: 2,
+		udpLength:       3,
 	}
 
 	require.Equal(t, expected, actual)
@@ -66,24 +66,24 @@ func TestIPv4Header(t *testing.T) {
 	require.NoError(t, err)
 
 	expected := ipV4Header{
-		Version:              0x40,
-		InternetHeaderLength: 0x05,
-		DSCP:                 0,
-		ECN:                  0,
-		TotalLength:          0,
-		Identification:       0,
-		Flags:                0,
-		FragmentOffset:       0,
-		TTL:                  0,
-		Protocol:             0x11,
-		HeaderChecksum:       0,
-		SourceIP:             [4]byte{127, 0, 0, 1},
-		DestIP:               [4]byte{127, 0, 0, 2},
-		ProtocolHeader: udpHeader{
-			SourcePort:      1,
-			DestinationPort: 2,
-			UDPLength:       3,
-			Checksum:        0,
+		version:              0x40,
+		internetHeaderLength: 0x05,
+		dscp:                 0,
+		ecn:                  0,
+		totalLength:          0,
+		identification:       0,
+		flags:                0,
+		fragmentOffset:       0,
+		ttl:                  0,
+		protocol:             0x11,
+		headerChecksum:       0,
+		sourceIP:             [4]byte{127, 0, 0, 1},
+		destIP:               [4]byte{127, 0, 0, 2},
+		protocolHeader: udpHeader{
+			sourcePort:      1,
+			destinationPort: 2,
+			udpLength:       3,
+			checksum:        0,
 		},
 	}
 
@@ -142,14 +142,14 @@ func TestIPv4HeaderSwitch(t *testing.T) {
 	require.NoError(t, err)
 
 	expected := ipV4Header{
-		Version:              64,
-		InternetHeaderLength: 5,
-		Protocol:             6,
-		SourceIP:             [4]byte{127, 0, 0, 1},
-		DestIP:               [4]byte{127, 0, 0, 2},
-		ProtocolHeader: tcpHeader{
-			SourcePort:      1,
-			DestinationPort: 2,
+		version:              64,
+		internetHeaderLength: 5,
+		protocol:             6,
+		sourceIP:             [4]byte{127, 0, 0, 1},
+		destIP:               [4]byte{127, 0, 0, 2},
+		protocolHeader: tcpHeader{
+			sourcePort:      1,
+			destinationPort: 2,
 		},
 	}
 
@@ -194,11 +194,11 @@ func TestUnknownProtocol(t *testing.T) {
 	require.NoError(t, err)
 
 	expected := ipV4Header{
-		Version:              64,
-		InternetHeaderLength: 5,
-		Protocol:             153,
-		SourceIP:             [4]byte{127, 0, 0, 1},
-		DestIP:               [4]byte{127, 0, 0, 2},
+		version:              64,
+		internetHeaderLength: 5,
+		protocol:             153,
+		sourceIP:             [4]byte{127, 0, 0, 1},
+		destIP:               [4]byte{127, 0, 0, 2},
 	}
 
 	require.Equal(t, expected, actual)

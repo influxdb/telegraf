@@ -28,13 +28,13 @@ var (
 	defaultTimeout = config.Duration(5 * time.Second)
 )
 
+const cmd = "sensors"
+
 type Sensors struct {
 	RemoveNumbers bool            `toml:"remove_numbers"`
 	Timeout       config.Duration `toml:"timeout"`
 	path          string
 }
-
-const cmd = "sensors"
 
 func (*Sensors) SampleConfig() string {
 	return sampleConfig

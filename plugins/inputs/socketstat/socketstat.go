@@ -27,7 +27,6 @@ var sampleConfig string
 
 const measurement = "socketstat"
 
-// Socketstat is a telegraf plugin to gather indicators from established connections, using iproute2's  `ss` command.
 type Socketstat struct {
 	SocketProto []string        `toml:"protocols"`
 	Timeout     config.Duration `toml:"timeout"`
@@ -45,7 +44,30 @@ func (*Socketstat) SampleConfig() string {
 	return sampleConfig
 }
 
-// Gather gathers indicators from established connections
+func (ss *Socketstat) Init() error {
+	if len(ss.SocketProto) == 0 {
+		ss.SocketProto = []string{"tcp", "udp"}
+	}
+
+	// Initialize regexps to validate input data
+	validFields := "(bytes_acked|bytes_received|segs_out|segs_in|data_segs_in|data_segs_out)"
+	ss.validValues = regexp.MustCompile("^" + validFields + ":[0-9]+$")
+	ss.isNewConnection = regexp.MustCompile(`^\s+.*$`)
+
+	ss.lister = socketList
+
+	// Check that ss is installed, get its path.
+	// Do it last, because in test environments where `ss` might not be available,
+	//   we still want the other Init() actions to be performed.
+	ssPath, err := exec.LookPath("ss")
+	if err != nil {
+		return err
+	}
+	ss.cmdName = ssPath
+
+	return nil
+}
+
 func (ss *Socketstat) Gather(acc telegraf.Accumulator) error {
 	// best effort : we continue through the protocols even if an error is encountered,
 	// but we keep track of the last error.
@@ -181,30 +203,6 @@ func getTagsAndState(proto string, words []string, log telegraf.Logger) (map[str
 		fields["send_q"] = v
 	}
 	return tags, fields
-}
-
-func (ss *Socketstat) Init() error {
-	if len(ss.SocketProto) == 0 {
-		ss.SocketProto = []string{"tcp", "udp"}
-	}
-
-	// Initialize regexps to validate input data
-	validFields := "(bytes_acked|bytes_received|segs_out|segs_in|data_segs_in|data_segs_out)"
-	ss.validValues = regexp.MustCompile("^" + validFields + ":[0-9]+$")
-	ss.isNewConnection = regexp.MustCompile(`^\s+.*$`)
-
-	ss.lister = socketList
-
-	// Check that ss is installed, get its path.
-	// Do it last, because in test environments where `ss` might not be available,
-	//   we still want the other Init() actions to be performed.
-	ssPath, err := exec.LookPath("ss")
-	if err != nil {
-		return err
-	}
-	ss.cmdName = ssPath
-
-	return nil
 }
 
 func init() {

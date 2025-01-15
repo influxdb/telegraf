@@ -1,4 +1,4 @@
-package salesforce_test
+package salesforce
 
 import (
 	"net/http"
@@ -8,7 +8,6 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/influxdata/telegraf/plugins/inputs/salesforce"
 	"github.com/influxdata/telegraf/testutil"
 )
 
@@ -23,13 +22,13 @@ func Test_Gather(t *testing.T) {
 	}))
 	defer fakeServer.Close()
 
-	plugin := salesforce.NewSalesforce()
-	plugin.SessionID = "test_session"
+	plugin := newSalesforce()
+	plugin.sessionID = "test_session"
 	u, err := url.Parse(fakeServer.URL)
 	if err != nil {
 		t.Error(err)
 	}
-	plugin.ServerURL = u
+	plugin.serverURL = u
 
 	var acc testutil.Accumulator
 	require.NoError(t, acc.GatherError(plugin.Gather))

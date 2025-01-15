@@ -20,7 +20,6 @@ import (
 //go:embed sample.conf
 var sampleConfig string
 
-// Solr is a plugin to read stats from one or many Solr servers
 type Solr struct {
 	Servers     []string        `toml:"servers"`
 	Username    string          `toml:"username"`
@@ -60,15 +59,13 @@ func (s *Solr) Init() error {
 	return nil
 }
 
-func (s *Solr) Start(_ telegraf.Accumulator) error {
+func (s *Solr) Start(telegraf.Accumulator) error {
 	for _, server := range s.Servers {
 		// Simply fill the cache for all available servers
 		_ = s.getAPIConfig(server)
 	}
 	return nil
 }
-
-func (*Solr) Stop() {}
 
 func (s *Solr) Gather(acc telegraf.Accumulator) error {
 	var wg sync.WaitGroup
@@ -86,6 +83,8 @@ func (s *Solr) Gather(acc telegraf.Accumulator) error {
 
 	return nil
 }
+
+func (*Solr) Stop() {}
 
 func (s *Solr) getAPIConfig(server string) *apiConfig {
 	if cfg, found := s.configs[server]; found {

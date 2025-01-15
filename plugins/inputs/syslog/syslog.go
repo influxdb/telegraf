@@ -29,7 +29,6 @@ var sampleConfig string
 
 const readTimeoutMsg = "Read timeout set! Connections, inactive for the set duration, will be closed!"
 
-// Syslog is a syslog plugin
 type Syslog struct {
 	Address        string                     `toml:"server"`
 	Framing        string                     `toml:"framing"`
@@ -113,12 +112,6 @@ func (s *Syslog) Init() error {
 	return nil
 }
 
-// Gather ...
-func (*Syslog) Gather(_ telegraf.Accumulator) error {
-	return nil
-}
-
-// Start starts the service.
 func (s *Syslog) Start(acc telegraf.Accumulator) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -148,7 +141,10 @@ func (s *Syslog) Start(acc telegraf.Accumulator) error {
 	return nil
 }
 
-// Stop cleans up all resources
+func (*Syslog) Gather(telegraf.Accumulator) error {
+	return nil
+}
+
 func (s *Syslog) Stop() {
 	s.mu.Lock()
 	defer s.mu.Unlock()

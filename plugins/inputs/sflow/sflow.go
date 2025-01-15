@@ -47,7 +47,7 @@ func (s *SFlow) Init() error {
 
 // Start starts this sFlow listener listening on the configured network for sFlow packets
 func (s *SFlow) Start(acc telegraf.Accumulator) error {
-	s.decoder.OnPacket(func(p *v5Format) {
+	s.decoder.onPacket(func(p *v5Format) {
 		metrics := makeMetrics(p)
 		for _, m := range metrics {
 			acc.AddMetric(m)
@@ -95,7 +95,7 @@ func (s *SFlow) Stop() {
 	s.wg.Wait()
 }
 
-func (s *SFlow) Address() net.Addr {
+func (s *SFlow) address() net.Addr {
 	return s.addr
 }
 
@@ -114,7 +114,7 @@ func (s *SFlow) read(acc telegraf.Accumulator, conn net.PacketConn) {
 }
 
 func (s *SFlow) process(acc telegraf.Accumulator, buf []byte) {
-	if err := s.decoder.Decode(bytes.NewBuffer(buf)); err != nil {
+	if err := s.decoder.decode(bytes.NewBuffer(buf)); err != nil {
 		acc.AddError(fmt.Errorf("unable to parse incoming packet: %w", err))
 	}
 }
@@ -132,7 +132,6 @@ func listenUDP(network, address string) (*net.UDPConn, error) {
 	}
 }
 
-// init registers this SFlow input plug in with the Telegraf framework
 func init() {
 	inputs.Add("sflow", func() telegraf.Input {
 		return &SFlow{}

@@ -34,6 +34,10 @@ func (*SocketListener) SampleConfig() string {
 	return sampleConfig
 }
 
+func (sl *SocketListener) SetParser(parser telegraf.Parser) {
+	sl.parser = parser
+}
+
 func (sl *SocketListener) Init() error {
 	sock, err := sl.Config.NewSocket(sl.ServiceAddress, &sl.SplitConfig, sl.Log)
 	if err != nil {
@@ -42,14 +46,6 @@ func (sl *SocketListener) Init() error {
 	sl.socket = sock
 
 	return nil
-}
-
-func (*SocketListener) Gather(telegraf.Accumulator) error {
-	return nil
-}
-
-func (sl *SocketListener) SetParser(parser telegraf.Parser) {
-	sl.parser = parser
 }
 
 func (sl *SocketListener) Start(acc telegraf.Accumulator) error {
@@ -90,6 +86,10 @@ func (sl *SocketListener) Start(acc telegraf.Accumulator) error {
 	addr := sl.socket.Address()
 	sl.Log.Infof("Listening on %s://%s", addr.Network(), addr.String())
 
+	return nil
+}
+
+func (*SocketListener) Gather(telegraf.Accumulator) error {
 	return nil
 }
 

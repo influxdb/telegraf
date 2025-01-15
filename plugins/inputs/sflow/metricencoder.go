@@ -12,22 +12,22 @@ func makeMetrics(p *v5Format) []telegraf.Metric {
 	now := time.Now()
 	metrics := make([]telegraf.Metric, 0)
 	tags := map[string]string{
-		"agent_address": p.AgentAddress.String(),
+		"agent_address": p.agentAddress.String(),
 	}
 	fields := make(map[string]interface{}, 2)
-	for _, sample := range p.Samples {
-		tags["input_ifindex"] = strconv.FormatUint(uint64(sample.SampleData.InputIfIndex), 10)
-		tags["output_ifindex"] = strconv.FormatUint(uint64(sample.SampleData.OutputIfIndex), 10)
-		tags["sample_direction"] = sample.SampleData.SampleDirection
-		tags["source_id_index"] = strconv.FormatUint(uint64(sample.SampleData.SourceIDIndex), 10)
-		tags["source_id_type"] = strconv.FormatUint(uint64(sample.SampleData.SourceIDType), 10)
-		fields["drops"] = sample.SampleData.Drops
-		fields["sampling_rate"] = sample.SampleData.SamplingRate
+	for _, sample := range p.samples {
+		tags["input_ifindex"] = strconv.FormatUint(uint64(sample.smplData.inputIfIndex), 10)
+		tags["output_ifindex"] = strconv.FormatUint(uint64(sample.smplData.outputIfIndex), 10)
+		tags["sample_direction"] = sample.smplData.sampleDirection
+		tags["source_id_index"] = strconv.FormatUint(uint64(sample.smplData.sourceIDIndex), 10)
+		tags["source_id_type"] = strconv.FormatUint(uint64(sample.smplData.sourceIDType), 10)
+		fields["drops"] = sample.smplData.drops
+		fields["sampling_rate"] = sample.smplData.samplingRate
 
-		for _, flowRecord := range sample.SampleData.FlowRecords {
-			if flowRecord.FlowData != nil {
-				tags2 := flowRecord.FlowData.getTags()
-				fields2 := flowRecord.FlowData.getFields()
+		for _, flowRecord := range sample.smplData.flowRecords {
+			if flowRecord.flowData != nil {
+				tags2 := flowRecord.flowData.getTags()
+				fields2 := flowRecord.flowData.getFields()
 				for k, v := range tags {
 					tags2[k] = v
 				}

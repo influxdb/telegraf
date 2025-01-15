@@ -66,12 +66,12 @@ func TestIPv4SW(t *testing.T) {
 
 	actual := make([]telegraf.Metric, 0)
 	dc := newDecoder()
-	dc.OnPacket(func(p *v5Format) {
+	dc.onPacket(func(p *v5Format) {
 		metrics := makeMetrics(p)
 		actual = append(actual, metrics...)
 	})
 	buf := bytes.NewReader(packet)
-	err = dc.Decode(buf)
+	err = dc.decode(buf)
 	require.NoError(t, err)
 
 	expected := []telegraf.Metric{
@@ -165,7 +165,7 @@ func BenchmarkDecodeIPv4SW(b *testing.B) {
 
 	b.ResetTimer()
 	for n := 0; n < b.N; n++ {
-		_, err = dc.DecodeOnePacket(bytes.NewBuffer(packet))
+		_, err = dc.decodeOnePacket(bytes.NewBuffer(packet))
 		if err != nil {
 			panic(err)
 		}
@@ -189,7 +189,7 @@ func TestExpandFlow(t *testing.T) {
 	require.NoError(t, err)
 
 	dc := newDecoder()
-	p, err := dc.DecodeOnePacket(bytes.NewBuffer(packet))
+	p, err := dc.decodeOnePacket(bytes.NewBuffer(packet))
 	require.NoError(t, err)
 	actual := makeMetrics(p)
 
@@ -330,7 +330,7 @@ func TestIPv4SWRT(t *testing.T) {
 	require.NoError(t, err)
 
 	dc := newDecoder()
-	p, err := dc.DecodeOnePacket(bytes.NewBuffer(packet))
+	p, err := dc.decodeOnePacket(bytes.NewBuffer(packet))
 	require.NoError(t, err)
 	actual := makeMetrics(p)
 
@@ -557,7 +557,7 @@ func TestIPv6SW(t *testing.T) {
 	require.NoError(t, err)
 
 	dc := newDecoder()
-	p, err := dc.DecodeOnePacket(bytes.NewBuffer(packet))
+	p, err := dc.decodeOnePacket(bytes.NewBuffer(packet))
 	require.NoError(t, err)
 	actual := makeMetrics(p)
 
@@ -628,7 +628,7 @@ func TestExpandFlowCounter(t *testing.T) {
 	require.NoError(t, err)
 
 	dc := newDecoder()
-	p, err := dc.DecodeOnePacket(bytes.NewBuffer(packet))
+	p, err := dc.decodeOnePacket(bytes.NewBuffer(packet))
 	require.NoError(t, err)
 	actual := makeMetrics(p)
 
@@ -830,7 +830,7 @@ func TestFlowExpandCounter(t *testing.T) {
 	require.NoError(t, err)
 
 	dc := newDecoder()
-	p, err := dc.DecodeOnePacket(bytes.NewBuffer(packet))
+	p, err := dc.decodeOnePacket(bytes.NewBuffer(packet))
 	require.NoError(t, err)
 	actual := makeMetrics(p)
 

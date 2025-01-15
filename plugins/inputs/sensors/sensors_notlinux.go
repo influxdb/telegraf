@@ -17,12 +17,14 @@ type Sensors struct {
 	Log telegraf.Logger `toml:"-"`
 }
 
+func (*Sensors) SampleConfig() string { return sampleConfig }
+
 func (s *Sensors) Init() error {
-	s.Log.Warn("current platform is not supported")
+	s.Log.Warn("Current platform is not supported")
 	return nil
 }
-func (*Sensors) SampleConfig() string                { return sampleConfig }
-func (*Sensors) Gather(_ telegraf.Accumulator) error { return nil }
+
+func (*Sensors) Gather(telegraf.Accumulator) error { return nil }
 
 func init() {
 	inputs.Add("sensors", func() telegraf.Input {

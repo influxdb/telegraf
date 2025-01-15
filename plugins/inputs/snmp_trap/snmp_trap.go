@@ -25,33 +25,16 @@ var defaultTimeout = config.Duration(time.Second * 5)
 //go:embed sample.conf
 var sampleConfig string
 
-type translator interface {
-	lookup(oid string) (snmp.MibEntry, error)
-}
-
-type wrapLog struct {
-	telegraf.Logger
-}
-
-func (l wrapLog) Printf(format string, args ...interface{}) {
-	l.Debugf(format, args...)
-}
-
-func (l wrapLog) Print(args ...interface{}) {
-	l.Debug(args...)
-}
-
 type SnmpTrap struct {
 	ServiceAddress string          `toml:"service_address"`
 	Timeout        config.Duration `toml:"timeout"`
 	Version        string          `toml:"version"`
-	Translator     string          `toml:"-"`
 	Path           []string        `toml:"path"`
-
 	// Settings for version 3
 	// Values: "noAuthNoPriv", "authNoPriv", "authPriv"
-	SecLevel string        `toml:"sec_level"`
-	SecName  config.Secret `toml:"sec_name"`
+	SecLevel string `toml:"sec_level"`
+
+	SecName config.Secret `toml:"sec_name"`
 	// Values: "MD5", "SHA", "". Default: ""
 	AuthProtocol string        `toml:"auth_protocol"`
 	AuthPassword config.Secret `toml:"auth_password"`
@@ -59,36 +42,28 @@ type SnmpTrap struct {
 	PrivProtocol string        `toml:"priv_protocol"`
 	PrivPassword config.Secret `toml:"priv_password"`
 
+	Translator string          `toml:"-"`
+	Log        telegraf.Logger `toml:"-"`
+
 	acc      telegraf.Accumulator
 	listener *gosnmp.TrapListener
 	timeFunc func() time.Time
 	errCh    chan error
 
 	makeHandlerWrapper func(gosnmp.TrapHandlerFunc) gosnmp.TrapHandlerFunc
+	transl             translator
+}
 
-	Log telegraf.Logger `toml:"-"`
+type wrapLog struct {
+	telegraf.Logger
+}
 
-	transl translator
+type translator interface {
+	lookup(oid string) (snmp.MibEntry, error)
 }
 
 func (*SnmpTrap) SampleConfig() string {
 	return sampleConfig
-}
-
-func (*SnmpTrap) Gather(telegraf.Accumulator) error {
-	return nil
-}
-
-func init() {
-	inputs.Add("snmp_trap", func() telegraf.Input {
-		return &SnmpTrap{
-			timeFunc:       time.Now,
-			ServiceAddress: "udp://:162",
-			Timeout:        defaultTimeout,
-			Path:           []string{"/usr/share/snmp/mibs"},
-			Version:        "2c",
-		}
-	})
 }
 
 func (s *SnmpTrap) SetTranslator(name string) {
@@ -259,6 +234,10 @@ func (s *SnmpTrap) Start(acc telegraf.Accumulator) error {
 	return nil
 }
 
+func (*SnmpTrap) Gather(telegraf.Accumulator) error {
+	return nil
+}
+
 func (s *SnmpTrap) Stop() {
 	s.listener.Close()
 	err := <-s.errCh
@@ -384,4 +363,24 @@ func makeTrapHandler(s *SnmpTrap) gosnmp.TrapHandlerFunc {
 
 		s.acc.AddFields("snmp_trap", fields, tags, tm)
 	}
+}
+
+func (l wrapLog) Printf(format string, args ...interface{}) {
+	l.Debugf(format, args...)
+}
+
+func (l wrapLog) Print(args ...interface{}) {
+	l.Debug(args...)
+}
+
+func init() {
+	inputs.Add("snmp_trap", func() telegraf.Input {
+		return &SnmpTrap{
+			timeFunc:       time.Now,
+			ServiceAddress: "udp://:162",
+			Timeout:        defaultTimeout,
+			Path:           []string{"/usr/share/snmp/mibs"},
+			Version:        "2c",
+		}
+	})
 }

@@ -78,7 +78,7 @@ func fakeScanExecCommand(command string, args ...string) *exec.Cmd {
 	return cmd
 }
 
-func TestScanHelperProcess(_ *testing.T) {
+func TestScanHelperProcess(*testing.T) {
 	if os.Getenv("GO_WANT_HELPER_PROCESS") != "1" {
 		return
 	}

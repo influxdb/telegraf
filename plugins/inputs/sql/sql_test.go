@@ -65,12 +65,12 @@ func TestMariaDBIntegration(t *testing.T) {
 	// Define the testset
 	var testset = []struct {
 		name     string
-		queries  []Query
+		queries  []query
 		expected []telegraf.Metric
 	}{
 		{
 			name: "metric_one",
-			queries: []Query{
+			queries: []query{
 				{
 					Query:               "SELECT * FROM metric_one",
 					TagColumnsInclude:   []string{"tag_*"},
@@ -164,12 +164,12 @@ func TestPostgreSQLIntegration(t *testing.T) {
 	// Define the testset
 	var testset = []struct {
 		name     string
-		queries  []Query
+		queries  []query
 		expected []telegraf.Metric
 	}{
 		{
 			name: "metric_one",
-			queries: []Query{
+			queries: []query{
 				{
 					Query:               "SELECT * FROM metric_one",
 					TagColumnsInclude:   []string{"tag_*"},
@@ -259,12 +259,12 @@ func TestClickHouseIntegration(t *testing.T) {
 	// Define the testset
 	var testset = []struct {
 		name     string
-		queries  []Query
+		queries  []query
 		expected []telegraf.Metric
 	}{
 		{
 			name: "metric_one",
-			queries: []Query{
+			queries: []query{
 				{
 					Query:               "SELECT * FROM default.metric_one",
 					TagColumnsInclude:   []string{"tag_*"},

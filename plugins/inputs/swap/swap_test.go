@@ -26,7 +26,7 @@ func TestSwapStats(t *testing.T) {
 
 	mps.On("SwapStat").Return(sms, nil)
 
-	err = (&SwapStats{&mps}).Gather(&acc)
+	err = (&Swap{&mps}).Gather(&acc)
 	require.NoError(t, err)
 
 	swapfields := map[string]interface{}{

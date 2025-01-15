@@ -31,19 +31,18 @@ import (
 //go:embed sample.conf
 var sampleConfig string
 
-const (
-	defaultRateLimit = 14
-)
-
 var (
 	defaultCacheTTL = config.Duration(1 * time.Hour)
 	defaultWindow   = config.Duration(1 * time.Minute)
 	defaultDelay    = config.Duration(5 * time.Minute)
 )
 
+const (
+	defaultRateLimit = 14
+)
+
 type (
-	// stackdriver is the Google Stackdriver config info.
-	stackdriver struct {
+	Stackdriver struct {
 		Project                         string                `toml:"project"`
 		RateLimit                       int                   `toml:"rate_limit"`
 		Window                          config.Duration       `toml:"window"`
@@ -55,7 +54,7 @@ type (
 		DistributionAggregationAligners []string              `toml:"distribution_aggregation_aligners"`
 		Filter                          *listTimeSeriesFilter `toml:"filter"`
 
-		Log telegraf.Logger
+		Log telegraf.Logger `toml:"-"`
 
 		client              metricClient
 		timeSeriesConfCache *timeSeriesConfCache
@@ -106,9 +105,9 @@ type (
 
 	// metricClient is convenient for testing
 	metricClient interface {
-		ListMetricDescriptors(ctx context.Context, req *monitoringpb.ListMetricDescriptorsRequest) (<-chan *metricpb.MetricDescriptor, error)
-		ListTimeSeries(ctx context.Context, req *monitoringpb.ListTimeSeriesRequest) (<-chan *monitoringpb.TimeSeries, error)
-		Close() error
+		listMetricDescriptors(ctx context.Context, req *monitoringpb.ListMetricDescriptorsRequest) (<-chan *metricpb.MetricDescriptor, error)
+		listTimeSeries(ctx context.Context, req *monitoringpb.ListTimeSeriesRequest) (<-chan *monitoringpb.TimeSeries, error)
+		close() error
 	}
 
 	lockedSeriesGrouper struct {
@@ -117,87 +116,11 @@ type (
 	}
 )
 
-func (g *lockedSeriesGrouper) Add(
-	measurement string,
-	tags map[string]string,
-	tm time.Time,
-	field string,
-	fieldValue interface{},
-) {
-	g.Lock()
-	defer g.Unlock()
-	g.SeriesGrouper.Add(measurement, tags, tm, field, fieldValue)
-}
-
-// ListMetricDescriptors implements metricClient interface
-func (smc *stackdriverMetricClient) ListMetricDescriptors(
-	ctx context.Context,
-	req *monitoringpb.ListMetricDescriptorsRequest,
-) (<-chan *metricpb.MetricDescriptor, error) {
-	mdChan := make(chan *metricpb.MetricDescriptor, 1000)
-
-	go func() {
-		smc.log.Debugf("List metric descriptor request filter: %s", req.Filter)
-		defer close(mdChan)
-
-		// Iterate over metric descriptors and send them to buffered channel
-		mdResp := smc.conn.ListMetricDescriptors(ctx, req)
-		smc.listMetricDescriptorsCalls.Incr(1)
-		for {
-			mdDesc, mdErr := mdResp.Next()
-			if mdErr != nil {
-				if !errors.Is(mdErr, iterator.Done) {
-					smc.log.Errorf("Failed iterating metric descriptor responses: %q: %v", req.String(), mdErr)
-				}
-				break
-			}
-			mdChan <- mdDesc
-		}
-	}()
-
-	return mdChan, nil
-}
-
-// ListTimeSeries implements metricClient interface
-func (smc *stackdriverMetricClient) ListTimeSeries(
-	ctx context.Context,
-	req *monitoringpb.ListTimeSeriesRequest,
-) (<-chan *monitoringpb.TimeSeries, error) {
-	tsChan := make(chan *monitoringpb.TimeSeries, 1000)
-
-	go func() {
-		smc.log.Debugf("List time series request filter: %s", req.Filter)
-		defer close(tsChan)
-
-		// Iterate over timeseries and send them to buffered channel
-		tsResp := smc.conn.ListTimeSeries(ctx, req)
-		smc.listTimeSeriesCalls.Incr(1)
-		for {
-			tsDesc, tsErr := tsResp.Next()
-			if tsErr != nil {
-				if !errors.Is(tsErr, iterator.Done) {
-					smc.log.Errorf("Failed iterating time series responses: %q: %v", req.String(), tsErr)
-				}
-				break
-			}
-			tsChan <- tsDesc
-		}
-	}()
-
-	return tsChan, nil
-}
-
-// Close implements metricClient interface
-func (smc *stackdriverMetricClient) Close() error {
-	return smc.conn.Close()
-}
-
-func (*stackdriver) SampleConfig() string {
+func (*Stackdriver) SampleConfig() string {
 	return sampleConfig
 }
 
-// Gather implements telegraf.Input interface
-func (s *stackdriver) Gather(acc telegraf.Accumulator) error {
+func (s *Stackdriver) Gather(acc telegraf.Accumulator) error {
 	ctx := context.Background()
 
 	if s.RateLimit == 0 {
@@ -212,7 +135,7 @@ func (s *stackdriver) Gather(acc telegraf.Accumulator) error {
 	start, end := s.updateWindow(s.prevEnd)
 	s.prevEnd = end
 
-	tsConfs, err := s.generatetimeSeriesConfs(ctx, start, end)
+	tsConfs, err := s.generateTimeSeriesConfs(ctx, start, end)
 	if err != nil {
 		return err
 	}
@@ -242,8 +165,34 @@ func (s *stackdriver) Gather(acc telegraf.Accumulator) error {
 	return nil
 }
 
+func (s *Stackdriver) initializeStackdriverClient(ctx context.Context) error {
+	if s.client == nil {
+		client, err := monitoring.NewMetricClient(ctx)
+		if err != nil {
+			return fmt.Errorf("failed to create stackdriver monitoring client: %w", err)
+		}
+
+		tags := map[string]string{
+			"project_id": s.Project,
+		}
+		listMetricDescriptorsCalls := selfstat.Register(
+			"stackdriver", "list_metric_descriptors_calls", tags)
+		listTimeSeriesCalls := selfstat.Register(
+			"stackdriver", "list_timeseries_calls", tags)
+
+		s.client = &stackdriverMetricClient{
+			log:                        s.Log,
+			conn:                       client,
+			listMetricDescriptorsCalls: listMetricDescriptorsCalls,
+			listTimeSeriesCalls:        listTimeSeriesCalls,
+		}
+	}
+
+	return nil
+}
+
 // Returns the start and end time for the next collection.
-func (s *stackdriver) updateWindow(prevEnd time.Time) (time.Time, time.Time) {
+func (s *Stackdriver) updateWindow(prevEnd time.Time) (time.Time, time.Time) {
 	var start time.Time
 	if time.Duration(s.Window) != 0 {
 		start = time.Now().Add(-time.Duration(s.Delay)).Add(-time.Duration(s.Window))
@@ -256,8 +205,90 @@ func (s *stackdriver) updateWindow(prevEnd time.Time) (time.Time, time.Time) {
 	return start, end
 }
 
+// Generate a list of timeSeriesConfig structs by making a listMetricDescriptors
+// API request and filtering the result against our configuration.
+func (s *Stackdriver) generateTimeSeriesConfs(ctx context.Context, startTime, endTime time.Time) ([]*timeSeriesConf, error) {
+	if s.timeSeriesConfCache != nil && s.timeSeriesConfCache.isValid() {
+		// Update interval for timeseries requests in timeseries cache
+		interval := &monitoringpb.TimeInterval{
+			EndTime:   &timestamppb.Timestamp{Seconds: endTime.Unix()},
+			StartTime: &timestamppb.Timestamp{Seconds: startTime.Unix()},
+		}
+		for _, timeSeriesConf := range s.timeSeriesConfCache.TimeSeriesConfs {
+			timeSeriesConf.listTimeSeriesRequest.Interval = interval
+		}
+		return s.timeSeriesConfCache.TimeSeriesConfs, nil
+	}
+
+	ret := make([]*timeSeriesConf, 0)
+	req := &monitoringpb.ListMetricDescriptorsRequest{
+		Name: "projects/" + s.Project,
+	}
+
+	filters := s.newListMetricDescriptorsFilters()
+	if len(filters) == 0 {
+		filters = []string{""}
+	}
+
+	for _, filter := range filters {
+		// Add filter for list metric descriptors if
+		// includeMetricTypePrefixes is specified,
+		// this is more efficient than iterating over
+		// all metric descriptors
+		req.Filter = filter
+		mdRespChan, err := s.client.listMetricDescriptors(ctx, req)
+		if err != nil {
+			return nil, err
+		}
+
+		for metricDescriptor := range mdRespChan {
+			metricType := metricDescriptor.Type
+			valueType := metricDescriptor.ValueType
+
+			if filter == "" && !s.includeMetricType(metricType) {
+				continue
+			}
+
+			if valueType == metricpb.MetricDescriptor_DISTRIBUTION {
+				if s.GatherRawDistributionBuckets {
+					tsConf := s.newTimeSeriesConf(metricType, startTime, endTime)
+					ret = append(ret, tsConf)
+				}
+				for _, alignerStr := range s.DistributionAggregationAligners {
+					tsConf := s.newTimeSeriesConf(metricType, startTime, endTime)
+					tsConf.initForAggregate(alignerStr)
+					ret = append(ret, tsConf)
+				}
+			} else {
+				ret = append(ret, s.newTimeSeriesConf(metricType, startTime, endTime))
+			}
+		}
+	}
+
+	s.timeSeriesConfCache = &timeSeriesConfCache{
+		TimeSeriesConfs: ret,
+		Generated:       time.Now(),
+		TTL:             time.Duration(s.CacheTTL),
+	}
+
+	return ret, nil
+}
+
+// Generates filter for list metric descriptors request
+func (s *Stackdriver) newListMetricDescriptorsFilters() []string {
+	if len(s.MetricTypePrefixInclude) == 0 {
+		return nil
+	}
+
+	metricTypeFilters := make([]string, 0, len(s.MetricTypePrefixInclude))
+	for _, metricTypePrefix := range s.MetricTypePrefixInclude {
+		metricTypeFilters = append(metricTypeFilters, fmt.Sprintf(`metric.type = starts_with(%q)`, metricTypePrefix))
+	}
+	return metricTypeFilters
+}
+
 // Generate filter string for ListTimeSeriesRequest
-func (s *stackdriver) newListTimeSeriesFilter(metricType string) string {
+func (s *Stackdriver) newListTimeSeriesFilter(metricType string) string {
 	functions := []string{
 		"starts_with",
 		"ends_with",
@@ -345,11 +376,8 @@ func (s *stackdriver) newListTimeSeriesFilter(metricType string) string {
 	return filterString
 }
 
-// Create and initialize a timeSeriesConf for a given GCP metric type with
-// defaults taken from the gcp_stackdriver plugin configuration.
-func (s *stackdriver) newTimeSeriesConf(
-	metricType string, startTime, endTime time.Time,
-) *timeSeriesConf {
+// Create and initialize a timeSeriesConf for a given GCP metric type with defaults taken from the gcp_stackdriver plugin configuration.
+func (s *Stackdriver) newTimeSeriesConf(metricType string, startTime, endTime time.Time) *timeSeriesConf {
 	filter := s.newListTimeSeriesFilter(metricType)
 	interval := &monitoringpb.TimeInterval{
 		EndTime:   &timestamppb.Timestamp{Seconds: endTime.Unix()},
@@ -376,83 +404,10 @@ func (s *stackdriver) newTimeSeriesConf(
 	return cfg
 }
 
-// Change this configuration to query an aggregate by specifying an "aligner".
-// In GCP monitoring, "aligning" is aggregation performed *within* a time
-// series, to distill a pile of data points down to a single data point for
-// some given time period (here, we specify 60s as our time period). This is
-// especially useful for scraping GCP "distribution" metric types, whose raw
-// data amounts to a ~60 bucket histogram, which is fairly hard to query and
-// visualize in the TICK stack.
-func (t *timeSeriesConf) initForAggregate(alignerStr string) {
-	// Check if alignerStr is valid
-	alignerInt, isValid := monitoringpb.Aggregation_Aligner_value[alignerStr]
-	if !isValid {
-		alignerStr = monitoringpb.Aggregation_Aligner_name[alignerInt]
-	}
-	aligner := monitoringpb.Aggregation_Aligner(alignerInt)
-	agg := &monitoringpb.Aggregation{
-		AlignmentPeriod:  &durationpb.Duration{Seconds: 60},
-		PerSeriesAligner: aligner,
-	}
-	t.fieldKey = t.fieldKey + "_" + strings.ToLower(alignerStr)
-	t.listTimeSeriesRequest.Aggregation = agg
-}
-
-// IsValid checks timeseriesconf cache validity
-func (c *timeSeriesConfCache) IsValid() bool {
-	return c.TimeSeriesConfs != nil && time.Since(c.Generated) < c.TTL
-}
-
-func (s *stackdriver) initializeStackdriverClient(ctx context.Context) error {
-	if s.client == nil {
-		client, err := monitoring.NewMetricClient(ctx)
-		if err != nil {
-			return fmt.Errorf("failed to create stackdriver monitoring client: %w", err)
-		}
-
-		tags := map[string]string{
-			"project_id": s.Project,
-		}
-		listMetricDescriptorsCalls := selfstat.Register(
-			"stackdriver", "list_metric_descriptors_calls", tags)
-		listTimeSeriesCalls := selfstat.Register(
-			"stackdriver", "list_timeseries_calls", tags)
-
-		s.client = &stackdriverMetricClient{
-			log:                        s.Log,
-			conn:                       client,
-			listMetricDescriptorsCalls: listMetricDescriptorsCalls,
-			listTimeSeriesCalls:        listTimeSeriesCalls,
-		}
-	}
-
-	return nil
-}
-
-func includeExcludeHelper(key string, includes, excludes []string) bool {
-	if len(includes) > 0 {
-		for _, includeStr := range includes {
-			if strings.HasPrefix(key, includeStr) {
-				return true
-			}
-		}
-		return false
-	}
-	if len(excludes) > 0 {
-		for _, excludeStr := range excludes {
-			if strings.HasPrefix(key, excludeStr) {
-				return false
-			}
-		}
-		return true
-	}
-	return true
-}
-
 // Test whether a particular GCP metric type should be scraped by this plugin
 // by checking the plugin name against the configuration's
 // "includeMetricTypePrefixes" and "excludeMetricTypePrefixes"
-func (s *stackdriver) includeMetricType(metricType string) bool {
+func (s *Stackdriver) includeMetricType(metricType string) bool {
 	k := metricType
 	inc := s.MetricTypePrefixInclude
 	exc := s.MetricTypePrefixExclude
@@ -460,98 +415,11 @@ func (s *stackdriver) includeMetricType(metricType string) bool {
 	return includeExcludeHelper(k, inc, exc)
 }
 
-// Generates filter for list metric descriptors request
-func (s *stackdriver) newListMetricDescriptorsFilters() []string {
-	if len(s.MetricTypePrefixInclude) == 0 {
-		return nil
-	}
-
-	metricTypeFilters := make([]string, 0, len(s.MetricTypePrefixInclude))
-	for _, metricTypePrefix := range s.MetricTypePrefixInclude {
-		metricTypeFilters = append(metricTypeFilters, fmt.Sprintf(`metric.type = starts_with(%q)`, metricTypePrefix))
-	}
-	return metricTypeFilters
-}
-
-// Generate a list of timeSeriesConfig structs by making a ListMetricDescriptors
-// API request and filtering the result against our configuration.
-func (s *stackdriver) generatetimeSeriesConfs(
-	ctx context.Context, startTime, endTime time.Time,
-) ([]*timeSeriesConf, error) {
-	if s.timeSeriesConfCache != nil && s.timeSeriesConfCache.IsValid() {
-		// Update interval for timeseries requests in timeseries cache
-		interval := &monitoringpb.TimeInterval{
-			EndTime:   &timestamppb.Timestamp{Seconds: endTime.Unix()},
-			StartTime: &timestamppb.Timestamp{Seconds: startTime.Unix()},
-		}
-		for _, timeSeriesConf := range s.timeSeriesConfCache.TimeSeriesConfs {
-			timeSeriesConf.listTimeSeriesRequest.Interval = interval
-		}
-		return s.timeSeriesConfCache.TimeSeriesConfs, nil
-	}
-
-	ret := make([]*timeSeriesConf, 0)
-	req := &monitoringpb.ListMetricDescriptorsRequest{
-		Name: "projects/" + s.Project,
-	}
-
-	filters := s.newListMetricDescriptorsFilters()
-	if len(filters) == 0 {
-		filters = []string{""}
-	}
-
-	for _, filter := range filters {
-		// Add filter for list metric descriptors if
-		// includeMetricTypePrefixes is specified,
-		// this is more efficient than iterating over
-		// all metric descriptors
-		req.Filter = filter
-		mdRespChan, err := s.client.ListMetricDescriptors(ctx, req)
-		if err != nil {
-			return nil, err
-		}
-
-		for metricDescriptor := range mdRespChan {
-			metricType := metricDescriptor.Type
-			valueType := metricDescriptor.ValueType
-
-			if filter == "" && !s.includeMetricType(metricType) {
-				continue
-			}
-
-			if valueType == metricpb.MetricDescriptor_DISTRIBUTION {
-				if s.GatherRawDistributionBuckets {
-					tsConf := s.newTimeSeriesConf(metricType, startTime, endTime)
-					ret = append(ret, tsConf)
-				}
-				for _, alignerStr := range s.DistributionAggregationAligners {
-					tsConf := s.newTimeSeriesConf(metricType, startTime, endTime)
-					tsConf.initForAggregate(alignerStr)
-					ret = append(ret, tsConf)
-				}
-			} else {
-				ret = append(ret, s.newTimeSeriesConf(metricType, startTime, endTime))
-			}
-		}
-	}
-
-	s.timeSeriesConfCache = &timeSeriesConfCache{
-		TimeSeriesConfs: ret,
-		Generated:       time.Now(),
-		TTL:             time.Duration(s.CacheTTL),
-	}
-
-	return ret, nil
-}
-
-// Do the work to gather an individual time series. Runs inside a
-// timeseries-specific goroutine.
-func (s *stackdriver) gatherTimeSeries(
-	ctx context.Context, grouper *lockedSeriesGrouper, tsConf *timeSeriesConf,
-) error {
+// Do the work to gather an individual time series. Runs inside a timeseries-specific goroutine.
+func (s *Stackdriver) gatherTimeSeries(ctx context.Context, grouper *lockedSeriesGrouper, tsConf *timeSeriesConf) error {
 	tsReq := tsConf.listTimeSeriesRequest
 
-	tsRespChan, err := s.client.ListTimeSeries(ctx, tsReq)
+	tsRespChan, err := s.client.listTimeSeries(ctx, tsReq)
 	if err != nil {
 		return err
 	}
@@ -599,75 +467,10 @@ func (s *stackdriver) gatherTimeSeries(
 	return nil
 }
 
-type buckets interface {
-	Amount() int32
-	UpperBound(i int32) float64
-}
-
-type LinearBuckets struct {
-	*distributionpb.Distribution_BucketOptions_Linear
-}
-
-func (l *LinearBuckets) Amount() int32 {
-	return l.NumFiniteBuckets + 2
-}
-
-func (l *LinearBuckets) UpperBound(i int32) float64 {
-	return l.Offset + (l.Width * float64(i))
-}
-
-type ExponentialBuckets struct {
-	*distributionpb.Distribution_BucketOptions_Exponential
-}
-
-func (e *ExponentialBuckets) Amount() int32 {
-	return e.NumFiniteBuckets + 2
-}
-
-func (e *ExponentialBuckets) UpperBound(i int32) float64 {
-	width := math.Pow(e.GrowthFactor, float64(i))
-	return e.Scale * width
-}
-
-type ExplicitBuckets struct {
-	*distributionpb.Distribution_BucketOptions_Explicit
-}
-
-func (e *ExplicitBuckets) Amount() int32 {
-	return int32(len(e.Bounds)) + 1
-}
-
-func (e *ExplicitBuckets) UpperBound(i int32) float64 {
-	return e.Bounds[i]
-}
-
-func NewBucket(dist *distributionpb.Distribution) (buckets, error) {
-	linearBuckets := dist.BucketOptions.GetLinearBuckets()
-	if linearBuckets != nil {
-		var l LinearBuckets
-		l.Distribution_BucketOptions_Linear = linearBuckets
-		return &l, nil
-	}
-
-	exponentialBuckets := dist.BucketOptions.GetExponentialBuckets()
-	if exponentialBuckets != nil {
-		var e ExponentialBuckets
-		e.Distribution_BucketOptions_Exponential = exponentialBuckets
-		return &e, nil
-	}
-
-	explicitBuckets := dist.BucketOptions.GetExplicitBuckets()
-	if explicitBuckets != nil {
-		var e ExplicitBuckets
-		e.Distribution_BucketOptions_Explicit = explicitBuckets
-		return &e, nil
-	}
-
-	return nil, errors.New("no buckets available")
-}
-
 // addDistribution adds metrics from a distribution value type.
-func addDistribution(dist *distributionpb.Distribution, tags map[string]string, ts time.Time, grouper *lockedSeriesGrouper, tsConf *timeSeriesConf) error {
+func addDistribution(dist *distributionpb.Distribution, tags map[string]string, ts time.Time,
+	grouper *lockedSeriesGrouper, tsConf *timeSeriesConf,
+) error {
 	field := tsConf.fieldKey
 	name := tsConf.measurement
 
@@ -680,11 +483,11 @@ func addDistribution(dist *distributionpb.Distribution, tags map[string]string, 
 		grouper.Add(name, tags, ts, field+"_range_max", dist.Range.Max)
 	}
 
-	bucket, err := NewBucket(dist)
+	bucket, err := newBucket(dist)
 	if err != nil {
 		return err
 	}
-	numBuckets := bucket.Amount()
+	numBuckets := bucket.amount()
 
 	var i int32
 	var count int64
@@ -694,7 +497,7 @@ func addDistribution(dist *distributionpb.Distribution, tags map[string]string, 
 		if i == numBuckets-1 {
 			tags["lt"] = "+Inf"
 		} else {
-			upperBound := bucket.UpperBound(i)
+			upperBound := bucket.upperBound(i)
 			tags["lt"] = strconv.FormatFloat(upperBound, 'f', -1, 64)
 		}
 
@@ -709,9 +512,192 @@ func addDistribution(dist *distributionpb.Distribution, tags map[string]string, 
 	return nil
 }
 
+// Add adds a field key and value to the series.
+func (g *lockedSeriesGrouper) Add(measurement string, tags map[string]string, tm time.Time, field string, fieldValue interface{}) {
+	g.Lock()
+	defer g.Unlock()
+	g.SeriesGrouper.Add(measurement, tags, tm, field, fieldValue)
+}
+
+// listMetricDescriptors implements metricClient interface
+func (smc *stackdriverMetricClient) listMetricDescriptors(ctx context.Context,
+	req *monitoringpb.ListMetricDescriptorsRequest,
+) (<-chan *metricpb.MetricDescriptor, error) {
+	mdChan := make(chan *metricpb.MetricDescriptor, 1000)
+
+	go func() {
+		smc.log.Debugf("List metric descriptor request filter: %s", req.Filter)
+		defer close(mdChan)
+
+		// Iterate over metric descriptors and send them to buffered channel
+		mdResp := smc.conn.ListMetricDescriptors(ctx, req)
+		smc.listMetricDescriptorsCalls.Incr(1)
+		for {
+			mdDesc, mdErr := mdResp.Next()
+			if mdErr != nil {
+				if !errors.Is(mdErr, iterator.Done) {
+					smc.log.Errorf("Failed iterating metric descriptor responses: %q: %v", req.String(), mdErr)
+				}
+				break
+			}
+			mdChan <- mdDesc
+		}
+	}()
+
+	return mdChan, nil
+}
+
+// listTimeSeries implements metricClient interface
+func (smc *stackdriverMetricClient) listTimeSeries(
+	ctx context.Context,
+	req *monitoringpb.ListTimeSeriesRequest,
+) (<-chan *monitoringpb.TimeSeries, error) {
+	tsChan := make(chan *monitoringpb.TimeSeries, 1000)
+
+	go func() {
+		smc.log.Debugf("List time series request filter: %s", req.Filter)
+		defer close(tsChan)
+
+		// Iterate over timeseries and send them to buffered channel
+		tsResp := smc.conn.ListTimeSeries(ctx, req)
+		smc.listTimeSeriesCalls.Incr(1)
+		for {
+			tsDesc, tsErr := tsResp.Next()
+			if tsErr != nil {
+				if !errors.Is(tsErr, iterator.Done) {
+					smc.log.Errorf("Failed iterating time series responses: %q: %v", req.String(), tsErr)
+				}
+				break
+			}
+			tsChan <- tsDesc
+		}
+	}()
+
+	return tsChan, nil
+}
+
+// close implements metricClient interface
+func (smc *stackdriverMetricClient) close() error {
+	return smc.conn.Close()
+}
+
+// Change this configuration to query an aggregate by specifying an "aligner".
+// In GCP monitoring, "aligning" is aggregation performed *within* a time
+// series, to distill a pile of data points down to a single data point for
+// some given time period (here, we specify 60s as our time period). This is
+// especially useful for scraping GCP "distribution" metric types, whose raw
+// data amounts to a ~60 bucket histogram, which is fairly hard to query and
+// visualize in the TICK stack.
+func (t *timeSeriesConf) initForAggregate(alignerStr string) {
+	// Check if alignerStr is valid
+	alignerInt, isValid := monitoringpb.Aggregation_Aligner_value[alignerStr]
+	if !isValid {
+		alignerStr = monitoringpb.Aggregation_Aligner_name[alignerInt]
+	}
+	aligner := monitoringpb.Aggregation_Aligner(alignerInt)
+	agg := &monitoringpb.Aggregation{
+		AlignmentPeriod:  &durationpb.Duration{Seconds: 60},
+		PerSeriesAligner: aligner,
+	}
+	t.fieldKey = t.fieldKey + "_" + strings.ToLower(alignerStr)
+	t.listTimeSeriesRequest.Aggregation = agg
+}
+
+// isValid checks timeseriesconf cache validity
+func (c *timeSeriesConfCache) isValid() bool {
+	return c.TimeSeriesConfs != nil && time.Since(c.Generated) < c.TTL
+}
+
+func includeExcludeHelper(key string, includes, excludes []string) bool {
+	if len(includes) > 0 {
+		for _, includeStr := range includes {
+			if strings.HasPrefix(key, includeStr) {
+				return true
+			}
+		}
+		return false
+	}
+	if len(excludes) > 0 {
+		for _, excludeStr := range excludes {
+			if strings.HasPrefix(key, excludeStr) {
+				return false
+			}
+		}
+		return true
+	}
+	return true
+}
+
+type buckets interface {
+	amount() int32
+	upperBound(i int32) float64
+}
+
+type linearBuckets struct {
+	*distributionpb.Distribution_BucketOptions_Linear
+}
+
+func (l *linearBuckets) amount() int32 {
+	return l.NumFiniteBuckets + 2
+}
+
+func (l *linearBuckets) upperBound(i int32) float64 {
+	return l.Offset + (l.Width * float64(i))
+}
+
+type exponentialBuckets struct {
+	*distributionpb.Distribution_BucketOptions_Exponential
+}
+
+func (e *exponentialBuckets) amount() int32 {
+	return e.NumFiniteBuckets + 2
+}
+
+func (e *exponentialBuckets) upperBound(i int32) float64 {
+	width := math.Pow(e.GrowthFactor, float64(i))
+	return e.Scale * width
+}
+
+type explicitBuckets struct {
+	*distributionpb.Distribution_BucketOptions_Explicit
+}
+
+func (e *explicitBuckets) amount() int32 {
+	return int32(len(e.Bounds)) + 1
+}
+
+func (e *explicitBuckets) upperBound(i int32) float64 {
+	return e.Bounds[i]
+}
+
+func newBucket(dist *distributionpb.Distribution) (buckets, error) {
+	linBuckets := dist.BucketOptions.GetLinearBuckets()
+	if linBuckets != nil {
+		var l linearBuckets
+		l.Distribution_BucketOptions_Linear = linBuckets
+		return &l, nil
+	}
+
+	expoBuckets := dist.BucketOptions.GetExponentialBuckets()
+	if expoBuckets != nil {
+		var e exponentialBuckets
+		e.Distribution_BucketOptions_Exponential = expoBuckets
+		return &e, nil
+	}
+
+	explBuckets := dist.BucketOptions.GetExplicitBuckets()
+	if explBuckets != nil {
+		var e explicitBuckets
+		e.Distribution_BucketOptions_Explicit = explBuckets
+		return &e, nil
+	}
+
+	return nil, errors.New("no buckets available")
+}
+
 func init() {
 	inputs.Add("stackdriver", func() telegraf.Input {
-		return &stackdriver{
+		return &Stackdriver{
 			CacheTTL:                     defaultCacheTTL,
 			RateLimit:                    defaultRateLimit,
 			Delay:                        defaultDelay,

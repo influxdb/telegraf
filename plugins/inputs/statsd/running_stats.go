@@ -9,57 +9,57 @@ import (
 const defaultPercentileLimit = 1000
 const defaultMedianLimit = 1000
 
-// RunningStats calculates a running mean, variance, standard deviation,
+// runningStats calculates a running mean, variance, standard deviation,
 // lower bound, upper bound, count, and can calculate estimated percentiles.
 // It is based on the incremental algorithm described here:
 //
 //	https://en.wikipedia.org/wiki/Algorithms_for_calculating_variance
-type RunningStats struct {
+type runningStats struct {
 	k   float64
 	n   int64
 	ex  float64
 	ex2 float64
 
 	// Array used to calculate estimated percentiles
-	// We will store a maximum of PercLimit values, at which point we will start
+	// We will store a maximum of percLimit values, at which point we will start
 	// randomly replacing old values, hence it is an estimated percentile.
 	perc      []float64
-	PercLimit int
+	percLimit int
 
-	sum float64
+	totalSum float64
 
-	lower float64
-	upper float64
+	lowerBound float64
+	upperBound float64
 
 	// cache if we have sorted the list so that we never re-sort a sorted list,
 	// which can have very bad performance.
-	SortedPerc bool
+	sortedPerc bool
 
 	// Array used to calculate estimated median values
-	// We will store a maximum of MedLimit values, at which point we will start
+	// We will store a maximum of medLimit values, at which point we will start
 	// slicing old values
 	med            []float64
-	MedLimit       int
-	MedInsertIndex int
+	medLimit       int
+	medInsertIndex int
 }
 
-func (rs *RunningStats) AddValue(v float64) {
+func (rs *runningStats) addValue(v float64) {
 	// Whenever a value is added, the list is no longer sorted.
-	rs.SortedPerc = false
+	rs.sortedPerc = false
 
 	if rs.n == 0 {
 		rs.k = v
-		rs.upper = v
-		rs.lower = v
-		if rs.PercLimit == 0 {
-			rs.PercLimit = defaultPercentileLimit
+		rs.upperBound = v
+		rs.lowerBound = v
+		if rs.percLimit == 0 {
+			rs.percLimit = defaultPercentileLimit
 		}
-		if rs.MedLimit == 0 {
-			rs.MedLimit = defaultMedianLimit
-			rs.MedInsertIndex = 0
+		if rs.medLimit == 0 {
+			rs.medLimit = defaultMedianLimit
+			rs.medInsertIndex = 0
 		}
-		rs.perc = make([]float64, 0, rs.PercLimit)
-		rs.med = make([]float64, 0, rs.MedLimit)
+		rs.perc = make([]float64, 0, rs.percLimit)
+		rs.med = make([]float64, 0, rs.medLimit)
 	}
 
 	// These are used for the running mean and variance
@@ -68,36 +68,36 @@ func (rs *RunningStats) AddValue(v float64) {
 	rs.ex2 += (v - rs.k) * (v - rs.k)
 
 	// add to running sum
-	rs.sum += v
+	rs.totalSum += v
 
 	// track upper and lower bounds
-	if v > rs.upper {
-		rs.upper = v
-	} else if v < rs.lower {
-		rs.lower = v
+	if v > rs.upperBound {
+		rs.upperBound = v
+	} else if v < rs.lowerBound {
+		rs.lowerBound = v
 	}
 
-	if len(rs.perc) < rs.PercLimit {
+	if len(rs.perc) < rs.percLimit {
 		rs.perc = append(rs.perc, v)
 	} else {
 		// Reached limit, choose random index to overwrite in the percentile array
 		rs.perc[rand.Intn(len(rs.perc))] = v //nolint:gosec // G404: not security critical
 	}
 
-	if len(rs.med) < rs.MedLimit {
+	if len(rs.med) < rs.medLimit {
 		rs.med = append(rs.med, v)
 	} else {
 		// Reached limit, start over
-		rs.med[rs.MedInsertIndex] = v
+		rs.med[rs.medInsertIndex] = v
 	}
-	rs.MedInsertIndex = (rs.MedInsertIndex + 1) % rs.MedLimit
+	rs.medInsertIndex = (rs.medInsertIndex + 1) % rs.medLimit
 }
 
-func (rs *RunningStats) Mean() float64 {
+func (rs *runningStats) mean() float64 {
 	return rs.k + rs.ex/float64(rs.n)
 }
 
-func (rs *RunningStats) Median() float64 {
+func (rs *runningStats) median() float64 {
 	// Need to sort for median, but keep temporal order
 	var values []float64
 	values = append(values, rs.med...)
@@ -111,38 +111,38 @@ func (rs *RunningStats) Median() float64 {
 	return values[count/2]
 }
 
-func (rs *RunningStats) Variance() float64 {
+func (rs *runningStats) variance() float64 {
 	return (rs.ex2 - (rs.ex*rs.ex)/float64(rs.n)) / float64(rs.n)
 }
 
-func (rs *RunningStats) Stddev() float64 {
-	return math.Sqrt(rs.Variance())
+func (rs *runningStats) stddev() float64 {
+	return math.Sqrt(rs.variance())
 }
 
-func (rs *RunningStats) Sum() float64 {
-	return rs.sum
+func (rs *runningStats) sum() float64 {
+	return rs.totalSum
 }
 
-func (rs *RunningStats) Upper() float64 {
-	return rs.upper
+func (rs *runningStats) upper() float64 {
+	return rs.upperBound
 }
 
-func (rs *RunningStats) Lower() float64 {
-	return rs.lower
+func (rs *runningStats) lower() float64 {
+	return rs.lowerBound
 }
 
-func (rs *RunningStats) Count() int64 {
+func (rs *runningStats) count() int64 {
 	return rs.n
 }
 
-func (rs *RunningStats) Percentile(n float64) float64 {
+func (rs *runningStats) percentile(n float64) float64 {
 	if n > 100 {
 		n = 100
 	}
 
-	if !rs.SortedPerc {
+	if !rs.sortedPerc {
 		sort.Float64s(rs.perc)
-		rs.SortedPerc = true
+		rs.sortedPerc = true
 	}
 
 	i := float64(len(rs.perc)) * n / float64(100)

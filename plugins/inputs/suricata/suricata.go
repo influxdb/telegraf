@@ -23,13 +23,12 @@ import (
 var sampleConfig string
 
 const (
-	// InBufSize is the input buffer size for JSON received via socket.
+	// inBufSize is the input buffer size for JSON received via socket.
 	// Set to 10MB, as depending on the number of threads the output might be
 	// large.
-	InBufSize = 10 * 1024 * 1024
+	inBufSize = 10 * 1024 * 1024
 )
 
-// Suricata is a Telegraf input plugin for Suricata runtime statistics.
 type Suricata struct {
 	Source    string `toml:"source"`
 	Delimiter string `toml:"delimiter"`
@@ -68,8 +67,7 @@ func (s *Suricata) Init() error {
 	return nil
 }
 
-// Start initiates background collection of JSON data from the socket
-// provided to Suricata.
+// Start initiates background collection of JSON data from the socket provided to Suricata.
 func (s *Suricata) Start(acc telegraf.Accumulator) error {
 	var err error
 	s.inputListener, err = net.ListenUnix("unix", &net.UnixAddr{
@@ -90,8 +88,13 @@ func (s *Suricata) Start(acc telegraf.Accumulator) error {
 	return nil
 }
 
-// Stop causes the plugin to cease collecting JSON data from the socket provided
-// to Suricata.
+// Gather measures and submits one full set of telemetry to Telegraf.
+// Not used here, submission is completely input-driven.
+func (*Suricata) Gather(telegraf.Accumulator) error {
+	return nil
+}
+
+// Stop causes the plugin to cease collecting JSON data from the socket provided to Suricata.
 func (s *Suricata) Stop() {
 	s.inputListener.Close()
 	if s.cancel != nil {
@@ -101,7 +104,7 @@ func (s *Suricata) Stop() {
 }
 
 func (s *Suricata) readInput(ctx context.Context, acc telegraf.Accumulator, conn net.Conn) error {
-	reader := bufio.NewReaderSize(conn, InBufSize)
+	reader := bufio.NewReaderSize(conn, inBufSize)
 	for {
 		select {
 		case <-ctx.Done():
@@ -339,12 +342,6 @@ func (s *Suricata) parse(acc telegraf.Accumulator, sjson []byte) error {
 		return errors.New("input does not contain 'stats' or 'alert' object")
 	}
 
-	return nil
-}
-
-// Gather measures and submits one full set of telemetry to Telegraf.
-// Not used here, submission is completely input-driven.
-func (*Suricata) Gather(telegraf.Accumulator) error {
 	return nil
 }
 

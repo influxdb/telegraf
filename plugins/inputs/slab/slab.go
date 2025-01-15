@@ -24,18 +24,18 @@ import (
 //go:embed sample.conf
 var sampleConfig string
 
-type SlabStats struct {
+type Slab struct {
 	Log telegraf.Logger `toml:"-"`
 
 	statFile string
 	useSudo  bool
 }
 
-func (*SlabStats) SampleConfig() string {
+func (*Slab) SampleConfig() string {
 	return sampleConfig
 }
 
-func (ss *SlabStats) Gather(acc telegraf.Accumulator) error {
+func (ss *Slab) Gather(acc telegraf.Accumulator) error {
 	fields, err := ss.getSlabStats()
 	if err != nil {
 		return err
@@ -45,7 +45,7 @@ func (ss *SlabStats) Gather(acc telegraf.Accumulator) error {
 	return nil
 }
 
-func (ss *SlabStats) getSlabStats() (map[string]interface{}, error) {
+func (ss *Slab) getSlabStats() (map[string]interface{}, error) {
 	out, err := ss.runCmd("/bin/cat", []string{ss.statFile})
 	if err != nil {
 		return nil, err
@@ -85,7 +85,7 @@ func (ss *SlabStats) getSlabStats() (map[string]interface{}, error) {
 	return fields, nil
 }
 
-func (ss *SlabStats) runCmd(cmd string, args []string) ([]byte, error) {
+func (ss *Slab) runCmd(cmd string, args []string) ([]byte, error) {
 	execCmd := exec.Command(cmd, args...)
 	if os.Geteuid() != 0 && ss.useSudo {
 		execCmd = exec.Command("sudo", append([]string{"-n", cmd}, args...)...)
@@ -105,7 +105,7 @@ func normalizeName(name string) string {
 
 func init() {
 	inputs.Add("slab", func() telegraf.Input {
-		return &SlabStats{
+		return &Slab{
 			statFile: path.Join(internal.GetProcPath(), "slabinfo"),
 			useSudo:  true,
 		}

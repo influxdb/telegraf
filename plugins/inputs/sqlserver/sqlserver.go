@@ -23,7 +23,25 @@ import (
 //go:embed sample.conf
 var sampleConfig string
 
-// SQLServer struct
+const (
+	defaultServer = "Server=.;app name=telegraf;log=1;"
+
+	typeAzureSQLDB                 = "AzureSQLDB"
+	typeAzureSQLManagedInstance    = "AzureSQLManagedInstance"
+	typeAzureSQLPool               = "AzureSQLPool"
+	typeSQLServer                  = "SQLServer"
+	typeAzureArcSQLManagedInstance = "AzureArcSQLManagedInstance"
+
+	healthMetricName              = "sqlserver_telegraf_health"
+	healthMetricInstanceTag       = "sql_instance"
+	healthMetricDatabaseTag       = "database_name"
+	healthMetricAttemptedQueries  = "attempted_queries"
+	healthMetricSuccessfulQueries = "successful_queries"
+	healthMetricDatabaseType      = "database_type"
+
+	sqlAzureResourceID = "https://database.windows.net/"
+)
+
 type SQLServer struct {
 	Servers      []*config.Secret `toml:"servers"`
 	QueryTimeout config.Duration  `toml:"query_timeout"`
@@ -38,213 +56,38 @@ type SQLServer struct {
 	Log          telegraf.Logger  `toml:"-"`
 
 	pools       []*sql.DB
-	queries     MapQuery
+	queries     mapQuery
 	adalToken   *adal.Token
 	muCacheLock sync.RWMutex
 }
 
-// Query struct
-type Query struct {
+type query struct {
 	ScriptName     string
 	Script         string
 	ResultByRow    bool
 	OrderedColumns []string
 }
 
-// MapQuery type
-type MapQuery map[string]Query
+type mapQuery map[string]query
 
-// HealthMetric struct tracking the number of attempted vs successful connections for each connection string
-type HealthMetric struct {
-	AttemptedQueries  int
-	SuccessfulQueries int
+// healthMetric struct tracking the number of attempted vs successful connections for each connection string
+type healthMetric struct {
+	attemptedQueries  int
+	successfulQueries int
 }
-
-const defaultServer = "Server=.;app name=telegraf;log=1;"
-
-const (
-	typeAzureSQLDB                 = "AzureSQLDB"
-	typeAzureSQLManagedInstance    = "AzureSQLManagedInstance"
-	typeAzureSQLPool               = "AzureSQLPool"
-	typeSQLServer                  = "SQLServer"
-	typeAzureArcSQLManagedInstance = "AzureArcSQLManagedInstance"
-)
-
-const (
-	healthMetricName              = "sqlserver_telegraf_health"
-	healthMetricInstanceTag       = "sql_instance"
-	healthMetricDatabaseTag       = "database_name"
-	healthMetricAttemptedQueries  = "attempted_queries"
-	healthMetricSuccessfulQueries = "successful_queries"
-	healthMetricDatabaseType      = "database_type"
-)
-
-// resource id for Azure SQL Database
-const sqlAzureResourceID = "https://database.windows.net/"
 
 type scanner interface {
 	Scan(dest ...interface{}) error
-}
-
-func (s *SQLServer) initQueries() error {
-	s.queries = make(MapQuery)
-	queries := s.queries
-	s.Log.Infof("Config: database_type: %s , query_version:%d , azuredb: %t", s.DatabaseType, s.QueryVersion, s.AzureDB)
-
-	// To prevent query definition conflicts
-	// Constant definitions for type "AzureSQLDB" start with sqlAzureDB
-	// Constant definitions for type "AzureSQLManagedInstance" start with sqlAzureMI
-	// Constant definitions for type "AzureSQLPool" start with sqlAzurePool
-	// Constant definitions for type "AzureArcSQLManagedInstance" start with sqlAzureArcMI
-	// Constant definitions for type "SQLServer" start with sqlServer
-	if s.DatabaseType == typeAzureSQLDB {
-		queries["AzureSQLDBResourceStats"] = Query{ScriptName: "AzureSQLDBResourceStats", Script: sqlAzureDBResourceStats, ResultByRow: false}
-		queries["AzureSQLDBResourceGovernance"] = Query{ScriptName: "AzureSQLDBResourceGovernance", Script: sqlAzureDBResourceGovernance, ResultByRow: false}
-		queries["AzureSQLDBWaitStats"] = Query{ScriptName: "AzureSQLDBWaitStats", Script: sqlAzureDBWaitStats, ResultByRow: false}
-		queries["AzureSQLDBDatabaseIO"] = Query{ScriptName: "AzureSQLDBDatabaseIO", Script: sqlAzureDBDatabaseIO, ResultByRow: false}
-		queries["AzureSQLDBServerProperties"] = Query{ScriptName: "AzureSQLDBServerProperties", Script: sqlAzureDBProperties, ResultByRow: false}
-		queries["AzureSQLDBOsWaitstats"] = Query{ScriptName: "AzureSQLOsWaitstats", Script: sqlAzureDBOsWaitStats, ResultByRow: false}
-		queries["AzureSQLDBMemoryClerks"] = Query{ScriptName: "AzureSQLDBMemoryClerks", Script: sqlAzureDBMemoryClerks, ResultByRow: false}
-		queries["AzureSQLDBPerformanceCounters"] = Query{ScriptName: "AzureSQLDBPerformanceCounters", Script: sqlAzureDBPerformanceCounters, ResultByRow: false}
-		queries["AzureSQLDBRequests"] = Query{ScriptName: "AzureSQLDBRequests", Script: sqlAzureDBRequests, ResultByRow: false}
-		queries["AzureSQLDBSchedulers"] = Query{ScriptName: "AzureSQLDBSchedulers", Script: sqlAzureDBSchedulers, ResultByRow: false}
-	} else if s.DatabaseType == typeAzureSQLManagedInstance {
-		queries["AzureSQLMIResourceStats"] = Query{ScriptName: "AzureSQLMIResourceStats", Script: sqlAzureMIResourceStats, ResultByRow: false}
-		queries["AzureSQLMIResourceGovernance"] = Query{ScriptName: "AzureSQLMIResourceGovernance", Script: sqlAzureMIResourceGovernance, ResultByRow: false}
-		queries["AzureSQLMIDatabaseIO"] = Query{ScriptName: "AzureSQLMIDatabaseIO", Script: sqlAzureMIDatabaseIO, ResultByRow: false}
-		queries["AzureSQLMIServerProperties"] = Query{ScriptName: "AzureSQLMIServerProperties", Script: sqlAzureMIProperties, ResultByRow: false}
-		queries["AzureSQLMIOsWaitstats"] = Query{ScriptName: "AzureSQLMIOsWaitstats", Script: sqlAzureMIOsWaitStats, ResultByRow: false}
-		queries["AzureSQLMIMemoryClerks"] = Query{ScriptName: "AzureSQLMIMemoryClerks", Script: sqlAzureMIMemoryClerks, ResultByRow: false}
-		queries["AzureSQLMIPerformanceCounters"] = Query{ScriptName: "AzureSQLMIPerformanceCounters", Script: sqlAzureMIPerformanceCounters, ResultByRow: false}
-		queries["AzureSQLMIRequests"] = Query{ScriptName: "AzureSQLMIRequests", Script: sqlAzureMIRequests, ResultByRow: false}
-		queries["AzureSQLMISchedulers"] = Query{ScriptName: "AzureSQLMISchedulers", Script: sqlAzureMISchedulers, ResultByRow: false}
-	} else if s.DatabaseType == typeAzureSQLPool {
-		queries["AzureSQLPoolResourceStats"] = Query{ScriptName: "AzureSQLPoolResourceStats", Script: sqlAzurePoolResourceStats, ResultByRow: false}
-		queries["AzureSQLPoolResourceGovernance"] =
-			Query{ScriptName: "AzureSQLPoolResourceGovernance", Script: sqlAzurePoolResourceGovernance, ResultByRow: false}
-		queries["AzureSQLPoolDatabaseIO"] = Query{ScriptName: "AzureSQLPoolDatabaseIO", Script: sqlAzurePoolDatabaseIO, ResultByRow: false}
-		queries["AzureSQLPoolOsWaitStats"] = Query{ScriptName: "AzureSQLPoolOsWaitStats", Script: sqlAzurePoolOsWaitStats, ResultByRow: false}
-		queries["AzureSQLPoolMemoryClerks"] = Query{ScriptName: "AzureSQLPoolMemoryClerks", Script: sqlAzurePoolMemoryClerks, ResultByRow: false}
-		queries["AzureSQLPoolPerformanceCounters"] =
-			Query{ScriptName: "AzureSQLPoolPerformanceCounters", Script: sqlAzurePoolPerformanceCounters, ResultByRow: false}
-		queries["AzureSQLPoolSchedulers"] = Query{ScriptName: "AzureSQLPoolSchedulers", Script: sqlAzurePoolSchedulers, ResultByRow: false}
-	} else if s.DatabaseType == typeAzureArcSQLManagedInstance {
-		queries["AzureArcSQLMIDatabaseIO"] = Query{ScriptName: "AzureArcSQLMIDatabaseIO", Script: sqlAzureArcMIDatabaseIO, ResultByRow: false}
-		queries["AzureArcSQLMIServerProperties"] = Query{ScriptName: "AzureArcSQLMIServerProperties", Script: sqlAzureArcMIProperties, ResultByRow: false}
-		queries["AzureArcSQLMIOsWaitstats"] = Query{ScriptName: "AzureArcSQLMIOsWaitstats", Script: sqlAzureArcMIOsWaitStats, ResultByRow: false}
-		queries["AzureArcSQLMIMemoryClerks"] = Query{ScriptName: "AzureArcSQLMIMemoryClerks", Script: sqlAzureArcMIMemoryClerks, ResultByRow: false}
-		queries["AzureArcSQLMIPerformanceCounters"] =
-			Query{ScriptName: "AzureArcSQLMIPerformanceCounters", Script: sqlAzureArcMIPerformanceCounters, ResultByRow: false}
-		queries["AzureArcSQLMIRequests"] = Query{ScriptName: "AzureArcSQLMIRequests", Script: sqlAzureArcMIRequests, ResultByRow: false}
-		queries["AzureArcSQLMISchedulers"] = Query{ScriptName: "AzureArcSQLMISchedulers", Script: sqlAzureArcMISchedulers, ResultByRow: false}
-	} else if s.DatabaseType == typeSQLServer { // These are still V2 queries and have not been refactored yet.
-		queries["SQLServerPerformanceCounters"] = Query{ScriptName: "SQLServerPerformanceCounters", Script: sqlServerPerformanceCounters, ResultByRow: false}
-		queries["SQLServerWaitStatsCategorized"] = Query{ScriptName: "SQLServerWaitStatsCategorized", Script: sqlServerWaitStatsCategorized, ResultByRow: false}
-		queries["SQLServerDatabaseIO"] = Query{ScriptName: "SQLServerDatabaseIO", Script: sqlServerDatabaseIO, ResultByRow: false}
-		queries["SQLServerProperties"] = Query{ScriptName: "SQLServerProperties", Script: sqlServerProperties, ResultByRow: false}
-		queries["SQLServerMemoryClerks"] = Query{ScriptName: "SQLServerMemoryClerks", Script: sqlServerMemoryClerks, ResultByRow: false}
-		queries["SQLServerSchedulers"] = Query{ScriptName: "SQLServerSchedulers", Script: sqlServerSchedulers, ResultByRow: false}
-		queries["SQLServerRequests"] = Query{ScriptName: "SQLServerRequests", Script: sqlServerRequests, ResultByRow: false}
-		queries["SQLServerVolumeSpace"] = Query{ScriptName: "SQLServerVolumeSpace", Script: sqlServerVolumeSpace, ResultByRow: false}
-		queries["SQLServerCpu"] = Query{ScriptName: "SQLServerCpu", Script: sqlServerRingBufferCPU, ResultByRow: false}
-		queries["SQLServerAvailabilityReplicaStates"] =
-			Query{ScriptName: "SQLServerAvailabilityReplicaStates", Script: sqlServerAvailabilityReplicaStates, ResultByRow: false}
-		queries["SQLServerDatabaseReplicaStates"] =
-			Query{ScriptName: "SQLServerDatabaseReplicaStates", Script: sqlServerDatabaseReplicaStates, ResultByRow: false}
-		queries["SQLServerRecentBackups"] = Query{ScriptName: "SQLServerRecentBackups", Script: sqlServerRecentBackups, ResultByRow: false}
-		queries["SQLServerPersistentVersionStore"] =
-			Query{ScriptName: "SQLServerPersistentVersionStore", Script: sqlServerPersistentVersionStore, ResultByRow: false}
-	} else {
-		// If this is an AzureDB instance, grab some extra metrics
-		if s.AzureDB {
-			queries["AzureDBResourceStats"] = Query{ScriptName: "AzureDBPerformanceCounters", Script: sqlAzureDBResourceStats, ResultByRow: false}
-			queries["AzureDBResourceGovernance"] = Query{ScriptName: "AzureDBPerformanceCounters", Script: sqlAzureDBResourceGovernance, ResultByRow: false}
-		}
-		// Decide if we want to run version 1 or version 2 queries
-		if s.QueryVersion == 2 {
-			queries["PerformanceCounters"] = Query{ScriptName: "PerformanceCounters", Script: sqlPerformanceCountersV2, ResultByRow: true}
-			queries["WaitStatsCategorized"] = Query{ScriptName: "WaitStatsCategorized", Script: sqlWaitStatsCategorizedV2, ResultByRow: false}
-			queries["DatabaseIO"] = Query{ScriptName: "DatabaseIO", Script: sqlDatabaseIOV2, ResultByRow: false}
-			queries["ServerProperties"] = Query{ScriptName: "ServerProperties", Script: sqlServerPropertiesV2, ResultByRow: false}
-			queries["MemoryClerk"] = Query{ScriptName: "MemoryClerk", Script: sqlMemoryClerkV2, ResultByRow: false}
-			queries["Schedulers"] = Query{ScriptName: "Schedulers", Script: sqlServerSchedulersV2, ResultByRow: false}
-			queries["SqlRequests"] = Query{ScriptName: "SqlRequests", Script: sqlServerRequestsV2, ResultByRow: false}
-			queries["VolumeSpace"] = Query{ScriptName: "VolumeSpace", Script: sqlServerVolumeSpaceV2, ResultByRow: false}
-			queries["Cpu"] = Query{ScriptName: "Cpu", Script: sqlServerCPUV2, ResultByRow: false}
-		} else {
-			queries["PerformanceCounters"] = Query{ScriptName: "PerformanceCounters", Script: sqlPerformanceCounters, ResultByRow: true}
-			queries["WaitStatsCategorized"] = Query{ScriptName: "WaitStatsCategorized", Script: sqlWaitStatsCategorized, ResultByRow: false}
-			queries["CPUHistory"] = Query{ScriptName: "CPUHistory", Script: sqlCPUHistory, ResultByRow: false}
-			queries["DatabaseIO"] = Query{ScriptName: "DatabaseIO", Script: sqlDatabaseIO, ResultByRow: false}
-			queries["DatabaseSize"] = Query{ScriptName: "DatabaseSize", Script: sqlDatabaseSize, ResultByRow: false}
-			queries["DatabaseStats"] = Query{ScriptName: "DatabaseStats", Script: sqlDatabaseStats, ResultByRow: false}
-			queries["DatabaseProperties"] = Query{ScriptName: "DatabaseProperties", Script: sqlDatabaseProperties, ResultByRow: false}
-			queries["MemoryClerk"] = Query{ScriptName: "MemoryClerk", Script: sqlMemoryClerk, ResultByRow: false}
-			queries["VolumeSpace"] = Query{ScriptName: "VolumeSpace", Script: sqlVolumeSpace, ResultByRow: false}
-			queries["PerformanceMetrics"] = Query{ScriptName: "PerformanceMetrics", Script: sqlPerformanceMetrics, ResultByRow: false}
-		}
-	}
-
-	filterQueries, err := filter.NewIncludeExcludeFilter(s.IncludeQuery, s.ExcludeQuery)
-	if err != nil {
-		return err
-	}
-
-	for query := range queries {
-		if !filterQueries.Match(query) {
-			delete(queries, query)
-		}
-	}
-
-	queryList := make([]string, 0, len(queries))
-	for query := range queries {
-		queryList = append(queryList, query)
-	}
-	s.Log.Infof("Config: Effective Queries: %#v\n", queryList)
-
-	return nil
 }
 
 func (*SQLServer) SampleConfig() string {
 	return sampleConfig
 }
 
-// Gather collect data from SQL Server
-func (s *SQLServer) Gather(acc telegraf.Accumulator) error {
-	var wg sync.WaitGroup
-	var mutex sync.Mutex
-	var healthMetrics = make(map[string]*HealthMetric)
-
-	for i, pool := range s.pools {
-		dnsSecret, err := s.Servers[i].Get()
-		if err != nil {
-			acc.AddError(err)
-			continue
-		}
-		dsn := dnsSecret.String()
-		dnsSecret.Destroy()
-
-		for _, query := range s.queries {
-			wg.Add(1)
-			go func(pool *sql.DB, query Query, dsn string) {
-				defer wg.Done()
-				queryError := s.gatherServer(pool, query, acc, dsn)
-
-				if s.HealthMetric {
-					mutex.Lock()
-					gatherHealth(healthMetrics, dsn, queryError)
-					mutex.Unlock()
-				}
-
-				acc.AddError(queryError)
-			}(pool, query, dsn)
-		}
-	}
-
-	wg.Wait()
-
-	if s.HealthMetric {
-		s.accHealth(healthMetrics, acc)
+func (s *SQLServer) Init() error {
+	if len(s.Servers) == 0 {
+		srv := config.NewSecret([]byte(defaultServer))
+		s.Servers = append(s.Servers, &srv)
 	}
 
 	return nil
@@ -321,6 +164,46 @@ func (s *SQLServer) Start(acc telegraf.Accumulator) error {
 	return nil
 }
 
+func (s *SQLServer) Gather(acc telegraf.Accumulator) error {
+	var wg sync.WaitGroup
+	var mutex sync.Mutex
+	var healthMetrics = make(map[string]*healthMetric)
+
+	for i, pool := range s.pools {
+		dnsSecret, err := s.Servers[i].Get()
+		if err != nil {
+			acc.AddError(err)
+			continue
+		}
+		dsn := dnsSecret.String()
+		dnsSecret.Destroy()
+
+		for _, q := range s.queries {
+			wg.Add(1)
+			go func(pool *sql.DB, q query, dsn string) {
+				defer wg.Done()
+				queryError := s.gatherServer(pool, q, acc, dsn)
+
+				if s.HealthMetric {
+					mutex.Lock()
+					gatherHealth(healthMetrics, dsn, queryError)
+					mutex.Unlock()
+				}
+
+				acc.AddError(queryError)
+			}(pool, q, dsn)
+		}
+	}
+
+	wg.Wait()
+
+	if s.HealthMetric {
+		s.accHealth(healthMetrics, acc)
+	}
+
+	return nil
+}
+
 // Stop cleanup server connection pools
 func (s *SQLServer) Stop() {
 	for _, pool := range s.pools {
@@ -328,7 +211,126 @@ func (s *SQLServer) Stop() {
 	}
 }
 
-func (s *SQLServer) gatherServer(pool *sql.DB, query Query, acc telegraf.Accumulator, connectionString string) error {
+func (s *SQLServer) initQueries() error {
+	s.queries = make(mapQuery)
+	queries := s.queries
+	s.Log.Infof("Config: database_type: %s , query_version:%d , azuredb: %t", s.DatabaseType, s.QueryVersion, s.AzureDB)
+
+	// To prevent query definition conflicts
+	// Constant definitions for type "AzureSQLDB" start with sqlAzureDB
+	// Constant definitions for type "AzureSQLManagedInstance" start with sqlAzureMI
+	// Constant definitions for type "AzureSQLPool" start with sqlAzurePool
+	// Constant definitions for type "AzureArcSQLManagedInstance" start with sqlAzureArcMI
+	// Constant definitions for type "SQLServer" start with sqlServer
+	if s.DatabaseType == typeAzureSQLDB {
+		queries["AzureSQLDBResourceStats"] = query{ScriptName: "AzureSQLDBResourceStats", Script: sqlAzureDBResourceStats, ResultByRow: false}
+		queries["AzureSQLDBResourceGovernance"] = query{ScriptName: "AzureSQLDBResourceGovernance", Script: sqlAzureDBResourceGovernance, ResultByRow: false}
+		queries["AzureSQLDBWaitStats"] = query{ScriptName: "AzureSQLDBWaitStats", Script: sqlAzureDBWaitStats, ResultByRow: false}
+		queries["AzureSQLDBDatabaseIO"] = query{ScriptName: "AzureSQLDBDatabaseIO", Script: sqlAzureDBDatabaseIO, ResultByRow: false}
+		queries["AzureSQLDBServerProperties"] = query{ScriptName: "AzureSQLDBServerProperties", Script: sqlAzureDBProperties, ResultByRow: false}
+		queries["AzureSQLDBOsWaitstats"] = query{ScriptName: "AzureSQLOsWaitstats", Script: sqlAzureDBOsWaitStats, ResultByRow: false}
+		queries["AzureSQLDBMemoryClerks"] = query{ScriptName: "AzureSQLDBMemoryClerks", Script: sqlAzureDBMemoryClerks, ResultByRow: false}
+		queries["AzureSQLDBPerformanceCounters"] = query{ScriptName: "AzureSQLDBPerformanceCounters", Script: sqlAzureDBPerformanceCounters, ResultByRow: false}
+		queries["AzureSQLDBRequests"] = query{ScriptName: "AzureSQLDBRequests", Script: sqlAzureDBRequests, ResultByRow: false}
+		queries["AzureSQLDBSchedulers"] = query{ScriptName: "AzureSQLDBSchedulers", Script: sqlAzureDBSchedulers, ResultByRow: false}
+	} else if s.DatabaseType == typeAzureSQLManagedInstance {
+		queries["AzureSQLMIResourceStats"] = query{ScriptName: "AzureSQLMIResourceStats", Script: sqlAzureMIResourceStats, ResultByRow: false}
+		queries["AzureSQLMIResourceGovernance"] = query{ScriptName: "AzureSQLMIResourceGovernance", Script: sqlAzureMIResourceGovernance, ResultByRow: false}
+		queries["AzureSQLMIDatabaseIO"] = query{ScriptName: "AzureSQLMIDatabaseIO", Script: sqlAzureMIDatabaseIO, ResultByRow: false}
+		queries["AzureSQLMIServerProperties"] = query{ScriptName: "AzureSQLMIServerProperties", Script: sqlAzureMIProperties, ResultByRow: false}
+		queries["AzureSQLMIOsWaitstats"] = query{ScriptName: "AzureSQLMIOsWaitstats", Script: sqlAzureMIOsWaitStats, ResultByRow: false}
+		queries["AzureSQLMIMemoryClerks"] = query{ScriptName: "AzureSQLMIMemoryClerks", Script: sqlAzureMIMemoryClerks, ResultByRow: false}
+		queries["AzureSQLMIPerformanceCounters"] = query{ScriptName: "AzureSQLMIPerformanceCounters", Script: sqlAzureMIPerformanceCounters, ResultByRow: false}
+		queries["AzureSQLMIRequests"] = query{ScriptName: "AzureSQLMIRequests", Script: sqlAzureMIRequests, ResultByRow: false}
+		queries["AzureSQLMISchedulers"] = query{ScriptName: "AzureSQLMISchedulers", Script: sqlAzureMISchedulers, ResultByRow: false}
+	} else if s.DatabaseType == typeAzureSQLPool {
+		queries["AzureSQLPoolResourceStats"] = query{ScriptName: "AzureSQLPoolResourceStats", Script: sqlAzurePoolResourceStats, ResultByRow: false}
+		queries["AzureSQLPoolResourceGovernance"] =
+			query{ScriptName: "AzureSQLPoolResourceGovernance", Script: sqlAzurePoolResourceGovernance, ResultByRow: false}
+		queries["AzureSQLPoolDatabaseIO"] = query{ScriptName: "AzureSQLPoolDatabaseIO", Script: sqlAzurePoolDatabaseIO, ResultByRow: false}
+		queries["AzureSQLPoolOsWaitStats"] = query{ScriptName: "AzureSQLPoolOsWaitStats", Script: sqlAzurePoolOsWaitStats, ResultByRow: false}
+		queries["AzureSQLPoolMemoryClerks"] = query{ScriptName: "AzureSQLPoolMemoryClerks", Script: sqlAzurePoolMemoryClerks, ResultByRow: false}
+		queries["AzureSQLPoolPerformanceCounters"] =
+			query{ScriptName: "AzureSQLPoolPerformanceCounters", Script: sqlAzurePoolPerformanceCounters, ResultByRow: false}
+		queries["AzureSQLPoolSchedulers"] = query{ScriptName: "AzureSQLPoolSchedulers", Script: sqlAzurePoolSchedulers, ResultByRow: false}
+	} else if s.DatabaseType == typeAzureArcSQLManagedInstance {
+		queries["AzureArcSQLMIDatabaseIO"] = query{ScriptName: "AzureArcSQLMIDatabaseIO", Script: sqlAzureArcMIDatabaseIO, ResultByRow: false}
+		queries["AzureArcSQLMIServerProperties"] = query{ScriptName: "AzureArcSQLMIServerProperties", Script: sqlAzureArcMIProperties, ResultByRow: false}
+		queries["AzureArcSQLMIOsWaitstats"] = query{ScriptName: "AzureArcSQLMIOsWaitstats", Script: sqlAzureArcMIOsWaitStats, ResultByRow: false}
+		queries["AzureArcSQLMIMemoryClerks"] = query{ScriptName: "AzureArcSQLMIMemoryClerks", Script: sqlAzureArcMIMemoryClerks, ResultByRow: false}
+		queries["AzureArcSQLMIPerformanceCounters"] =
+			query{ScriptName: "AzureArcSQLMIPerformanceCounters", Script: sqlAzureArcMIPerformanceCounters, ResultByRow: false}
+		queries["AzureArcSQLMIRequests"] = query{ScriptName: "AzureArcSQLMIRequests", Script: sqlAzureArcMIRequests, ResultByRow: false}
+		queries["AzureArcSQLMISchedulers"] = query{ScriptName: "AzureArcSQLMISchedulers", Script: sqlAzureArcMISchedulers, ResultByRow: false}
+	} else if s.DatabaseType == typeSQLServer { // These are still V2 queries and have not been refactored yet.
+		queries["SQLServerPerformanceCounters"] = query{ScriptName: "SQLServerPerformanceCounters", Script: sqlServerPerformanceCounters, ResultByRow: false}
+		queries["SQLServerWaitStatsCategorized"] = query{ScriptName: "SQLServerWaitStatsCategorized", Script: sqlServerWaitStatsCategorized, ResultByRow: false}
+		queries["SQLServerDatabaseIO"] = query{ScriptName: "SQLServerDatabaseIO", Script: sqlServerDatabaseIO, ResultByRow: false}
+		queries["SQLServerProperties"] = query{ScriptName: "SQLServerProperties", Script: sqlServerProperties, ResultByRow: false}
+		queries["SQLServerMemoryClerks"] = query{ScriptName: "SQLServerMemoryClerks", Script: sqlServerMemoryClerks, ResultByRow: false}
+		queries["SQLServerSchedulers"] = query{ScriptName: "SQLServerSchedulers", Script: sqlServerSchedulers, ResultByRow: false}
+		queries["SQLServerRequests"] = query{ScriptName: "SQLServerRequests", Script: sqlServerRequests, ResultByRow: false}
+		queries["SQLServerVolumeSpace"] = query{ScriptName: "SQLServerVolumeSpace", Script: sqlServerVolumeSpace, ResultByRow: false}
+		queries["SQLServerCpu"] = query{ScriptName: "SQLServerCpu", Script: sqlServerRingBufferCPU, ResultByRow: false}
+		queries["SQLServerAvailabilityReplicaStates"] =
+			query{ScriptName: "SQLServerAvailabilityReplicaStates", Script: sqlServerAvailabilityReplicaStates, ResultByRow: false}
+		queries["SQLServerDatabaseReplicaStates"] =
+			query{ScriptName: "SQLServerDatabaseReplicaStates", Script: sqlServerDatabaseReplicaStates, ResultByRow: false}
+		queries["SQLServerRecentBackups"] = query{ScriptName: "SQLServerRecentBackups", Script: sqlServerRecentBackups, ResultByRow: false}
+		queries["SQLServerPersistentVersionStore"] =
+			query{ScriptName: "SQLServerPersistentVersionStore", Script: sqlServerPersistentVersionStore, ResultByRow: false}
+	} else {
+		// If this is an AzureDB instance, grab some extra metrics
+		if s.AzureDB {
+			queries["AzureDBResourceStats"] = query{ScriptName: "AzureDBPerformanceCounters", Script: sqlAzureDBResourceStats, ResultByRow: false}
+			queries["AzureDBResourceGovernance"] = query{ScriptName: "AzureDBPerformanceCounters", Script: sqlAzureDBResourceGovernance, ResultByRow: false}
+		}
+		// Decide if we want to run version 1 or version 2 queries
+		if s.QueryVersion == 2 {
+			queries["PerformanceCounters"] = query{ScriptName: "PerformanceCounters", Script: sqlPerformanceCountersV2, ResultByRow: true}
+			queries["WaitStatsCategorized"] = query{ScriptName: "WaitStatsCategorized", Script: sqlWaitStatsCategorizedV2, ResultByRow: false}
+			queries["DatabaseIO"] = query{ScriptName: "DatabaseIO", Script: sqlDatabaseIOV2, ResultByRow: false}
+			queries["ServerProperties"] = query{ScriptName: "ServerProperties", Script: sqlServerPropertiesV2, ResultByRow: false}
+			queries["MemoryClerk"] = query{ScriptName: "MemoryClerk", Script: sqlMemoryClerkV2, ResultByRow: false}
+			queries["Schedulers"] = query{ScriptName: "Schedulers", Script: sqlServerSchedulersV2, ResultByRow: false}
+			queries["SqlRequests"] = query{ScriptName: "SqlRequests", Script: sqlServerRequestsV2, ResultByRow: false}
+			queries["VolumeSpace"] = query{ScriptName: "VolumeSpace", Script: sqlServerVolumeSpaceV2, ResultByRow: false}
+			queries["Cpu"] = query{ScriptName: "Cpu", Script: sqlServerCPUV2, ResultByRow: false}
+		} else {
+			queries["PerformanceCounters"] = query{ScriptName: "PerformanceCounters", Script: sqlPerformanceCounters, ResultByRow: true}
+			queries["WaitStatsCategorized"] = query{ScriptName: "WaitStatsCategorized", Script: sqlWaitStatsCategorized, ResultByRow: false}
+			queries["CPUHistory"] = query{ScriptName: "CPUHistory", Script: sqlCPUHistory, ResultByRow: false}
+			queries["DatabaseIO"] = query{ScriptName: "DatabaseIO", Script: sqlDatabaseIO, ResultByRow: false}
+			queries["DatabaseSize"] = query{ScriptName: "DatabaseSize", Script: sqlDatabaseSize, ResultByRow: false}
+			queries["DatabaseStats"] = query{ScriptName: "DatabaseStats", Script: sqlDatabaseStats, ResultByRow: false}
+			queries["DatabaseProperties"] = query{ScriptName: "DatabaseProperties", Script: sqlDatabaseProperties, ResultByRow: false}
+			queries["MemoryClerk"] = query{ScriptName: "MemoryClerk", Script: sqlMemoryClerk, ResultByRow: false}
+			queries["VolumeSpace"] = query{ScriptName: "VolumeSpace", Script: sqlVolumeSpace, ResultByRow: false}
+			queries["PerformanceMetrics"] = query{ScriptName: "PerformanceMetrics", Script: sqlPerformanceMetrics, ResultByRow: false}
+		}
+	}
+
+	filterQueries, err := filter.NewIncludeExcludeFilter(s.IncludeQuery, s.ExcludeQuery)
+	if err != nil {
+		return err
+	}
+
+	for query := range queries {
+		if !filterQueries.Match(query) {
+			delete(queries, query)
+		}
+	}
+
+	queryList := make([]string, 0, len(queries))
+	for query := range queries {
+		queryList = append(queryList, query)
+	}
+	s.Log.Infof("Config: Effective Queries: %#v\n", queryList)
+
+	return nil
+}
+
+func (s *SQLServer) gatherServer(pool *sql.DB, query query, acc telegraf.Accumulator, connectionString string) error {
 	// execute query
 	ctx := context.Background()
 	// Use the query timeout if any
@@ -368,7 +370,7 @@ func (s *SQLServer) gatherServer(pool *sql.DB, query Query, acc telegraf.Accumul
 	return rows.Err()
 }
 
-func (s *SQLServer) accRow(query Query, acc telegraf.Accumulator, row scanner) error {
+func (s *SQLServer) accRow(query query, acc telegraf.Accumulator, row scanner) error {
 	var fields = make(map[string]interface{})
 
 	// store the column name with its *interface{}
@@ -425,25 +427,25 @@ func (s *SQLServer) accRow(query Query, acc telegraf.Accumulator, row scanner) e
 }
 
 // gatherHealth stores info about any query errors in the healthMetrics map
-func gatherHealth(healthMetrics map[string]*HealthMetric, serv string, queryError error) {
+func gatherHealth(healthMetrics map[string]*healthMetric, serv string, queryError error) {
 	if healthMetrics[serv] == nil {
-		healthMetrics[serv] = &HealthMetric{}
+		healthMetrics[serv] = &healthMetric{}
 	}
 
-	healthMetrics[serv].AttemptedQueries++
+	healthMetrics[serv].attemptedQueries++
 	if queryError == nil {
-		healthMetrics[serv].SuccessfulQueries++
+		healthMetrics[serv].successfulQueries++
 	}
 }
 
 // accHealth accumulates the query health data contained within the healthMetrics map
-func (s *SQLServer) accHealth(healthMetrics map[string]*HealthMetric, acc telegraf.Accumulator) {
+func (s *SQLServer) accHealth(healthMetrics map[string]*healthMetric, acc telegraf.Accumulator) {
 	for connectionString, connectionStats := range healthMetrics {
 		sqlInstance, databaseName := getConnectionIdentifiers(connectionString)
 		tags := map[string]string{healthMetricInstanceTag: sqlInstance, healthMetricDatabaseTag: databaseName}
 		fields := map[string]interface{}{
-			healthMetricAttemptedQueries:  connectionStats.AttemptedQueries,
-			healthMetricSuccessfulQueries: connectionStats.SuccessfulQueries,
+			healthMetricAttemptedQueries:  connectionStats.attemptedQueries,
+			healthMetricSuccessfulQueries: connectionStats.successfulQueries,
 			healthMetricDatabaseType:      s.getDatabaseTypeToLog(),
 		}
 
@@ -462,15 +464,6 @@ func (s *SQLServer) getDatabaseTypeToLog() string {
 		logname += "-AzureDB"
 	}
 	return logname
-}
-
-func (s *SQLServer) Init() error {
-	if len(s.Servers) == 0 {
-		srv := config.NewSecret([]byte(defaultServer))
-		s.Servers = append(s.Servers, &srv)
-	}
-
-	return nil
 }
 
 // Get Token Provider by loading cached token or refreshed token

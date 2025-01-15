@@ -25,7 +25,7 @@ func TestSFlow(t *testing.T) {
 	require.NoError(t, err)
 	defer sflow.Stop()
 
-	client, err := net.Dial(sflow.Address().Network(), sflow.Address().String())
+	client, err := net.Dial(sflow.address().Network(), sflow.address().String())
 	require.NoError(t, err)
 
 	packetBytes, err := hex.DecodeString(
@@ -132,7 +132,7 @@ func BenchmarkSFlow(b *testing.B) {
 	require.NoError(b, err)
 	defer sflow.Stop()
 
-	client, err := net.Dial(sflow.Address().Network(), sflow.Address().String())
+	client, err := net.Dial(sflow.address().Network(), sflow.address().String())
 	require.NoError(b, err)
 
 	packetBytes, err := hex.DecodeString(

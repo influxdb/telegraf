@@ -304,7 +304,7 @@ func fakeExecCommand(command string, args ...string) *exec.Cmd {
 // For example, if you run:
 // GO_WANT_HELPER_PROCESS=1 go test -test.run=TestHelperProcess -- chrony tracking
 // it returns below mockData.
-func TestHelperProcess(_ *testing.T) {
+func TestHelperProcess(*testing.T) {
 	if os.Getenv("GO_WANT_HELPER_PROCESS") != "1" {
 		return
 	}

@@ -18,52 +18,52 @@ import (
 	"github.com/influxdata/telegraf/testutil"
 )
 
-type Call struct {
+type call struct {
 	name string
 	args []interface{}
 }
 
-type MockStackdriverClient struct {
-	ListMetricDescriptorsF func() (<-chan *metricpb.MetricDescriptor, error)
-	ListTimeSeriesF        func() (<-chan *monitoringpb.TimeSeries, error)
-	CloseF                 func() error
+type mockStackdriverClient struct {
+	listMetricDescriptorsF func() (<-chan *metricpb.MetricDescriptor, error)
+	listTimeSeriesF        func() (<-chan *monitoringpb.TimeSeries, error)
+	closeF                 func() error
 
-	calls []*Call
+	calls []*call
 	sync.Mutex
 }
 
-func (m *MockStackdriverClient) ListMetricDescriptors(
+func (m *mockStackdriverClient) listMetricDescriptors(
 	ctx context.Context,
 	req *monitoringpb.ListMetricDescriptorsRequest,
 ) (<-chan *metricpb.MetricDescriptor, error) {
-	call := &Call{name: "ListMetricDescriptors", args: []interface{}{ctx, req}}
+	call := &call{name: "listMetricDescriptors", args: []interface{}{ctx, req}}
 	m.Lock()
 	m.calls = append(m.calls, call)
 	m.Unlock()
-	return m.ListMetricDescriptorsF()
+	return m.listMetricDescriptorsF()
 }
 
-func (m *MockStackdriverClient) ListTimeSeries(
+func (m *mockStackdriverClient) listTimeSeries(
 	ctx context.Context,
 	req *monitoringpb.ListTimeSeriesRequest,
 ) (<-chan *monitoringpb.TimeSeries, error) {
-	call := &Call{name: "ListTimeSeries", args: []interface{}{ctx, req}}
+	call := &call{name: "listTimeSeries", args: []interface{}{ctx, req}}
 	m.Lock()
 	m.calls = append(m.calls, call)
 	m.Unlock()
-	return m.ListTimeSeriesF()
+	return m.listTimeSeriesF()
 }
 
-func (m *MockStackdriverClient) Close() error {
-	call := &Call{name: "Close", args: make([]interface{}, 0)}
+func (m *mockStackdriverClient) close() error {
+	call := &call{name: "close", args: make([]interface{}, 0)}
 	m.Lock()
 	m.calls = append(m.calls, call)
 	m.Unlock()
-	return m.CloseF()
+	return m.closeF()
 }
 
 func TestInitAndRegister(t *testing.T) {
-	expected := &stackdriver{
+	expected := &Stackdriver{
 		CacheTTL:                     defaultCacheTTL,
 		RateLimit:                    defaultRateLimit,
 		Delay:                        defaultDelay,
@@ -731,15 +731,15 @@ func TestGather(t *testing.T) {
 				return ch, nil
 			}
 
-			s := &stackdriver{
+			s := &Stackdriver{
 				Log:                          testutil.Logger{},
 				Project:                      "test",
 				RateLimit:                    10,
 				GatherRawDistributionBuckets: true,
-				client: &MockStackdriverClient{
-					ListMetricDescriptorsF: listMetricDescriptorsF,
-					ListTimeSeriesF:        listTimeSeriesF,
-					CloseF: func() error {
+				client: &mockStackdriverClient{
+					listMetricDescriptorsF: listMetricDescriptorsF,
+					listTimeSeriesF:        listTimeSeriesF,
+					closeF: func() error {
 						return nil
 					},
 				},
@@ -839,25 +839,25 @@ func TestGatherAlign(t *testing.T) {
 	for listCall, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			var acc testutil.Accumulator
-			client := &MockStackdriverClient{
-				ListMetricDescriptorsF: func() (<-chan *metricpb.MetricDescriptor, error) {
+			client := &mockStackdriverClient{
+				listMetricDescriptorsF: func() (<-chan *metricpb.MetricDescriptor, error) {
 					ch := make(chan *metricpb.MetricDescriptor, 1)
 					ch <- tt.descriptor
 					close(ch)
 					return ch, nil
 				},
-				ListTimeSeriesF: func() (<-chan *monitoringpb.TimeSeries, error) {
+				listTimeSeriesF: func() (<-chan *monitoringpb.TimeSeries, error) {
 					ch := make(chan *monitoringpb.TimeSeries, 1)
 					ch <- tt.timeseries[listCall]
 					close(ch)
 					return ch, nil
 				},
-				CloseF: func() error {
+				closeF: func() error {
 					return nil
 				},
 			}
 
-			s := &stackdriver{
+			s := &Stackdriver{
 				Log:                          testutil.Logger{},
 				Project:                      "test",
 				RateLimit:                    10,
@@ -891,13 +891,13 @@ func TestListMetricDescriptorFilter(t *testing.T) {
 	now := time.Now().Round(time.Second)
 	tests := []struct {
 		name        string
-		stackdriver *stackdriver
+		stackdriver *Stackdriver
 		descriptor  *metricpb.MetricDescriptor
 		calls       []call
 	}{
 		{
 			name: "simple",
-			stackdriver: &stackdriver{
+			stackdriver: &Stackdriver{
 				Project:                 "test",
 				MetricTypePrefixInclude: []string{"telegraf/cpu/usage"},
 				RateLimit:               1,
@@ -908,17 +908,17 @@ func TestListMetricDescriptorFilter(t *testing.T) {
 			},
 			calls: []call{
 				{
-					name:   "ListMetricDescriptors",
+					name:   "listMetricDescriptors",
 					filter: `metric.type = starts_with("telegraf/cpu/usage")`,
 				}, {
-					name:   "ListTimeSeries",
+					name:   "listTimeSeries",
 					filter: `metric.type = "telegraf/cpu/usage"`,
 				},
 			},
 		},
 		{
 			name: "single resource labels string",
-			stackdriver: &stackdriver{
+			stackdriver: &Stackdriver{
 				Project:                 "test",
 				MetricTypePrefixInclude: []string{"telegraf/cpu/usage"},
 				Filter: &listTimeSeriesFilter{
@@ -937,17 +937,17 @@ func TestListMetricDescriptorFilter(t *testing.T) {
 			},
 			calls: []call{
 				{
-					name:   "ListMetricDescriptors",
+					name:   "listMetricDescriptors",
 					filter: `metric.type = starts_with("telegraf/cpu/usage")`,
 				}, {
-					name:   "ListTimeSeries",
+					name:   "listTimeSeries",
 					filter: `metric.type = "telegraf/cpu/usage" AND resource.labels.instance_name = "localhost"`,
 				},
 			},
 		},
 		{
 			name: "single resource labels function",
-			stackdriver: &stackdriver{
+			stackdriver: &Stackdriver{
 				Project:                 "test",
 				MetricTypePrefixInclude: []string{"telegraf/cpu/usage"},
 				Filter: &listTimeSeriesFilter{
@@ -966,17 +966,17 @@ func TestListMetricDescriptorFilter(t *testing.T) {
 			},
 			calls: []call{
 				{
-					name:   "ListMetricDescriptors",
+					name:   "listMetricDescriptors",
 					filter: `metric.type = starts_with("telegraf/cpu/usage")`,
 				}, {
-					name:   "ListTimeSeries",
+					name:   "listTimeSeries",
 					filter: `metric.type = "telegraf/cpu/usage" AND resource.labels.instance_name = starts_with("localhost")`,
 				},
 			},
 		},
 		{
 			name: "multiple resource labels",
-			stackdriver: &stackdriver{
+			stackdriver: &Stackdriver{
 				Project:                 "test",
 				MetricTypePrefixInclude: []string{"telegraf/cpu/usage"},
 				Filter: &listTimeSeriesFilter{
@@ -999,17 +999,17 @@ func TestListMetricDescriptorFilter(t *testing.T) {
 			},
 			calls: []call{
 				{
-					name:   "ListMetricDescriptors",
+					name:   "listMetricDescriptors",
 					filter: `metric.type = starts_with("telegraf/cpu/usage")`,
 				}, {
-					name:   "ListTimeSeries",
+					name:   "listTimeSeries",
 					filter: `metric.type = "telegraf/cpu/usage" AND (resource.labels.instance_name = "localhost" OR resource.labels.zone = starts_with("us-"))`,
 				},
 			},
 		},
 		{
 			name: "single metric label string",
-			stackdriver: &stackdriver{
+			stackdriver: &Stackdriver{
 				Project:                 "test",
 				MetricTypePrefixInclude: []string{"telegraf/cpu/usage"},
 				Filter: &listTimeSeriesFilter{
@@ -1028,17 +1028,17 @@ func TestListMetricDescriptorFilter(t *testing.T) {
 			},
 			calls: []call{
 				{
-					name:   "ListMetricDescriptors",
+					name:   "listMetricDescriptors",
 					filter: `metric.type = starts_with("telegraf/cpu/usage")`,
 				}, {
-					name:   "ListTimeSeries",
+					name:   "listTimeSeries",
 					filter: `metric.type = "telegraf/cpu/usage" AND metric.labels.resource_type = "instance"`,
 				},
 			},
 		},
 		{
 			name: "single metric label function",
-			stackdriver: &stackdriver{
+			stackdriver: &Stackdriver{
 				Project:                 "test",
 				MetricTypePrefixInclude: []string{"telegraf/cpu/usage"},
 				Filter: &listTimeSeriesFilter{
@@ -1057,17 +1057,17 @@ func TestListMetricDescriptorFilter(t *testing.T) {
 			},
 			calls: []call{
 				{
-					name:   "ListMetricDescriptors",
+					name:   "listMetricDescriptors",
 					filter: `metric.type = starts_with("telegraf/cpu/usage")`,
 				}, {
-					name:   "ListTimeSeries",
+					name:   "listTimeSeries",
 					filter: `metric.type = "telegraf/cpu/usage" AND metric.labels.resource_id = starts_with("abc-")`,
 				},
 			},
 		},
 		{
 			name: "multiple metric labels",
-			stackdriver: &stackdriver{
+			stackdriver: &Stackdriver{
 				Project:                 "test",
 				MetricTypePrefixInclude: []string{"telegraf/cpu/usage"},
 				Filter: &listTimeSeriesFilter{
@@ -1090,10 +1090,10 @@ func TestListMetricDescriptorFilter(t *testing.T) {
 			},
 			calls: []call{
 				{
-					name:   "ListMetricDescriptors",
+					name:   "listMetricDescriptors",
 					filter: `metric.type = starts_with("telegraf/cpu/usage")`,
 				}, {
-					name: "ListTimeSeries",
+					name: "listTimeSeries",
 					filter: `metric.type = "telegraf/cpu/usage" AND ` +
 						`(metric.labels.resource_type = "instance" OR metric.labels.resource_id = starts_with("abc-"))`,
 				},
@@ -1101,7 +1101,7 @@ func TestListMetricDescriptorFilter(t *testing.T) {
 		},
 		{
 			name: "all labels filters",
-			stackdriver: &stackdriver{
+			stackdriver: &Stackdriver{
 				Project:                 "test",
 				MetricTypePrefixInclude: []string{"telegraf/cpu/usage"},
 				Filter: &listTimeSeriesFilter{
@@ -1154,10 +1154,10 @@ func TestListMetricDescriptorFilter(t *testing.T) {
 			},
 			calls: []call{
 				{
-					name:   "ListMetricDescriptors",
+					name:   "listMetricDescriptors",
 					filter: `metric.type = starts_with("telegraf/cpu/usage")`,
 				}, {
-					name: "ListTimeSeries",
+					name: "listTimeSeries",
 					filter: `metric.type = "telegraf/cpu/usage" AND ` +
 						`(resource.labels.instance_name = "localhost" OR resource.labels.zone = starts_with("us-")) AND ` +
 						`(metric.labels.resource_type = "instance" OR metric.labels.resource_id = starts_with("abc-")) AND ` +
@@ -1170,14 +1170,14 @@ func TestListMetricDescriptorFilter(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			var acc testutil.Accumulator
-			client := &MockStackdriverClient{
-				ListMetricDescriptorsF: func() (<-chan *metricpb.MetricDescriptor, error) {
+			client := &mockStackdriverClient{
+				listMetricDescriptorsF: func() (<-chan *metricpb.MetricDescriptor, error) {
 					ch := make(chan *metricpb.MetricDescriptor, 1)
 					ch <- tt.descriptor
 					close(ch)
 					return ch, nil
 				},
-				ListTimeSeriesF: func() (<-chan *monitoringpb.TimeSeries, error) {
+				listTimeSeriesF: func() (<-chan *monitoringpb.TimeSeries, error) {
 					ch := make(chan *monitoringpb.TimeSeries, 1)
 					ch <- createTimeSeries(
 						&monitoringpb.Point{
@@ -1197,7 +1197,7 @@ func TestListMetricDescriptorFilter(t *testing.T) {
 					close(ch)
 					return ch, nil
 				},
-				CloseF: func() error {
+				closeF: func() error {
 					return nil
 				},
 			}

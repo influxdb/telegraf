@@ -47,17 +47,17 @@ func TestSqlServer_QueriesInclusionExclusion(t *testing.T) {
 func TestSqlServer_ParseMetrics(t *testing.T) {
 	var acc testutil.Accumulator
 
-	queries := make(MapQuery)
-	queries["PerformanceCounters"] = Query{ScriptName: "PerformanceCounters", Script: mockPerformanceCounters, ResultByRow: true}
-	queries["WaitStatsCategorized"] = Query{ScriptName: "WaitStatsCategorized", Script: mockWaitStatsCategorized, ResultByRow: false}
-	queries["CPUHistory"] = Query{ScriptName: "CPUHistory", Script: mockCPUHistory, ResultByRow: false}
-	queries["DatabaseIO"] = Query{ScriptName: "DatabaseIO", Script: mockDatabaseIO, ResultByRow: false}
-	queries["DatabaseSize"] = Query{ScriptName: "DatabaseSize", Script: mockDatabaseSize, ResultByRow: false}
-	queries["DatabaseStats"] = Query{ScriptName: "DatabaseStats", Script: mockDatabaseStats, ResultByRow: false}
-	queries["DatabaseProperties"] = Query{ScriptName: "DatabaseProperties", Script: mockDatabaseProperties, ResultByRow: false}
-	queries["VolumeSpace"] = Query{ScriptName: "VolumeSpace", Script: mockVolumeSpace, ResultByRow: false}
-	queries["MemoryClerk"] = Query{ScriptName: "MemoryClerk", Script: mockMemoryClerk, ResultByRow: false}
-	queries["PerformanceMetrics"] = Query{ScriptName: "PerformanceMetrics", Script: mockPerformanceMetrics, ResultByRow: false}
+	queries := make(mapQuery)
+	queries["PerformanceCounters"] = query{ScriptName: "PerformanceCounters", Script: mockPerformanceCounters, ResultByRow: true}
+	queries["WaitStatsCategorized"] = query{ScriptName: "WaitStatsCategorized", Script: mockWaitStatsCategorized, ResultByRow: false}
+	queries["CPUHistory"] = query{ScriptName: "CPUHistory", Script: mockCPUHistory, ResultByRow: false}
+	queries["DatabaseIO"] = query{ScriptName: "DatabaseIO", Script: mockDatabaseIO, ResultByRow: false}
+	queries["DatabaseSize"] = query{ScriptName: "DatabaseSize", Script: mockDatabaseSize, ResultByRow: false}
+	queries["DatabaseStats"] = query{ScriptName: "DatabaseStats", Script: mockDatabaseStats, ResultByRow: false}
+	queries["DatabaseProperties"] = query{ScriptName: "DatabaseProperties", Script: mockDatabaseProperties, ResultByRow: false}
+	queries["VolumeSpace"] = query{ScriptName: "VolumeSpace", Script: mockVolumeSpace, ResultByRow: false}
+	queries["MemoryClerk"] = query{ScriptName: "MemoryClerk", Script: mockMemoryClerk, ResultByRow: false}
+	queries["PerformanceMetrics"] = query{ScriptName: "PerformanceMetrics", Script: mockPerformanceMetrics, ResultByRow: false}
 
 	var headers, mock, row []string
 	var tags = make(map[string]string)

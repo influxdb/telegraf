@@ -31,7 +31,10 @@ var (
 	dfltActivities = []string{"DISK"}
 )
 
-const parseInterval = 1 // parseInterval is the interval (in seconds) where the parsing of the binary file takes place.
+const (
+	parseInterval = 1 // parseInterval is the interval (in seconds) where the parsing of the binary file takes place.
+	cmd           = "sadf"
+)
 
 type Sysstat struct {
 	// Sadc represents the path to the sadc collector utility.
@@ -46,7 +49,7 @@ type Sysstat struct {
 	// Activities is a list of activities that are passed as argument to the
 	// collector utility (e.g: DISK, SNMP etc...)
 	// The more activities that are added, the more data is collected.
-	Activities []string
+	Activities []string `toml:"activities"`
 
 	// Options is a map of options.
 	//
@@ -62,22 +65,20 @@ type Sysstat struct {
 	// and represents itself a measurement.
 	//
 	// If Group is true, metrics are grouped to a single measurement with the corresponding description as name.
-	Options map[string]string
+	Options map[string]string `toml:"options"`
 
 	// Group determines if metrics are grouped or not.
-	Group bool
+	Group bool `toml:"group"`
 
 	// DeviceTags adds the possibility to add additional tags for devices.
 	DeviceTags map[string][]map[string]string `toml:"device_tags"`
 
-	Log telegraf.Logger
+	Log telegraf.Logger `toml:"-"`
 
 	// Used to autodetect how long the sadc command should run for
 	interval       int
 	firstTimestamp time.Time
 }
-
-const cmd = "sadf"
 
 func (*Sysstat) SampleConfig() string {
 	return sampleConfig

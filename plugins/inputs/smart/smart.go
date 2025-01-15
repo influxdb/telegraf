@@ -25,8 +25,6 @@ import (
 //go:embed sample.conf
 var sampleConfig string
 
-const intelVID = "0x8086"
-
 var (
 	// Device Model:     APPLE SSD SM256E
 	// Product:              HUH721212AL5204
@@ -356,7 +354,18 @@ var (
 	}
 
 	knownReadMethods = []string{"concurrent", "sequential"}
+
+	// Wrap with sudo
+	runCmd = func(timeout config.Duration, sudo bool, command string, args ...string) ([]byte, error) {
+		cmd := exec.Command(command, args...)
+		if sudo {
+			cmd = exec.Command("sudo", append([]string{"-n", command}, args...)...)
+		}
+		return internal.CombinedOutputTimeout(cmd, time.Duration(timeout))
+	}
 )
+
+const intelVID = "0x8086"
 
 // Smart plugin reads metrics from storage devices supporting S.M.A.R.T.
 type Smart struct {
@@ -382,18 +391,10 @@ type nvmeDevice struct {
 	serialNumber string
 }
 
-func newSmart() *Smart {
-	return &Smart{
-		Timeout:    config.Duration(time.Second * 30),
-		ReadMethod: "concurrent",
-	}
-}
-
 func (*Smart) SampleConfig() string {
 	return sampleConfig
 }
 
-// Init performs one time setup of the plugin and returns an error if the configuration is invalid.
 func (m *Smart) Init() error {
 	// if deprecated `path` (to smartctl binary) is provided in config and `path_smartctl` override does not exist
 	if len(m.Path) > 0 && len(m.PathSmartctl) == 0 {
@@ -436,7 +437,6 @@ func (m *Smart) Init() error {
 	return nil
 }
 
-// Gather takes in an accumulator and adds the metrics that the SMART tools gather.
 func (m *Smart) Gather(acc telegraf.Accumulator) error {
 	var err error
 	var scannedNVMeDevices []string
@@ -530,15 +530,6 @@ func (m *Smart) scanDevices(ignoreExcludes bool, scanArgs ...string) ([]string, 
 		}
 	}
 	return devices, nil
-}
-
-// Wrap with sudo
-var runCmd = func(timeout config.Duration, sudo bool, command string, args ...string) ([]byte, error) {
-	cmd := exec.Command(command, args...)
-	if sudo {
-		cmd = exec.Command("sudo", append([]string{"-n", command}, args...)...)
-	}
-	return internal.CombinedOutputTimeout(cmd, time.Duration(timeout))
 }
 
 func excludedDev(excludes []string, deviceLine string) bool {
@@ -1107,6 +1098,13 @@ func validatePath(filePath string) error {
 		return fmt.Errorf("provided path does not point to a regular file: [%s]", filePath)
 	}
 	return nil
+}
+
+func newSmart() *Smart {
+	return &Smart{
+		Timeout:    config.Duration(time.Second * 30),
+		ReadMethod: "concurrent",
+	}
 }
 
 func init() {

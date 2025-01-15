@@ -43,6 +43,7 @@ func (tsc *testSNMPConnection) Get(oids []string) (*gosnmp.SnmpPacket, error) {
 	}
 	return sp, nil
 }
+
 func (tsc *testSNMPConnection) Walk(oid string, wf gosnmp.WalkFunc) error {
 	for void, v := range tsc.values {
 		if void == oid || (len(void) > len(oid) && void[:len(oid)+1] == oid+".") {
@@ -56,6 +57,7 @@ func (tsc *testSNMPConnection) Walk(oid string, wf gosnmp.WalkFunc) error {
 	}
 	return nil
 }
+
 func (*testSNMPConnection) Reconnect() error {
 	return nil
 }
@@ -466,7 +468,7 @@ func TestGosnmpWrapper_walk_retry(t *testing.T) {
 	gsw := snmp.GosnmpWrapper{
 		GoSNMP: gs,
 	}
-	err = gsw.Walk(".1.0.0", func(_ gosnmp.SnmpPDU) error { return nil })
+	err = gsw.Walk(".1.0.0", func(gosnmp.SnmpPDU) error { return nil })
 	require.NoError(t, srvr.Close())
 	wg.Wait()
 	require.Error(t, err)

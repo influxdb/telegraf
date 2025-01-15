@@ -21,6 +21,25 @@ import (
 //go:embed sample.conf
 var sampleConfig string
 
+const (
+	defaultVersion     = "39.0"
+	defaultEnvironment = "production"
+)
+
+type Salesforce struct {
+	Username      string `toml:"username"`
+	Password      string `toml:"password"`
+	SecurityToken string `toml:"security_token"`
+	Environment   string `toml:"environment"`
+	Version       string `toml:"version"`
+
+	sessionID      string
+	serverURL      *url.URL
+	organizationID string
+
+	client *http.Client
+}
+
 type limit struct {
 	Max       int
 	Remaining int
@@ -28,42 +47,10 @@ type limit struct {
 
 type limits map[string]limit
 
-type Salesforce struct {
-	Username       string
-	Password       string
-	SecurityToken  string
-	Environment    string
-	SessionID      string
-	ServerURL      *url.URL
-	OrganizationID string
-	Version        string
-
-	client *http.Client
-}
-
-const defaultVersion = "39.0"
-const defaultEnvironment = "production"
-
-// returns a new Salesforce plugin instance
-func NewSalesforce() *Salesforce {
-	tr := &http.Transport{
-		ResponseHeaderTimeout: 5 * time.Second,
-	}
-	client := &http.Client{
-		Transport: tr,
-		Timeout:   10 * time.Second,
-	}
-	return &Salesforce{
-		client:      client,
-		Version:     defaultVersion,
-		Environment: defaultEnvironment}
-}
-
 func (*Salesforce) SampleConfig() string {
 	return sampleConfig
 }
 
-// Reads limits values from Salesforce API
 func (s *Salesforce) Gather(acc telegraf.Accumulator) error {
 	limits, err := s.fetchLimits()
 	if err != nil {
@@ -71,8 +58,8 @@ func (s *Salesforce) Gather(acc telegraf.Accumulator) error {
 	}
 
 	tags := map[string]string{
-		"organization_id": s.OrganizationID,
-		"host":            s.ServerURL.Host,
+		"organization_id": s.organizationID,
+		"host":            s.serverURL.Host,
 	}
 
 	fields := make(map[string]interface{})
@@ -88,18 +75,18 @@ func (s *Salesforce) Gather(acc telegraf.Accumulator) error {
 
 // query the limits endpoint
 func (s *Salesforce) queryLimits() (*http.Response, error) {
-	endpoint := fmt.Sprintf("%s://%s/services/data/v%s/limits", s.ServerURL.Scheme, s.ServerURL.Host, s.Version)
+	endpoint := fmt.Sprintf("%s://%s/services/data/v%s/limits", s.serverURL.Scheme, s.serverURL.Host, s.Version)
 	req, err := http.NewRequest(http.MethodGet, endpoint, nil)
 	if err != nil {
 		return nil, err
 	}
 	req.Header.Add("Accept", "encoding/json")
-	req.Header.Add("Authorization", "Bearer "+s.SessionID)
+	req.Header.Add("Authorization", "Bearer "+s.sessionID)
 	return s.client.Do(req)
 }
 
 func (s *Salesforce) isAuthenticated() bool {
-	return s.SessionID != ""
+	return s.sessionID != ""
 }
 
 func (s *Salesforce) fetchLimits() (limits, error) {
@@ -218,15 +205,29 @@ func (s *Salesforce) login() error {
 		return err
 	}
 
-	s.SessionID = loginResult.SessionID
-	s.OrganizationID = loginResult.OrganizationID
-	s.ServerURL, err = url.Parse(loginResult.ServerURL)
+	s.sessionID = loginResult.SessionID
+	s.organizationID = loginResult.OrganizationID
+	s.serverURL, err = url.Parse(loginResult.ServerURL)
 
 	return err
 }
 
+func newSalesforce() *Salesforce {
+	tr := &http.Transport{
+		ResponseHeaderTimeout: 5 * time.Second,
+	}
+	client := &http.Client{
+		Transport: tr,
+		Timeout:   10 * time.Second,
+	}
+	return &Salesforce{
+		client:      client,
+		Version:     defaultVersion,
+		Environment: defaultEnvironment}
+}
+
 func init() {
 	inputs.Add("salesforce", func() telegraf.Input {
-		return NewSalesforce()
+		return newSalesforce()
 	})
 }

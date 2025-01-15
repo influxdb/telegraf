@@ -17,12 +17,14 @@ type Sysstat struct {
 	Log telegraf.Logger `toml:"-"`
 }
 
+func (*Sysstat) SampleConfig() string { return sampleConfig }
+
 func (s *Sysstat) Init() error {
-	s.Log.Warn("current platform is not supported")
+	s.Log.Warn("Current platform is not supported")
 	return nil
 }
-func (*Sysstat) SampleConfig() string                { return sampleConfig }
-func (*Sysstat) Gather(_ telegraf.Accumulator) error { return nil }
+
+func (*Sysstat) Gather(telegraf.Accumulator) error { return nil }
 
 func init() {
 	inputs.Add("sysstat", func() telegraf.Input {

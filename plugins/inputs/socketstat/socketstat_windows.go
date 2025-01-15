@@ -16,12 +16,14 @@ type Socketstat struct {
 	Log telegraf.Logger `toml:"-"`
 }
 
+func (*Socketstat) SampleConfig() string { return sampleConfig }
+
 func (s *Socketstat) Init() error {
-	s.Log.Warn("current platform is not supported")
+	s.Log.Warn("Current platform is not supported")
 	return nil
 }
-func (*Socketstat) SampleConfig() string                { return sampleConfig }
-func (*Socketstat) Gather(_ telegraf.Accumulator) error { return nil }
+
+func (*Socketstat) Gather(telegraf.Accumulator) error { return nil }
 
 func init() {
 	inputs.Add("socketstat", func() telegraf.Input {
