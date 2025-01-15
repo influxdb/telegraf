@@ -1,6 +1,7 @@
 package models
 
 import (
+	"errors"
 	"testing"
 	"time"
 
@@ -495,4 +496,65 @@ func (*mockInput) SampleConfig() string {
 
 func (*mockInput) Gather(telegraf.Accumulator) error {
 	return nil
+}
+
+func TestRunningInputProbingFailure(t *testing.T) {
+	ri := NewRunningInput(&mockProbingInput{
+		probeReturn: errors.New("probing error"),
+	}, &InputConfig{
+		Name:                 "TestRunningInput",
+		StartupErrorBehavior: "probe",
+	})
+	ri.log = testutil.Logger{}
+	require.Error(t, ri.Probe())
+}
+
+func TestRunningInputProbingSuccess(t *testing.T) {
+	probeErr := errors.New("probing error")
+	for _, tt := range []struct {
+		name                 string
+		input                telegraf.Input
+		startupErrorBehavior string
+	}{
+		{
+			name:                 "non-probing plugin with probe value set",
+			input:                &mockInput{},
+			startupErrorBehavior: "probe",
+		},
+		{
+			name:                 "non-probing plugin with probe value not set",
+			input:                &mockInput{},
+			startupErrorBehavior: "ignore",
+		},
+		{
+			name:                 "probing plugin with probe value not set",
+			input:                &mockProbingInput{probeErr},
+			startupErrorBehavior: "ignore",
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			ri := NewRunningInput(tt.input, &InputConfig{
+				Name:                 "TestRunningInput",
+				StartupErrorBehavior: tt.startupErrorBehavior,
+			})
+			ri.log = testutil.Logger{}
+			require.NoError(t, ri.Probe())
+		})
+	}
+}
+
+type mockProbingInput struct {
+	probeReturn error
+}
+
+func (m *mockProbingInput) SampleConfig() string {
+	return ""
+}
+
+func (m *mockProbingInput) Gather(_ telegraf.Accumulator) error {
+	return nil
+}
+
+func (m *mockProbingInput) Probe() error {
+	return m.probeReturn
 }
