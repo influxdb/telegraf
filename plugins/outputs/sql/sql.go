@@ -153,6 +153,7 @@ func (p *SQL) deriveDatatype(value interface{}) string {
 
 func (p *SQL) generateCreateTable(metric telegraf.Metric) string {
 	columns := make([]string, 0, len(metric.TagList())+len(metric.FieldList())+1)
+	tagColumnNames := make([]string, 0, len(metric.TagList()))
 
 	if p.TimestampColumn != "" {
 		columns = append(columns, fmt.Sprintf("%s %s", quoteIdent(p.TimestampColumn), p.Convert.Timestamp))
@@ -160,6 +161,7 @@ func (p *SQL) generateCreateTable(metric telegraf.Metric) string {
 
 	for _, tag := range metric.TagList() {
 		columns = append(columns, fmt.Sprintf("%s %s", quoteIdent(tag.Key), p.Convert.Text))
+		tagColumnNames = append(tagColumnNames, quoteIdent(tag.Key))
 	}
 
 	var datatype string
@@ -172,6 +174,7 @@ func (p *SQL) generateCreateTable(metric telegraf.Metric) string {
 	query = strings.ReplaceAll(query, "{TABLE}", quoteIdent(metric.Name()))
 	query = strings.ReplaceAll(query, "{TABLELITERAL}", quoteStr(metric.Name()))
 	query = strings.ReplaceAll(query, "{COLUMNS}", strings.Join(columns, ","))
+	query = strings.ReplaceAll(query, "{TAG_COLUMN_NAMES}", strings.Join(tagColumnNames, ","))
 
 	return query
 }
@@ -274,13 +277,24 @@ func (p *SQL) Write(metrics []telegraf.Metric) error {
 	return nil
 }
 
+func (p *SQL) Init() error {
+	if p.TableTemplate == "" {
+		if p.Driver == "clickhouse" {
+			p.TableTemplate = "CREATE TABLE {TABLE}({COLUMNS}) ORDER BY ({TAG_COLUMN_NAMES}, " + p.TimestampColumn + ")"
+		} else {
+			p.TableTemplate = "CREATE TABLE {TABLE}({COLUMNS})"
+		}
+	}
+
+	return nil
+}
+
 func init() {
 	outputs.Add("sql", func() telegraf.Output { return newSQL() })
 }
 
 func newSQL() *SQL {
 	return &SQL{
-		TableTemplate:       "CREATE TABLE {TABLE}({COLUMNS})",
 		TableExistsTemplate: "SELECT 1 FROM {TABLE} LIMIT 1",
 		TimestampColumn:     "timestamp",
 		Convert: ConvertStruct{

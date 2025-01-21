@@ -201,6 +201,7 @@ func TestMysqlIntegration(t *testing.T) {
 	p.Driver = "mysql"
 	p.DataSourceName = address
 	p.InitSQL = "SET sql_mode='ANSI_QUOTES';"
+	require.NoError(t, p.Init())
 
 	require.NoError(t, p.Connect())
 	require.NoError(t, p.Write(
@@ -287,6 +288,7 @@ func TestPostgresIntegration(t *testing.T) {
 	p.Convert.Real = "double precision"
 	p.Convert.Unsigned = "bigint"
 	p.Convert.ConversionStyle = "literal"
+	require.NoError(t, p.Init())
 
 	require.NoError(t, p.Connect())
 	defer p.Close()
@@ -372,7 +374,6 @@ func TestClickHouseIntegration(t *testing.T) {
 	p.Log = testutil.Logger{}
 	p.Driver = "clickhouse"
 	p.DataSourceName = address
-	p.TableTemplate = "CREATE TABLE {TABLE}({COLUMNS}) ENGINE MergeTree() ORDER by timestamp"
 	p.Convert.Integer = "Int64"
 	p.Convert.Text = "String"
 	p.Convert.Timestamp = "DateTime"
@@ -380,6 +381,7 @@ func TestClickHouseIntegration(t *testing.T) {
 	p.Convert.Unsigned = "UInt64"
 	p.Convert.Bool = "UInt8"
 	p.Convert.ConversionStyle = "literal"
+	require.NoError(t, p.Init())
 
 	require.NoError(t, p.Connect())
 	require.NoError(t, p.Write(testMetrics))
