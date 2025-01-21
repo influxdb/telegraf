@@ -3,6 +3,8 @@ package statsd
 import (
 	"fmt"
 	"net"
+	"os"
+	"path/filepath"
 	"sync"
 	"testing"
 	"time"
@@ -46,7 +48,7 @@ func TestConcurrentConns(t *testing.T) {
 		Protocol:               "tcp",
 		ServiceAddress:         "localhost:8125",
 		AllowedPendingMessages: 10000,
-		MaxTCPConnections:      2,
+		MaxConnections:         2,
 		NumberWorkerThreads:    5,
 	}
 
@@ -78,7 +80,7 @@ func TestConcurrentConns1(t *testing.T) {
 		Protocol:               "tcp",
 		ServiceAddress:         "localhost:8125",
 		AllowedPendingMessages: 10000,
-		MaxTCPConnections:      1,
+		MaxConnections:         1,
 		NumberWorkerThreads:    5,
 	}
 
@@ -108,7 +110,7 @@ func TestCloseConcurrentConns(t *testing.T) {
 		Protocol:               "tcp",
 		ServiceAddress:         "localhost:8125",
 		AllowedPendingMessages: 10000,
-		MaxTCPConnections:      2,
+		MaxConnections:         2,
 		NumberWorkerThreads:    5,
 	}
 
@@ -310,7 +312,7 @@ func BenchmarkTCP(b *testing.B) {
 		Protocol:               "tcp",
 		ServiceAddress:         "localhost:8125",
 		AllowedPendingMessages: 250000,
-		MaxTCPConnections:      250,
+		MaxConnections:         250,
 		NumberWorkerThreads:    5,
 	}
 	acc := &testutil.Accumulator{Discard: true}
@@ -2061,6 +2063,59 @@ func testValidateGauge(
 	return nil
 }
 
+func TestUnix(t *testing.T) {
+	tempDir, err := os.MkdirTemp(os.TempDir(), "")
+	require.NoError(t, err)
+	defer os.RemoveAll(tempDir)
+
+	statsd := Statsd{
+		Log:                    testutil.Logger{},
+		Protocol:               "unix",
+		ServiceAddress:         filepath.Join(tempDir, "statsd.sock"),
+		AllowedPendingMessages: 10000,
+		MaxConnections:         2,
+		NumberWorkerThreads:    5,
+	}
+	var acc testutil.Accumulator
+	require.NoError(t, statsd.Start(&acc))
+	defer statsd.Stop()
+
+	addr := statsd.Listener.Addr().String()
+
+	conn, err := net.Dial("unix", addr)
+	require.NoError(t, err)
+
+	_, err = conn.Write([]byte("cpu.time_idle:42|c\n"))
+	require.NoError(t, err)
+	require.NoError(t, conn.Close())
+
+	for {
+		require.NoError(t, statsd.Gather(&acc))
+
+		if len(acc.Metrics) > 0 {
+			break
+		}
+	}
+
+	testutil.RequireMetricsEqual(t,
+		[]telegraf.Metric{
+			testutil.MustMetric(
+				"cpu_time_idle",
+				map[string]string{
+					"metric_type": "counter",
+				},
+				map[string]interface{}{
+					"value": 42,
+				},
+				time.Now(),
+				telegraf.Counter,
+			),
+		},
+		acc.GetTelegrafMetrics(),
+		testutil.IgnoreTime(),
+	)
+}
+
 func TestTCP(t *testing.T) {
 	statsd := Statsd{
 		Log:                    testutil.Logger{},
@@ -2074,7 +2129,7 @@ func TestTCP(t *testing.T) {
 	require.NoError(t, statsd.Start(&acc))
 	defer statsd.Stop()
 
-	addr := statsd.TCPlistener.Addr().String()
+	addr := statsd.Listener.Addr().String()
 
 	conn, err := net.Dial("tcp", addr)
 	require.NoError(t, err)
@@ -2168,7 +2223,7 @@ func TestUdpFillQueue(t *testing.T) {
 	var acc testutil.Accumulator
 	require.NoError(t, plugin.Start(&acc))
 
-	conn, err := net.Dial("udp", plugin.UDPlistener.LocalAddr().String())
+	conn, err := net.Dial("udp", plugin.UDPConn.LocalAddr().String())
 	require.NoError(t, err)
 	numberToSend := plugin.AllowedPendingMessages
 	for i := 0; i < numberToSend; i++ {
@@ -2177,7 +2232,7 @@ func TestUdpFillQueue(t *testing.T) {
 	require.NoError(t, conn.Close())
 
 	require.Eventually(t, func() bool {
-		return plugin.UDPPacketsRecv.Get() >= int64(numberToSend)
+		return plugin.Stats.UDPPacketsRecv.Get() >= int64(numberToSend)
 	}, 1*time.Second, 100*time.Millisecond)
 	defer plugin.Stop()
 
@@ -2291,7 +2346,7 @@ func TestParse_InvalidAndRecoverIntegration(t *testing.T) {
 		Protocol:               "tcp",
 		ServiceAddress:         "localhost:8125",
 		AllowedPendingMessages: 10000,
-		MaxTCPConnections:      250,
+		MaxConnections:         250,
 		TCPKeepAlive:           true,
 		NumberWorkerThreads:    5,
 	}
@@ -2300,7 +2355,7 @@ func TestParse_InvalidAndRecoverIntegration(t *testing.T) {
 	require.NoError(t, statsd.Start(acc))
 	defer statsd.Stop()
 
-	addr := statsd.TCPlistener.Addr().String()
+	addr := statsd.Listener.Addr().String()
 	conn, err := net.Dial("tcp", addr)
 	require.NoError(t, err)
 
@@ -2344,7 +2399,7 @@ func TestParse_DeltaCounter(t *testing.T) {
 		Protocol:               "tcp",
 		ServiceAddress:         "localhost:8125",
 		AllowedPendingMessages: 10000,
-		MaxTCPConnections:      250,
+		MaxConnections:         250,
 		TCPKeepAlive:           true,
 		NumberWorkerThreads:    5,
 		// Delete Counters causes Delta temporality to be added
@@ -2357,7 +2412,7 @@ func TestParse_DeltaCounter(t *testing.T) {
 	require.NoError(t, statsd.Start(acc))
 	defer statsd.Stop()
 
-	addr := statsd.TCPlistener.Addr().String()
+	addr := statsd.Listener.Addr().String()
 	conn, err := net.Dial("tcp", addr)
 	require.NoError(t, err)
 
