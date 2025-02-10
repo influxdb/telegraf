@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"reflect"
 	"sort"
 	"strconv"
 	"strings"
@@ -187,12 +188,13 @@ func NewNodeMetricMapping(metricName string, node NodeSettings, groupTags map[st
 
 // NodeValue The received value for a node
 type NodeValue struct {
-	TagName    string
-	Value      interface{}
-	Quality    ua.StatusCode
-	ServerTime time.Time
-	SourceTime time.Time
-	DataType   ua.TypeID
+	TagName     string
+	Value       interface{}
+	Quality     ua.StatusCode
+	ServerTime  time.Time
+	SourceTime  time.Time
+	DataType    ua.TypeID
+	ArrayLength int32
 }
 
 // OpcUAInputClient can receive data from an OPC UA server and map it to Metrics. This type does not contain
@@ -403,6 +405,7 @@ func (o *OpcUAInputClient) UpdateNodeValue(nodeIdx int, d *ua.DataValue) {
 
 	if d.Value != nil {
 		o.LastReceivedData[nodeIdx].DataType = d.Value.Type()
+		o.LastReceivedData[nodeIdx].ArrayLength = d.Value.ArrayLength()
 
 		o.LastReceivedData[nodeIdx].Value = d.Value.Value()
 		if o.LastReceivedData[nodeIdx].DataType == ua.TypeIDDateTime {
@@ -425,7 +428,22 @@ func (o *OpcUAInputClient) MetricForNode(nodeIdx int) telegraf.Metric {
 		tags[k] = v
 	}
 
-	fields[nmm.Tag.FieldName] = o.LastReceivedData[nodeIdx].Value
+	// If the read UA node contains array elements, fan out the elements
+	// Otherwise creating a field with an array would fail, as the Type is not known to the convertField() function
+	if o.LastReceivedData[nodeIdx].ArrayLength > 0 {
+		valueArray := unpackArray(o.LastReceivedData[nodeIdx].Value)
+		if len(valueArray) == int(o.LastReceivedData[nodeIdx].ArrayLength) {
+			for index, value := range valueArray {
+				var sb strings.Builder
+				sb.WriteString(nmm.Tag.FieldName)
+				sb.WriteString(strconv.Itoa(int(index)))
+				fields[sb.String()] = value
+			}
+		}
+	} else {
+		fields[nmm.Tag.FieldName] = o.LastReceivedData[nodeIdx].Value
+	}
+
 	fields["Quality"] = strings.TrimSpace(o.LastReceivedData[nodeIdx].Quality.Error())
 	if choice.Contains("DataType", o.Config.OptionalFields) {
 		fields["DataType"] = strings.Replace(o.LastReceivedData[nodeIdx].DataType.String(), "TypeID", "", 1)
@@ -447,4 +465,13 @@ func (o *OpcUAInputClient) MetricForNode(nodeIdx int) telegraf.Metric {
 	}
 
 	return metric.New(nmm.metricName, tags, fields, t)
+}
+
+func unpackArray(s any) []any {
+	v := reflect.ValueOf(s)
+	r := make([]any, v.Len())
+	for i := 0; i < v.Len(); i++ {
+		r[i] = v.Index(i).Interface()
+	}
+	return r
 }
