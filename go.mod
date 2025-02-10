@@ -39,7 +39,7 @@ require (
 	github.com/amir/raidman v0.0.0-20170415203553-1ccc43bfb9c9
 	github.com/antchfx/jsonquery v1.3.3
 	github.com/antchfx/xmlquery v1.4.1
-	github.com/antchfx/xpath v1.3.1
+	github.com/antchfx/xpath v1.3.3
 	github.com/apache/arrow-go/v18 v18.1.0
 	github.com/apache/iotdb-client-go v1.3.3
 	github.com/apache/thrift v0.21.0
@@ -187,7 +187,7 @@ require (
 	github.com/sirupsen/logrus v1.9.3
 	github.com/sleepinggenius2/gosmi v0.4.4
 	github.com/snowflakedb/gosnowflake v1.11.2
-	github.com/srebhan/cborquery v1.0.1
+	github.com/srebhan/cborquery v1.0.3
 	github.com/srebhan/protobufquery v1.0.1
 	github.com/stretchr/testify v1.10.0
 	github.com/tbrandon/mbserver v0.0.0-20170611213546-993e1772cc62
