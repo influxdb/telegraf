@@ -29,7 +29,6 @@ func (g *CGroup) Gather(acc telegraf.Accumulator) error {
 			acc.AddError(err)
 		}
 	}
-
 	return nil
 }
 
@@ -175,7 +174,7 @@ type fileFormat struct {
 }
 
 const keyPattern = "[[:alnum:]:_.]+"
-const valuePattern = "[\\d-]+"
+const valuePattern = "(?:max|[\\d-\\.]+)"
 
 var fileFormats = [...]fileFormat{
 	// 	VAL\n
@@ -205,9 +204,9 @@ var fileFormats = [...]fileFormat{
 	// 	VAL0 VAL1 ...\n
 	{
 		name:    "Space separated values",
-		pattern: "^(" + valuePattern + " )+\n$",
+		pattern: "^(" + valuePattern + " ?)+\n$",
 		parser: func(measurement string, fields map[string]interface{}, b []byte) {
-			re := regexp.MustCompile("(" + valuePattern + ") ")
+			re := regexp.MustCompile("(" + valuePattern + ")")
 			matches := re.FindAllStringSubmatch(string(b), -1)
 			for i, v := range matches {
 				fields[measurement+"."+strconv.Itoa(i)] = numberOrString(v[1])
@@ -229,12 +228,56 @@ var fileFormats = [...]fileFormat{
 			}
 		},
 	},
+	// 	NAME0 KEY0=VAL0 ...\n
+	// 	NAME1 KEY1=VAL1 ...\n
+	// 	...
+	{
+		name:    "Equal sign separated key-value pairs,  multiple lines with name",
+		pattern: fmt.Sprintf("^(%s( %s=%s)+\n)+$", keyPattern, keyPattern, valuePattern),
+		parser: func(measurement string, fields map[string]interface{}, b []byte) {
+			lines := strings.Split(string(b), "\n")
+			for _, line := range lines {
+				f := strings.Fields(line)
+				if len(f) == 0 {
+					continue
+				}
+				name := f[0]
+				for _, field := range f[1:] {
+					k, v, found := strings.Cut(field, "=")
+					if found {
+						fields[strings.Join([]string{measurement, name, k}, ".")] = numberOrString(v)
+					}
+				}
+			}
+		},
+	},
+	// 	KEY0=VAL0 KEY1=VAL1 ...\n
+	{
+		name:    "Equal sign separated key-value pairs on a single line",
+		pattern: fmt.Sprintf("^(%s=%s ?)+\n$", keyPattern, valuePattern),
+		parser: func(measurement string, fields map[string]interface{}, b []byte) {
+			f := strings.Fields(string(b))
+			if len(f) == 0 {
+				return
+			}
+			for _, field := range f {
+				k, v, found := strings.Cut(field, "=")
+				if found {
+					fields[strings.Join([]string{measurement, k}, ".")] = numberOrString(v)
+				}
+			}
+		},
+	},
 }
 
 func numberOrString(s string) interface{} {
 	i, err := strconv.ParseInt(s, 10, 64)
 	if err == nil {
 		return i
+	}
+	f, err := strconv.ParseFloat(s, 64)
+	if err == nil {
+		return f
 	}
 
 	return s
