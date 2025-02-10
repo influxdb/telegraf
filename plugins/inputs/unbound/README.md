@@ -39,6 +39,9 @@ See the [CONFIGURATION.md][CONFIGURATION.md] for more details.
   ## true in a future version.  It is recommended to set to true on new
   ## deployments.
   thread_as_tag = false
+
+  ## Collect metrics with the histogram of the recursive query times:
+  histogram = false
 ```
 
 ### Permissions
@@ -83,11 +86,11 @@ Please use the solution you see as most appropriate.
 ## Metrics
 
 This is the full list of stats provided by unbound-control and potentially
-collected depending of your unbound configuration.  Histogram related statistics
-will never be collected, extended statistics can also be imported
-("extended-statistics: yes" in unbound configuration).  In the output, the dots
-in the unbound-control stat name are replaced by underscores(see
-<https://www.unbound.net/documentation/unbound-control.html> for details).
+collected depending of your unbound configuration.  Extended statistics can also
+be imported ("extended-statistics: yes" in unbound configuration).  In the
+output, the dots in the unbound-control stat name are replaced by
+underscores(see <https://www.unbound.net/documentation/unbound-control.html> for
+details).
 
 Shown metrics are with `thread_as_tag` enabled.
 
@@ -161,6 +164,52 @@ Shown metrics are with `thread_as_tag` enabled.
     - requestlist_current_user
     - recursion_time_avg
     - recursion_time_median
+
+If `histogram` is set to true, the following metrics are also collected, with
+the field name indicating the lower bound of each histogram bin:
+
+- unbound:
+  - fields:
+    histogram_0.000000
+    histogram_0.000001
+    histogram_0.000002
+    histogram_0.000004
+    histogram_0.000008
+    histogram_0.000016
+    histogram_0.000032
+    histogram_0.000064
+    histogram_0.000128
+    histogram_0.000256
+    histogram_0.000512
+    histogram_0.001024
+    histogram_0.002048
+    histogram_0.004096
+    histogram_0.008192
+    histogram_0.016384
+    histogram_0.032768
+    histogram_0.065536
+    histogram_0.131072
+    histogram_0.262144
+    histogram_0.524288
+    histogram_1.000000
+    histogram_2.000000
+    histogram_4.000000
+    histogram_8.000000
+    histogram_16.000000
+    histogram_32.000000
+    histogram_64.000000
+    histogram_128.000000
+    histogram_256.000000
+    histogram_512.000000
+    histogram_1024.000000
+    histogram_2048.000000
+    histogram_4096.000000
+    histogram_8192.000000
+    histogram_16384.000000
+    histogram_32768.000000
+    histogram_65536.000000
+    histogram_131072.000000
+    histogram_262144.000000
 
 ## Example Output
 
