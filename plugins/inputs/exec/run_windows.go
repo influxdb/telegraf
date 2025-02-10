@@ -4,22 +4,19 @@ package exec
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"syscall"
-	"time"
 
 	"github.com/kballard/go-shellquote"
 
 	"github.com/influxdata/telegraf/internal"
 )
 
-func (c commandRunner) run(
-	command string,
-	environments []string,
-	timeout time.Duration,
-) ([]byte, []byte, error) {
+func (c *commandRunner) run(command string) ([]byte, []byte, error) {
 	splitCmd, err := shellquote.Split(command)
 	if err != nil || len(splitCmd) == 0 {
 		return nil, nil, fmt.Errorf("exec: unable to parse command: %w", err)
@@ -30,24 +27,35 @@ func (c commandRunner) run(
 		CreationFlags: syscall.CREATE_NEW_PROCESS_GROUP,
 	}
 
-	if len(environments) > 0 {
-		cmd.Env = append(os.Environ(), environments...)
+	if len(c.environment) > 0 {
+		cmd.Env = append(os.Environ(), c.environment...)
 	}
 
-	var (
-		out    bytes.Buffer
-		stderr bytes.Buffer
-	)
+	var out, stderr bytes.Buffer
 	cmd.Stdout = &out
 	cmd.Stderr = &stderr
 
-	runErr := internal.RunTimeout(cmd, timeout)
+	runErr := internal.RunTimeout(cmd, c.timeout)
 
 	out = removeWindowsCarriageReturns(out)
+	stderr = removeWindowsCarriageReturns(stderr)
 	if stderr.Len() > 0 && !c.debug {
-		stderr = removeWindowsCarriageReturns(stderr)
-		stderr = truncate(stderr)
+		truncate(&stderr)
 	}
 
 	return out.Bytes(), stderr.Bytes(), runErr
+}
+
+func removeWindowsCarriageReturns(b bytes.Buffer) bytes.Buffer {
+	var buf bytes.Buffer
+	for {
+		byt, err := b.ReadBytes(0x0D)
+		byt = bytes.TrimRight(byt, "\x0d")
+		if len(byt) > 0 {
+			buf.Write(byt)
+		}
+		if errors.Is(err, io.EOF) {
+			return buf
+		}
+	}
 }
