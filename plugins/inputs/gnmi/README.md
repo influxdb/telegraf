@@ -81,6 +81,12 @@ details on how to use them.
   ## Remove leading slashes and dots in field-name
   # trim_field_names = false
 
+  ## Enforces the namespace of the first element as origin for aliases and
+  ## response paths, required for backward compatibility.
+  ## NOTE: Set to 'false' if possible but be aware that this might change the
+  ##       path tag!
+  # enforce_first_namespace_as_origin = true
+
   ## Guess the path-tag if an update does not contain a prefix-path
   ## Supported values are
   ##   none         -- do not add a 'path' tag

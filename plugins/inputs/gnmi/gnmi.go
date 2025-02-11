@@ -40,31 +40,32 @@ including your device model and the following response data:
 This message is only printed once.`
 
 type GNMI struct {
-	Addresses            []string          `toml:"addresses"`
-	Subscriptions        []subscription    `toml:"subscription"`
-	TagSubscriptions     []tagSubscription `toml:"tag_subscription"`
-	Aliases              map[string]string `toml:"aliases"`
-	Encoding             string            `toml:"encoding"`
-	Origin               string            `toml:"origin"`
-	Prefix               string            `toml:"prefix"`
-	Target               string            `toml:"target"`
-	UpdatesOnly          bool              `toml:"updates_only"`
-	VendorSpecific       []string          `toml:"vendor_specific"`
-	Username             config.Secret     `toml:"username"`
-	Password             config.Secret     `toml:"password"`
-	Redial               config.Duration   `toml:"redial"`
-	MaxMsgSize           config.Size       `toml:"max_msg_size"`
-	Trace                bool              `toml:"dump_responses"`
-	CanonicalFieldNames  bool              `toml:"canonical_field_names"`
-	TrimFieldNames       bool              `toml:"trim_field_names"`
-	PrefixTagKeyWithPath bool              `toml:"prefix_tag_key_with_path"`
-	GuessPathTag         bool              `toml:"guess_path_tag" deprecated:"1.30.0;1.35.0;use 'path_guessing_strategy' instead"`
-	GuessPathStrategy    string            `toml:"path_guessing_strategy"`
-	EnableTLS            bool              `toml:"enable_tls" deprecated:"1.27.0;1.35.0;use 'tls_enable' instead"`
-	KeepaliveTime        config.Duration   `toml:"keepalive_time"`
-	KeepaliveTimeout     config.Duration   `toml:"keepalive_timeout"`
-	YangModelPaths       []string          `toml:"yang_model_paths"`
-	Log                  telegraf.Logger   `toml:"-"`
+	Addresses                     []string          `toml:"addresses"`
+	Subscriptions                 []subscription    `toml:"subscription"`
+	TagSubscriptions              []tagSubscription `toml:"tag_subscription"`
+	Aliases                       map[string]string `toml:"aliases"`
+	Encoding                      string            `toml:"encoding"`
+	Origin                        string            `toml:"origin"`
+	Prefix                        string            `toml:"prefix"`
+	Target                        string            `toml:"target"`
+	UpdatesOnly                   bool              `toml:"updates_only"`
+	VendorSpecific                []string          `toml:"vendor_specific"`
+	Username                      config.Secret     `toml:"username"`
+	Password                      config.Secret     `toml:"password"`
+	Redial                        config.Duration   `toml:"redial"`
+	MaxMsgSize                    config.Size       `toml:"max_msg_size"`
+	Trace                         bool              `toml:"dump_responses"`
+	CanonicalFieldNames           bool              `toml:"canonical_field_names"`
+	TrimFieldNames                bool              `toml:"trim_field_names"`
+	PrefixTagKeyWithPath          bool              `toml:"prefix_tag_key_with_path"`
+	GuessPathTag                  bool              `toml:"guess_path_tag" deprecated:"1.30.0;1.35.0;use 'path_guessing_strategy' instead"`
+	GuessPathStrategy             string            `toml:"path_guessing_strategy"`
+	EnableTLS                     bool              `toml:"enable_tls" deprecated:"1.27.0;1.35.0;use 'tls_enable' instead"`
+	KeepaliveTime                 config.Duration   `toml:"keepalive_time"`
+	KeepaliveTimeout              config.Duration   `toml:"keepalive_timeout"`
+	YangModelPaths                []string          `toml:"yang_model_paths"`
+	EnforceFirstNamespaceAsOrigin bool              `toml:"enforce_first_namespace_as_origin"`
+	Log                           telegraf.Logger   `toml:"-"`
 	common_tls.ClientConfig
 
 	// Internal state
@@ -99,6 +100,15 @@ func (*GNMI) SampleConfig() string {
 
 func (c *GNMI) Init() error {
 	// Check options
+	switch c.Encoding {
+	case "":
+		c.Encoding = "proto"
+	case "proto", "json", "json_ietf", "bytes":
+		// Do nothing, those are valid
+	default:
+		return fmt.Errorf("unsupported encoding %s", c.Encoding)
+	}
+
 	if time.Duration(c.Redial) <= 0 {
 		return errors.New("redial duration must be positive")
 	}
@@ -184,17 +194,21 @@ func (c *GNMI) Init() error {
 	// Invert explicit alias list and prefill subscription names
 	c.internalAliases = make(map[*pathInfo]string, len(c.Subscriptions)+len(c.Aliases)+len(c.TagSubscriptions))
 	for _, s := range c.Subscriptions {
-		if err := s.buildAlias(c.internalAliases); err != nil {
+		if err := s.buildAlias(c.internalAliases, c.EnforceFirstNamespaceAsOrigin); err != nil {
 			return err
 		}
 	}
 	for _, s := range c.TagSubscriptions {
-		if err := s.buildAlias(c.internalAliases); err != nil {
+		if err := s.buildAlias(c.internalAliases, c.EnforceFirstNamespaceAsOrigin); err != nil {
 			return err
 		}
 	}
 	for alias, encodingPath := range c.Aliases {
-		c.internalAliases[newInfoFromString(encodingPath)] = alias
+		path := newInfoFromString(encodingPath)
+		if c.EnforceFirstNamespaceAsOrigin {
+			path.enforceFirstNamespaceAsOrigin()
+		}
+		c.internalAliases[path] = alias
 	}
 	c.Log.Debugf("Internal alias mapping: %+v", c.internalAliases)
 
@@ -279,20 +293,21 @@ func (c *GNMI) Start(acc telegraf.Accumulator) error {
 				return
 			}
 			h := handler{
-				host:                host,
-				port:                port,
-				aliases:             c.internalAliases,
-				tagsubs:             c.TagSubscriptions,
-				maxMsgSize:          int(c.MaxMsgSize),
-				vendorExt:           c.VendorSpecific,
-				tagStore:            newTagStore(c.TagSubscriptions),
-				trace:               c.Trace,
-				canonicalFieldNames: c.CanonicalFieldNames,
-				trimSlash:           c.TrimFieldNames,
-				tagPathPrefix:       c.PrefixTagKeyWithPath,
-				guessPathStrategy:   c.GuessPathStrategy,
-				decoder:             c.decoder,
-				log:                 c.Log,
+				host:                          host,
+				port:                          port,
+				aliases:                       c.internalAliases,
+				tagsubs:                       c.TagSubscriptions,
+				maxMsgSize:                    int(c.MaxMsgSize),
+				vendorExt:                     c.VendorSpecific,
+				tagStore:                      newTagStore(c.TagSubscriptions),
+				trace:                         c.Trace,
+				canonicalFieldNames:           c.CanonicalFieldNames,
+				trimSlash:                     c.TrimFieldNames,
+				tagPathPrefix:                 c.PrefixTagKeyWithPath,
+				guessPathStrategy:             c.GuessPathStrategy,
+				decoder:                       c.decoder,
+				enforceFirstNamespaceAsOrigin: c.EnforceFirstNamespaceAsOrigin,
+				log:                           c.Log,
 				ClientParameters: keepalive.ClientParameters{
 					Time:                time.Duration(c.KeepaliveTime),
 					Timeout:             time.Duration(c.KeepaliveTimeout),
@@ -372,10 +387,6 @@ func (c *GNMI) newSubscribeRequest() (*gnmi.SubscribeRequest, error) {
 		gnmiPath = nil
 	}
 
-	if c.Encoding != "proto" && c.Encoding != "json" && c.Encoding != "json_ietf" && c.Encoding != "bytes" {
-		return nil, fmt.Errorf("unsupported encoding %s", c.Encoding)
-	}
-
 	return &gnmi.SubscribeRequest{
 		Request: &gnmi.SubscribeRequest_Subscribe{
 			Subscribe: &gnmi.SubscriptionList{
@@ -420,13 +431,16 @@ func (s *subscription) buildFullPath(c *GNMI) error {
 	return nil
 }
 
-func (s *subscription) buildAlias(aliases map[*pathInfo]string) error {
+func (s *subscription) buildAlias(aliases map[*pathInfo]string, enforceFirstNamespaceAsOrigin bool) error {
 	// Build the subscription path without keys
 	path, err := parsePath(s.Origin, s.Path, "")
 	if err != nil {
 		return err
 	}
 	info := newInfoFromPathWithoutKeys(path)
+	if enforceFirstNamespaceAsOrigin {
+		info.enforceFirstNamespaceAsOrigin()
+	}
 
 	// If the user didn't provide a measurement name, use last path element
 	name := s.Name
@@ -439,15 +453,18 @@ func (s *subscription) buildAlias(aliases map[*pathInfo]string) error {
 	return nil
 }
 
-func newGNMI() telegraf.Input {
-	return &GNMI{
-		Encoding: "proto",
-		Redial:   config.Duration(10 * time.Second),
-	}
-}
-
 func init() {
-	inputs.Add("gnmi", newGNMI)
+	inputs.Add("gnmi", func() telegraf.Input {
+		return &GNMI{
+			Redial:                        config.Duration(10 * time.Second),
+			EnforceFirstNamespaceAsOrigin: true,
+		}
+	})
 	// Backwards compatible alias:
-	inputs.Add("cisco_telemetry_gnmi", newGNMI)
+	inputs.Add("cisco_telemetry_gnmi", func() telegraf.Input {
+		return &GNMI{
+			Redial:                        config.Duration(10 * time.Second),
+			EnforceFirstNamespaceAsOrigin: true,
+		}
+	})
 }
