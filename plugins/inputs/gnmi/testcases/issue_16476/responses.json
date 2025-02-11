@@ -1,0 +1,481 @@
+[
+    {
+        "update": {
+            "timestamp": 1739206587847000000,
+            "prefix": {
+                "origin": "Ciena",
+                "elem": [
+                    {
+                        "name": "oc-if:interfaces"
+                    },
+                    {
+                        "name": "oc-if:interface"
+                    },
+                    {
+                        "name": "oc-if:state"
+                    },
+                    {
+                        "name": "oc-if:counters"
+                    }
+                ]
+            },
+            "update": [
+                {
+                    "path": {
+                        "origin": "Ciena",
+                        "elem": [
+                            {
+                                "name": "in-1024-to-1518-octet-pkts"
+                            }
+                        ]
+                    },
+                    "val": {
+                        "uintVal": 15680405047
+                    }
+                },
+                {
+                    "path": {
+                        "origin": "Ciena",
+                        "elem": [
+                            {
+                                "name": "in-128-to-255-octet-pkts"
+                            }
+                        ]
+                    },
+                    "val": {
+                        "uintVal": 12809649942
+                    }
+                },
+                {
+                    "path": {
+                        "origin": "Ciena",
+                        "elem": [
+                            {
+                                "name": "in-1519-to-2047-octet-pkts"
+                            }
+                        ]
+                    },
+                    "val": {
+                        "uintVal": 35815850565
+                    }
+                },
+                {
+                    "path": {
+                        "origin": "Ciena",
+                        "elem": [
+                            {
+                                "name": "in-2048-to-4095-octet-pkts"
+                            }
+                        ]
+                    },
+                    "val": {
+                        "uintVal": 0
+                    }
+                },
+                {
+                    "path": {
+                        "origin": "Ciena",
+                        "elem": [
+                            {
+                                "name": "in-256-to-511-octet-pkts"
+                            }
+                        ]
+                    },
+                    "val": {
+                        "uintVal": 5257910993
+                    }
+                },
+                {
+                    "path": {
+                        "origin": "Ciena",
+                        "elem": [
+                            {
+                                "name": "in-4096-to-9216-octet-pkts"
+                            }
+                        ]
+                    },
+                    "val": {
+                        "uintVal": 0
+                    }
+                },
+                {
+                    "path": {
+                        "origin": "Ciena",
+                        "elem": [
+                            {
+                                "name": "in-512-to-1023-octet-pkts"
+                            }
+                        ]
+                    },
+                    "val": {
+                        "uintVal": 6139561818
+                    }
+                },
+                {
+                    "path": {
+                        "origin": "Ciena",
+                        "elem": [
+                            {
+                                "name": "in-64-octet-pkts"
+                            }
+                        ]
+                    },
+                    "val": {
+                        "uintVal": 4
+                    }
+                },
+                {
+                    "path": {
+                        "origin": "Ciena",
+                        "elem": [
+                            {
+                                "name": "in-65-to-127-octet-pkts"
+                            }
+                        ]
+                    },
+                    "val": {
+                        "uintVal": 146456592549
+                    }
+                },
+                {
+                    "path": {
+                        "origin": "Ciena",
+                        "elem": [
+                            {
+                                "name": "in-broadcast-pkts"
+                            }
+                        ]
+                    },
+                    "val": {
+                        "uintVal": 167166
+                    }
+                },
+                {
+                    "path": {
+                        "origin": "Ciena",
+                        "elem": [
+                            {
+                                "name": "in-crc-error-pkts"
+                            }
+                        ]
+                    },
+                    "val": {
+                        "uintVal": 0
+                    }
+                },
+                {
+                    "path": {
+                        "origin": "Ciena",
+                        "elem": [
+                            {
+                                "name": "in-discards"
+                            }
+                        ]
+                    },
+                    "val": {
+                        "uintVal": 236
+                    }
+                },
+                {
+                    "path": {
+                        "origin": "Ciena",
+                        "elem": [
+                            {
+                                "name": "in-discards-octets"
+                            }
+                        ]
+                    },
+                    "val": {
+                        "uintVal": 31492
+                    }
+                },
+                {
+                    "path": {
+                        "origin": "Ciena",
+                        "elem": [
+                            {
+                                "name": "in-dropped-octets"
+                            }
+                        ]
+                    },
+                    "val": {
+                        "uintVal": 31492
+                    }
+                },
+                {
+                    "path": {
+                        "origin": "Ciena",
+                        "elem": [
+                            {
+                                "name": "in-dropped-pkts"
+                            }
+                        ]
+                    },
+                    "val": {
+                        "uintVal": 236
+                    }
+                },
+                {
+                    "path": {
+                        "origin": "Ciena",
+                        "elem": [
+                            {
+                                "name": "in-errors"
+                            }
+                        ]
+                    },
+                    "val": {
+                        "uintVal": 0
+                    }
+                },
+                {
+                    "path": {
+                        "origin": "Ciena",
+                        "elem": [
+                            {
+                                "name": "in-jabber-pkts"
+                            }
+                        ]
+                    },
+                    "val": {
+                        "uintVal": 0
+                    }
+                },
+                {
+                    "path": {
+                        "origin": "Ciena",
+                        "elem": [
+                            {
+                                "name": "in-multicast-pkts"
+                            }
+                        ]
+                    },
+                    "val": {
+                        "uintVal": 76815719
+                    }
+                },
+                {
+                    "path": {
+                        "origin": "Ciena",
+                        "elem": [
+                            {
+                                "name": "in-octets"
+                            }
+                        ]
+                    },
+                    "val": {
+                        "uintVal": 95890972327359
+                    }
+                },
+                {
+                    "path": {
+                        "origin": "Ciena",
+                        "elem": [
+                            {
+                                "name": "in-oversize-pkts"
+                            }
+                        ]
+                    },
+                    "val": {
+                        "uintVal": 0
+                    }
+                },
+                {
+                    "path": {
+                        "origin": "Ciena",
+                        "elem": [
+                            {
+                                "name": "in-pkts"
+                            }
+                        ]
+                    },
+                    "val": {
+                        "uintVal": 222159970919
+                    }
+                },
+                {
+                    "path": {
+                        "origin": "Ciena",
+                        "elem": [
+                            {
+                                "name": "in-undersize-pkts"
+                            }
+                        ]
+                    },
+                    "val": {
+                        "uintVal": 0
+                    }
+                },
+                {
+                    "path": {
+                        "origin": "Ciena",
+                        "elem": [
+                            {
+                                "name": "in-unicast-pkts"
+                            }
+                        ]
+                    },
+                    "val": {
+                        "uintVal": 222082988034
+                    }
+                },
+                {
+                    "path": {
+                        "origin": "Ciena",
+                        "elem": [
+                            {
+                                "name": "last-clear"
+                            }
+                        ]
+                    },
+                    "val": {
+                        "uintVal": 1679547185677412529
+                    }
+                },
+                {
+                    "path": {
+                        "origin": "Ciena",
+                        "elem": [
+                            {
+                                "name": "link-flap-events"
+                            }
+                        ]
+                    },
+                    "val": {
+                        "uintVal": 0
+                    }
+                },
+                {
+                    "path": {
+                        "origin": "Ciena",
+                        "elem": [
+                            {
+                                "name": "name"
+                            }
+                        ]
+                    },
+                    "val": {
+                        "stringVal": "\"1\""
+                    }
+                },
+                {
+                    "path": {
+                        "origin": "Ciena",
+                        "elem": [
+                            {
+                                "name": "out-1519-to-2047-octet-pkts"
+                            }
+                        ]
+                    },
+                    "val": {
+                        "uintVal": 211382493634
+                    }
+                },
+                {
+                    "path": {
+                        "origin": "Ciena",
+                        "elem": [
+                            {
+                                "name": "out-2048-to-4095-octet-pkts"
+                            }
+                        ]
+                    },
+                    "val": {
+                        "uintVal": 0
+                    }
+                },
+                {
+                    "path": {
+                        "origin": "Ciena",
+                        "elem": [
+                            {
+                                "name": "out-4096-to-9216-octet-pkts"
+                            }
+                        ]
+                    },
+                    "val": {
+                        "uintVal": 0
+                    }
+                },
+                {
+                    "path": {
+                        "origin": "Ciena",
+                        "elem": [
+                            {
+                                "name": "out-broadcast-pkts"
+                            }
+                        ]
+                    },
+                    "val": {
+                        "uintVal": 2609579674
+                    }
+                },
+                {
+                    "path": {
+                        "origin": "Ciena",
+                        "elem": [
+                            {
+                                "name": "out-errors"
+                            }
+                        ]
+                    },
+                    "val": {
+                        "uintVal": 0
+                    }
+                },
+                {
+                    "path": {
+                        "origin": "Ciena",
+                        "elem": [
+                            {
+                                "name": "out-multicast-pkts"
+                            }
+                        ]
+                    },
+                    "val": {
+                        "uintVal": 332069076
+                    }
+                },
+                {
+                    "path": {
+                        "origin": "Ciena",
+                        "elem": [
+                            {
+                                "name": "out-octets"
+                            }
+                        ]
+                    },
+                    "val": {
+                        "uintVal": 885293268981054
+                    }
+                },
+                {
+                    "path": {
+                        "origin": "Ciena",
+                        "elem": [
+                            {
+                                "name": "out-pkts"
+                            }
+                        ]
+                    },
+                    "val": {
+                        "uintVal": 677379680498
+                    }
+                },
+                {
+                    "path": {
+                        "origin": "Ciena",
+                        "elem": [
+                            {
+                                "name": "out-unicast-pkts"
+                            }
+                        ]
+                    },
+                    "val": {
+                        "uintVal": 674438031748
+                    }
+                }
+            ]
+        }
+    }
+]
