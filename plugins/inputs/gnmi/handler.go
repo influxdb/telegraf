@@ -33,21 +33,22 @@ import (
 const eidJuniperTelemetryHeader = 1
 
 type handler struct {
-	host                string
-	port                string
-	aliases             map[*pathInfo]string
-	tagsubs             []tagSubscription
-	maxMsgSize          int
-	emptyNameWarnShown  bool
-	vendorExt           []string
-	tagStore            *tagStore
-	trace               bool
-	canonicalFieldNames bool
-	trimSlash           bool
-	tagPathPrefix       bool
-	guessPathStrategy   string
-	decoder             *yangmodel.Decoder
-	log                 telegraf.Logger
+	host                          string
+	port                          string
+	aliases                       map[*pathInfo]string
+	tagsubs                       []tagSubscription
+	maxMsgSize                    int
+	emptyNameWarnShown            bool
+	vendorExt                     []string
+	tagStore                      *tagStore
+	trace                         bool
+	canonicalFieldNames           bool
+	trimSlash                     bool
+	tagPathPrefix                 bool
+	guessPathStrategy             string
+	decoder                       *yangmodel.Decoder
+	enforceFirstNamespaceAsOrigin bool
+	log                           telegraf.Logger
 	keepalive.ClientParameters
 }
 
@@ -161,6 +162,9 @@ func (h *handler) handleSubscribeResponseUpdate(acc telegraf.Accumulator, respon
 
 	// Extract the path part valid for the whole set of updates if any
 	prefix := newInfoFromPath(response.Update.Prefix)
+	if h.enforceFirstNamespaceAsOrigin {
+		prefix.enforceFirstNamespaceAsOrigin()
+	}
 
 	// Add info to the tags
 	headerTags["source"] = h.host
@@ -173,6 +177,9 @@ func (h *handler) handleSubscribeResponseUpdate(acc telegraf.Accumulator, respon
 	var valueFields []updateField
 	for _, update := range response.Update.Update {
 		fullPath := prefix.append(update.Path)
+		if h.enforceFirstNamespaceAsOrigin {
+			prefix.enforceFirstNamespaceAsOrigin()
+		}
 		if update.Path.Origin != "" {
 			fullPath.origin = update.Path.Origin
 		}
@@ -251,7 +258,11 @@ func (h *handler) handleSubscribeResponseUpdate(acc telegraf.Accumulator, respon
 				h.emptyNameWarnShown = true
 			}
 		}
+
 		aliasInfo := newInfoFromString(aliasPath)
+		if h.enforceFirstNamespaceAsOrigin {
+			aliasInfo.enforceFirstNamespaceAsOrigin()
+		}
 
 		if tags["path"] == "" && h.guessPathStrategy == "subscription" {
 			tags["path"] = aliasInfo.String()

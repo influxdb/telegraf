@@ -30,7 +30,7 @@ func (h *handler) newFieldsFromUpdate(path *pathInfo, update *gnmi.Update) ([]up
 	case *gnmi.TypedValue_AsciiVal: // not handled in ToScalar
 		return []updateField{{path, v.AsciiVal}}, nil
 	case *gnmi.TypedValue_JsonVal: // requires special path handling
-		return processJSON(path, v.JsonVal)
+		return h.processJSON(path, v.JsonVal)
 	case *gnmi.TypedValue_JsonIetfVal: // requires special path handling
 		return h.processJSONIETF(path, v.JsonIetfVal)
 	}
@@ -43,7 +43,7 @@ func (h *handler) newFieldsFromUpdate(path *pathInfo, update *gnmi.Update) ([]up
 	return []updateField{{path, nativeType}}, nil
 }
 
-func processJSON(path *pathInfo, data []byte) ([]updateField, error) {
+func (h *handler) processJSON(path *pathInfo, data []byte) ([]updateField, error) {
 	var nested interface{}
 	if err := json.Unmarshal(data, &nested); err != nil {
 		return nil, fmt.Errorf("failed to parse JSON value: %w", err)
@@ -55,8 +55,13 @@ func processJSON(path *pathInfo, data []byte) ([]updateField, error) {
 	// Create an update-field with the complete path for all entries
 	fields := make([]updateField, 0, len(entries))
 	for _, entry := range entries {
+		p := path.appendSegments(entry.key...)
+		if h.enforceFirstNamespaceAsOrigin {
+			p.enforceFirstNamespaceAsOrigin()
+		}
+
 		fields = append(fields, updateField{
-			path:  path.appendSegments(entry.key...),
+			path:  p,
 			value: entry.value,
 		})
 	}
@@ -105,6 +110,9 @@ func (h *handler) processJSONIETF(path *pathInfo, data []byte) ([]updateField, e
 	fields := make([]updateField, 0, len(entries))
 	for _, entry := range entries {
 		p := path.appendSegments(entry.key...)
+		if h.enforceFirstNamespaceAsOrigin {
+			p.enforceFirstNamespaceAsOrigin()
+		}
 
 		// Try to lookup the full path to decode the field according to the
 		// YANG model if any
