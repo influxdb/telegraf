@@ -7,6 +7,7 @@ routing option.
 
 The template has access to each metric's measurement name, tags, fields, and
 timestamp using the [interface in `/template_metric.go`](template_metric.go).
+[Sprig](http://masterminds.github.io/sprig/) helper functions are available.
 
 Read the full [Go Template Documentation][].
 

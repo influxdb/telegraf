@@ -7,6 +7,7 @@ import (
 	"strings"
 	"text/template"
 
+	"github.com/Masterminds/sprig/v3"
 	"github.com/influxdata/telegraf"
 	"github.com/influxdata/telegraf/plugins/processors"
 )
@@ -64,12 +65,12 @@ func (r *TemplateProcessor) Apply(in ...telegraf.Metric) []telegraf.Metric {
 func (r *TemplateProcessor) Init() error {
 	var err error
 
-	r.tmplTag, err = template.New("tag template").Parse(r.Tag)
+	r.tmplTag, err = template.New("tag template").Funcs(sprig.TxtFuncMap()).Parse(r.Tag)
 	if err != nil {
 		return fmt.Errorf("creating tag name template failed: %w", err)
 	}
 
-	r.tmplValue, err = template.New("value template").Parse(r.Template)
+	r.tmplValue, err = template.New("value template").Funcs(sprig.TxtFuncMap()).Parse(r.Template)
 	if err != nil {
 		return fmt.Errorf("creating value template failed: %w", err)
 	}
