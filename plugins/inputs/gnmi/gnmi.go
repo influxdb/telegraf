@@ -14,6 +14,7 @@ import (
 
 	"github.com/google/gnxi/utils/xpath"
 	"github.com/openconfig/gnmi/proto/gnmi"
+	"github.com/openconfig/gnmi/proto/gnmi_ext"
 	"google.golang.org/grpc/keepalive"
 	"google.golang.org/grpc/metadata"
 
@@ -54,6 +55,7 @@ type GNMI struct {
 	Password             config.Secret     `toml:"password"`
 	Redial               config.Duration   `toml:"redial"`
 	MaxMsgSize           config.Size       `toml:"max_msg_size"`
+	Depth                int32             `toml:"depth"`
 	Trace                bool              `toml:"dump_responses"`
 	CanonicalFieldNames  bool              `toml:"canonical_field_names"`
 	TrimFieldNames       bool              `toml:"trim_field_names"`
@@ -376,6 +378,19 @@ func (c *GNMI) newSubscribeRequest() (*gnmi.SubscribeRequest, error) {
 		return nil, fmt.Errorf("unsupported encoding %s", c.Encoding)
 	}
 
+	var extensions []*gnmi_ext.Extension
+	if c.Depth > 0 {
+		extensions = []*gnmi_ext.Extension{
+			{
+				Ext: &gnmi_ext.Extension_Depth{
+					Depth: &gnmi_ext.Depth{
+						Level: uint32(c.Depth),
+					},
+				},
+			},
+		}
+	}
+
 	return &gnmi.SubscribeRequest{
 		Request: &gnmi.SubscribeRequest_Subscribe{
 			Subscribe: &gnmi.SubscriptionList{
@@ -386,6 +401,7 @@ func (c *GNMI) newSubscribeRequest() (*gnmi.SubscribeRequest, error) {
 				UpdatesOnly:  c.UpdatesOnly,
 			},
 		},
+		Extension: extensions,
 	}, nil
 }
 
