@@ -1,6 +1,18 @@
 <!-- markdownlint-disable MD024 -->
 # Changelog
 
+## Unreleased
+
+### Important Changes
+
+- PR [#16507](https://github.com/influxdata/telegraf/pull/16507) adds the
+  `enforce_first_namespace_as_origin` to the GNMI input plugin. This option
+  allows to disable mangling of the response `path` tag by _not_ using namespaces
+  as origin. It is highly recommended to disable the option.
+  However, disabling the behavior might change the `path` tag and
+  thus might break existing queries. Furthermore, the tag modification might
+  increase cardinality in your database.
+
 ## v1.33.2 [2025-02-10]
 
 ### Important Changes
