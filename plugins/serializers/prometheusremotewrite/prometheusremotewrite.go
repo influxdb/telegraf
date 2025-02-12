@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/golang/snappy"
+	"github.com/prometheus/prometheus/model/histogram"
 	"github.com/prometheus/prometheus/prompb"
 
 	"github.com/influxdata/telegraf"
@@ -45,6 +46,26 @@ func (s *Serializer) SerializeBatch(metrics []telegraf.Metric) ([]byte, error) {
 		labels = s.appendCommonLabels(labels[:0], metric)
 		var metrickey MetricKey
 		var promts prompb.TimeSeries
+
+		if metric.Type() == telegraf.Histogram {
+			if ok, fh := tryGetNativeHistogram(metric); ok {
+				metrickey, promts = getPromNativeHistogramTS(metric.Name(), labels, *fh, metric.Time())
+				// A batch of metrics can contain multiple values for a single
+				// Prometheus histogram. If this metric is older than the existing
+				// histogram then we can skip over it.
+				m, ok := entries[metrickey]
+				if ok {
+					if metric.Time().Before(time.Unix(0, m.Histograms[0].Timestamp*1_000_000)) {
+						traceAndKeepErr("metric %q has histograms with timestamp %v older than already registered before", metric.Name(), metric.Time())
+						continue
+					}
+				}
+				entries[metrickey] = promts
+				continue
+			}
+			fmt.Println(fmt.Sprintf("metric %q is not a native histogram: fields %v", metric.Name(), metric.Fields()))
+		}
+
 		for _, field := range metric.FieldList() {
 			metricName := prometheus.MetricName(metric.Name(), field.Key, metric.Type())
 			metricName, ok := prometheus.SanitizeMetricName(metricName)
@@ -336,6 +357,179 @@ func getPromTS(name string, labels []prompb.Label, value float64, ts time.Time, 
 	sort.Sort(sortableLabels(labelscopy))
 
 	return MakeMetricKey(labelscopy), prompb.TimeSeries{Labels: labelscopy, Samples: sample}
+}
+
+func tryGetNativeHistogram(metric telegraf.Metric) (bool, *histogram.FloatHistogram) {
+	fields := metric.Fields()
+	count, ok := fields["count"]
+	if !ok {
+		return false, nil
+	}
+	countFloat, ok := count.(float64)
+	if !ok {
+		return false, nil
+	}
+	sum, ok := fields["sum"]
+	if !ok {
+		return false, nil
+	}
+	sumFloat, ok := sum.(float64)
+	if !ok {
+		return false, nil
+	}
+	schema, ok := fields["schema"]
+	if !ok {
+		return false, nil
+	}
+	schemaInt, ok := schema.(int64)
+	if !ok {
+		return false, nil
+	}
+	counterResetHint, ok := fields["counter_reset_hint"]
+	if !ok {
+		return false, nil
+	}
+	counterResetHintInt, ok := counterResetHint.(uint64)
+	if !ok {
+		return false, nil
+	}
+	zeroThreshold, ok := fields["zero_threshold"]
+	if !ok {
+		return false, nil
+	}
+	zeroThresholdFloat, ok := zeroThreshold.(float64)
+	if !ok {
+		return false, nil
+	}
+	zeroCount, ok := fields["zero_count"]
+	if !ok {
+		return false, nil
+	}
+	zeroCountFloat, ok := zeroCount.(float64)
+	if !ok {
+		return false, nil
+	}
+
+	floatHistogram := &histogram.FloatHistogram{
+		Count:            countFloat,
+		Sum:              sumFloat,
+		Schema:           int32(schemaInt),
+		CounterResetHint: histogram.CounterResetHint(counterResetHintInt),
+		ZeroThreshold:    zeroThresholdFloat,
+		ZeroCount:        zeroCountFloat,
+		PositiveSpans:    make([]histogram.Span, 0),
+		NegativeSpans:    make([]histogram.Span, 0),
+		PositiveBuckets:  make([]float64, 0),
+		NegativeBuckets:  make([]float64, 0),
+	}
+
+	fmt.Println(fmt.Sprintf("floatHistogram alright so far: %v", floatHistogram))
+
+	// expand positiveSpans and negativeSpans into fields
+	i := 0
+	for {
+		offset, ok := fields[fmt.Sprintf("positive_span_%d_offset", i)]
+		if !ok {
+			break
+		}
+		offsetInt, ok := offset.(int64)
+		if !ok {
+			break
+		}
+		length, ok := fields[fmt.Sprintf("positive_span_%d_length", i)]
+		if !ok {
+			break
+		}
+		lengthInt, ok := length.(uint64)
+		if !ok {
+			break
+		}
+		positiveSpan := histogram.Span{
+			Offset: int32(offsetInt),
+			Length: uint32(lengthInt),
+		}
+		floatHistogram.PositiveSpans = append(floatHistogram.PositiveSpans, positiveSpan)
+		i++
+	}
+	i = 0
+	for {
+		offset, ok := fields[fmt.Sprintf("negative_span_%d_offset", i)]
+		if !ok {
+			break
+		}
+		offsetInt, ok := offset.(int64)
+		if !ok {
+			break
+		}
+		length, ok := fields[fmt.Sprintf("negative_span_%d_length", i)]
+		if !ok {
+			break
+		}
+		lengthInt, ok := length.(uint64)
+		if !ok {
+			break
+		}
+		negativeSpan := histogram.Span{
+			Offset: int32(offsetInt),
+			Length: uint32(lengthInt),
+		}
+		floatHistogram.NegativeSpans = append(floatHistogram.NegativeSpans, negativeSpan)
+		i++
+	}
+	i = 0
+	for {
+		bucket, ok := fields[fmt.Sprintf("positive_bucket_%d", i)]
+		if !ok {
+			break
+		}
+		bucketFloat, ok := bucket.(float64)
+		if !ok {
+			break
+		}
+		floatHistogram.PositiveBuckets = append(floatHistogram.PositiveBuckets, bucketFloat)
+		i++
+	}
+	i = 0
+	for {
+		bucket, ok := fields[fmt.Sprintf("negative_bucket_%d", i)]
+		if !ok {
+			break
+		}
+		bucketFloat, ok := bucket.(float64)
+		if !ok {
+			break
+		}
+		floatHistogram.NegativeBuckets = append(floatHistogram.NegativeBuckets, bucketFloat)
+		i++
+	}
+	err := floatHistogram.Validate()
+	if err != nil {
+		return false, nil
+	}
+	return true, floatHistogram
+}
+
+func getPromNativeHistogramTS(name string, labels []prompb.Label, fh histogram.FloatHistogram, ts time.Time, extraLabels ...prompb.Label) (MetricKey, prompb.TimeSeries) {
+	labelscopy := make([]prompb.Label, len(labels), len(labels)+1)
+	copy(labelscopy, labels)
+
+	histograms := []prompb.Histogram{
+		prompb.FromFloatHistogram(
+			ts.UnixNano()/int64(time.Millisecond),
+			&fh,
+		),
+	}
+	labelscopy = append(labelscopy, extraLabels...)
+	labelscopy = append(labelscopy, prompb.Label{
+		Name:  "__name__",
+		Value: name,
+	})
+
+	// we sort the labels since Prometheus TSDB does not like out of order labels
+	sort.Sort(sortableLabels(labelscopy))
+
+	// for a native histogram, samples are not used; instead, histograms field is used
+	return MakeMetricKey(labelscopy), prompb.TimeSeries{Labels: labelscopy, Histograms: histograms}
 }
 
 type sortableLabels []prompb.Label

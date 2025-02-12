@@ -768,6 +768,63 @@ rpc_duration_seconds_sum 17560473
 	}
 }
 
+func TestRemoteWriteSerializeNativeHistogram(t *testing.T) {
+	tests := []struct {
+		name     string
+		metric   telegraf.Metric
+		expected []byte
+	}{
+		{
+			name: "native histogram",
+			metric: testutil.MustMetric(
+				"rpc_duration_seconds",
+				map[string]string{
+					"host": "example.org",
+					"node": "node1",
+				},
+				map[string]interface{}{
+					"count":                  float64(20),
+					"sum":                    float64(10),
+					"schema":                 int64(0),
+					"counter_reset_hint":     uint64(1),
+					"zero_threshold":         float64(0.001),
+					"zero_count":             float64(2),
+					"positive_span_0_offset": int64(0),
+					"positive_span_0_length": uint64(2),
+					"positive_bucket_0":      float64(3),
+					"positive_bucket_1":      float64(5),
+					"negative_span_0_offset": int64(0),
+					"negative_span_0_length": uint64(2),
+					"negative_bucket_0":      float64(4),
+					"negative_bucket_1":      float64(6),
+				},
+				time.Unix(0, 0),
+				telegraf.Histogram,
+			),
+			expected: []byte(`
+rpc_duration_seconds{host="example.org", node="node1"} {count:20, sum:10, [-2,-1):6, [-1,-0.5):4, [-0.001,0.001]:2, (0.5,1]:3, (1,2]:5}
+`),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			s := &Serializer{
+				Log:         &testutil.CaptureLogger{},
+				SortMetrics: true,
+			}
+
+			data, err := s.Serialize(tt.metric)
+			require.NoError(t, err)
+			actual, err := prompbToHistogramText(data)
+			require.NoError(t, err)
+
+			require.Equal(t, strings.TrimSpace(string(tt.expected)),
+				strings.TrimSpace(string(actual)))
+		})
+	}
+}
+
 func prompbToText(data []byte) ([]byte, error) {
 	var buf = bytes.Buffer{}
 	protobuff, err := snappy.Decode(nil, data)
@@ -804,6 +861,48 @@ func protoToSamples(req *prompb.WriteRequest) model.Samples {
 		}
 	}
 	return samples
+}
+
+func prompbToHistogramText(data []byte) ([]byte, error) {
+	var buf = bytes.Buffer{}
+	protobuff, err := snappy.Decode(nil, data)
+	if err != nil {
+		return nil, err
+	}
+	var req prompb.WriteRequest
+	err = req.Unmarshal(protobuff)
+	if err != nil {
+		return nil, err
+	}
+	for _, ts := range req.Timeseries {
+		labels := make(map[string]string)
+		name := ""
+		for _, l := range ts.Labels {
+			if l.Name == model.MetricNameLabel {
+				name = l.Value
+			} else {
+				labels[l.Name] = l.Value
+			}
+		}
+		for _, h := range ts.Histograms {
+			fh := *h.ToFloatHistogram()
+			buf.WriteString(fmt.Sprintf("%s", name))
+			if len(labels) > 0 {
+				buf.WriteString("{")
+				first := true
+				for k, v := range labels {
+					if !first {
+						buf.WriteString(", ")
+					}
+					buf.WriteString(fmt.Sprintf("%s=\"%s\"", k, v))
+					first = false
+				}
+				buf.WriteString("}")
+			}
+			buf.WriteString(fmt.Sprintf(" %v\n", fh.String()))
+		}
+	}
+	return buf.Bytes(), nil
 }
 
 func BenchmarkSerialize(b *testing.B) {
