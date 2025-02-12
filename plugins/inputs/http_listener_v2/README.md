@@ -62,6 +62,9 @@ See the [CONFIGURATION.md][CONFIGURATION.md] for more details.
   ## Save path as http_listener_v2_path tag if set to true
   # path_tag = false
 
+  ## Save query parameters as tagg if set to true
+  # query_tag = false
+
   ## HTTP methods to accept.
   # methods = ["POST", "PUT"]
 
