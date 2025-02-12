@@ -38,6 +38,7 @@ linters:
     - unconvert
     - unparam
     - unused
+    - usetesting
 
 linters-settings:
   depguard:

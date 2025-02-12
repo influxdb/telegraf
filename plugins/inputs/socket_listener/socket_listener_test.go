@@ -130,10 +130,13 @@ func TestSocketListener(t *testing.T) {
 				}
 
 				// Create a socket
+				// The Maximum length of the socket path is 104/108 characters, path created with t.TempDir() is too long for some cases
+				// (it combines test name with subtest name and some random numbers in the path)
+				//nolint:usetesting // "os.CreateTemp("", ...) could be replaced by os.CreateTemp(t.TempDir(), ...) in TestSocketListener"
 				sock, err := os.CreateTemp("", "sock-")
 				require.NoError(t, err)
-				defer sock.Close()
 				defer os.Remove(sock.Name())
+				defer sock.Close()
 				serverAddr = sock.Name()
 			}
 
@@ -277,10 +280,10 @@ func TestLargeReadBufferUnixgram(t *testing.T) {
 	require.NoError(t, bufsize.UnmarshalText([]byte("100KiB")))
 
 	// Create a socket
-	sock, err := os.CreateTemp("", "sock-")
+	sock, err := os.CreateTemp(t.TempDir(), "sock-")
 	require.NoError(t, err)
 	defer sock.Close()
-	defer os.Remove(sock.Name())
+
 	var serverAddr = sock.Name()
 
 	// Setup plugin with a sufficient read buffer

@@ -1103,11 +1103,10 @@ func TestConfigPluginIDsSame(t *testing.T) {
 
 func TestPersisterInputStoreLoad(t *testing.T) {
 	// Reserve a temporary state file
-	file, err := os.CreateTemp("", "telegraf_state-*.json")
+	file, err := os.CreateTemp(t.TempDir(), "telegraf_state-*.json")
 	require.NoError(t, err)
 	filename := file.Name()
 	require.NoError(t, file.Close())
-	defer os.Remove(filename)
 
 	// Load the plugins
 	cstore := config.NewConfig()

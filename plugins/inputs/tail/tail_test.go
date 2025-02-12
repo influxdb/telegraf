@@ -194,10 +194,9 @@ func TestGrokParseLogFilesWithMultiline(t *testing.T) {
 }
 
 func TestGrokParseLogFilesWithMultilineTimeout(t *testing.T) {
-	tmpfile, err := os.CreateTemp("", "")
+	tmpfile, err := os.CreateTemp(t.TempDir(), "")
 	require.NoError(t, err)
 	defer tmpfile.Close()
-	defer os.Remove(tmpfile.Name())
 
 	// This seems necessary in order to get the test to read the following lines.
 	_, err = tmpfile.WriteString("[04/Jun/2016:12:41:48 +0100] INFO HelloExample: This is fluff\r\n")
@@ -605,10 +604,9 @@ func TestCharacterEncoding(t *testing.T) {
 }
 
 func TestTailEOF(t *testing.T) {
-	tmpfile, err := os.CreateTemp("", "")
+	tmpfile, err := os.CreateTemp(t.TempDir(), "")
 	require.NoError(t, err)
 	defer tmpfile.Close()
-	defer os.Remove(tmpfile.Name())
 	_, err = tmpfile.WriteString("cpu usage_idle=100\r\n")
 	require.NoError(t, err)
 	require.NoError(t, tmpfile.Sync())
@@ -645,10 +643,9 @@ func TestTailEOF(t *testing.T) {
 
 func TestCSVBehavior(t *testing.T) {
 	// Prepare the input file
-	input, err := os.CreateTemp("", "")
+	input, err := os.CreateTemp(t.TempDir(), "")
 	require.NoError(t, err)
 	defer input.Close()
-	defer os.Remove(input.Name())
 	// Write header
 	_, err = input.WriteString("a,b\n")
 	require.NoError(t, err)

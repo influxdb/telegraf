@@ -129,6 +129,9 @@ func (ts *tempSocket) Close() {
 }
 
 func newTempSocket(t *testing.T) *tempSocket {
+	// The Maximum length of the socket path is 104/108 characters, path created with t.TempDir() is too long for some cases
+	// (it combines test name with subtest name and some random numbers in the path)
+	//nolint:usetesting // "os.MkdirTemp() could be replaced by t.TempDir() in newTempSocket"
 	dirPath, err := os.MkdirTemp("", "test-socket")
 	require.NoError(t, err)
 
@@ -160,7 +163,7 @@ func (tlf *tempLogFile) close() {
 }
 
 func newTempLogFile(t *testing.T) *tempLogFile {
-	file, err := os.CreateTemp("", "*.log")
+	file, err := os.CreateTemp(t.TempDir(), "*.log")
 	require.NoError(t, err)
 
 	return &tempLogFile{

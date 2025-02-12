@@ -24,16 +24,14 @@ const (
 )
 
 func TestBcacheGeneratesMetrics(t *testing.T) {
-	tmpDir, err := os.MkdirTemp("", "telegraf-bcache")
-	require.NoError(t, err)
-	defer os.RemoveAll(tmpDir)
+	tmpDir := t.TempDir()
 
 	testBcachePath := tmpDir + "/telegraf-bcache/sys/fs/bcache"
 	testBcacheUUIDPath := testBcachePath + "/663955a3-765a-4737-a9fd-8250a7a78411"
 	testBcacheDevPath := tmpDir + "/telegraf/sys/devices/virtual/block/bcache0"
 	testBcacheBackingDevPath := tmpDir + "/telegraf/sys/devices/virtual/block/md10"
 
-	err = os.MkdirAll(testBcacheUUIDPath, 0750)
+	err := os.MkdirAll(testBcacheUUIDPath, 0750)
 	require.NoError(t, err)
 
 	err = os.MkdirAll(testBcacheDevPath, 0750)

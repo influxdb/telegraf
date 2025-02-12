@@ -30,9 +30,7 @@ func TestStaticFileCreation(t *testing.T) {
 	}
 	expected := "test,source=localhost value=42i 1719410485000000000\n"
 
-	tmpdir, err := os.MkdirTemp("", "telegraf-remotefile-*")
-	require.NoError(t, err)
-	defer os.RemoveAll(tmpdir)
+	tmpdir := t.TempDir()
 
 	// Setup the plugin including the serializer
 	plugin := &File{
@@ -77,9 +75,7 @@ func TestStaticFileAppend(t *testing.T) {
 	expected := "test,source=remotehost value=23i 1719410465000000000\n"
 	expected += "test,source=localhost value=42i 1719410485000000000\n"
 
-	tmpdir, err := os.MkdirTemp("", "telegraf-remotefile-*")
-	require.NoError(t, err)
-	defer os.RemoveAll(tmpdir)
+	tmpdir := t.TempDir()
 
 	// Create a file where we want to append to
 	f, err := os.OpenFile(filepath.Join(tmpdir, "test"), os.O_CREATE|os.O_WRONLY, 0600)
@@ -174,9 +170,7 @@ func TestDynamicFiles(t *testing.T) {
 		},
 	}
 
-	tmpdir, err := os.MkdirTemp("", "telegraf-remotefile-*")
-	require.NoError(t, err)
-	defer os.RemoveAll(tmpdir)
+	tmpdir := t.TempDir()
 
 	// Setup the plugin including the serializer
 	plugin := &File{
@@ -242,9 +236,7 @@ func TestCustomTemplateFunctions(t *testing.T) {
 
 	expectedFilename := fmt.Sprintf("test-%d", time.Now().Year())
 
-	tmpdir, err := os.MkdirTemp("", "telegraf-remotefile-*")
-	require.NoError(t, err)
-	defer os.RemoveAll(tmpdir)
+	tmpdir := t.TempDir()
 
 	// Setup the plugin including the serializer
 	plugin := &File{
@@ -297,9 +289,7 @@ func TestCSVSerialization(t *testing.T) {
 		"test-b.csv": "timestamp,measurement,source,value\n1587686400,test,b,23\n",
 	}
 
-	tmpdir, err := os.MkdirTemp("", "telegraf-remotefile-*")
-	require.NoError(t, err)
-	defer os.RemoveAll(tmpdir)
+	tmpdir := t.TempDir()
 
 	// Setup the plugin including the serializer
 	plugin := &File{
@@ -357,9 +347,7 @@ func TestForgettingFiles(t *testing.T) {
 		),
 	}
 
-	tmpdir, err := os.MkdirTemp("", "telegraf-remotefile-*")
-	require.NoError(t, err)
-	defer os.RemoveAll(tmpdir)
+	tmpdir := t.TempDir()
 
 	// Setup the plugin including the serializer
 	plugin := &File{
@@ -467,9 +455,7 @@ func TestTrackingMetrics(t *testing.T) {
 	}
 
 	// Prepare the output filesystem
-	tmpdir, err := os.MkdirTemp("", "telegraf-remotefile-*")
-	require.NoError(t, err)
-	defer os.RemoveAll(tmpdir)
+	tmpdir := t.TempDir()
 
 	// Setup the plugin including the serializer
 	plugin := &File{

@@ -172,13 +172,11 @@ disk I/O size          ios   % cum % |  ios         % cum %
 `
 
 func TestLustre2GeneratesHealth(t *testing.T) {
-	tmpDir, err := os.MkdirTemp("", "telegraf-lustre")
-	require.NoError(t, err)
-	defer os.RemoveAll(tmpDir)
+	tmpDir := t.TempDir()
 
 	rootdir := tmpDir + "/telegraf"
 	sysdir := rootdir + "/sys/fs/lustre/"
-	err = os.MkdirAll(sysdir, 0750)
+	err := os.MkdirAll(sysdir, 0750)
 	require.NoError(t, err)
 
 	err = os.WriteFile(sysdir+"health_check", []byte("healthy\n"), 0640)
@@ -202,16 +200,14 @@ func TestLustre2GeneratesHealth(t *testing.T) {
 }
 
 func TestLustre2GeneratesMetrics(t *testing.T) {
-	tmpDir, err := os.MkdirTemp("", "telegraf-lustre")
-	require.NoError(t, err)
-	defer os.RemoveAll(tmpDir)
+	tmpDir := t.TempDir()
 
 	rootdir := tmpDir + "/telegraf"
 	tempdir := rootdir + "/proc/fs/lustre/"
 	ostName := "OST0001"
 
 	mdtdir := tempdir + "/mdt/"
-	err = os.MkdirAll(mdtdir+"/"+ostName, 0750)
+	err := os.MkdirAll(mdtdir+"/"+ostName, 0750)
 	require.NoError(t, err)
 
 	osddir := tempdir + "/osd-ldiskfs/"
@@ -273,16 +269,14 @@ func TestLustre2GeneratesMetrics(t *testing.T) {
 }
 
 func TestLustre2GeneratesClientMetrics(t *testing.T) {
-	tmpDir, err := os.MkdirTemp("", "telegraf-lustre-client")
-	require.NoError(t, err)
-	defer os.RemoveAll(tmpDir)
+	tmpDir := t.TempDir()
 
 	rootdir := tmpDir + "/telegraf"
 	tempdir := rootdir + "/proc/fs/lustre/"
 	ostName := "OST0001"
 	clientName := "10.2.4.27@o2ib1"
 	mdtdir := tempdir + "/mdt/"
-	err = os.MkdirAll(mdtdir+"/"+ostName+"/exports/"+clientName, 0750)
+	err := os.MkdirAll(mdtdir+"/"+ostName+"/exports/"+clientName, 0750)
 	require.NoError(t, err)
 
 	obddir := tempdir + "/obdfilter/"
@@ -338,9 +332,7 @@ func TestLustre2GeneratesClientMetrics(t *testing.T) {
 }
 
 func TestLustre2GeneratesJobstatsMetrics(t *testing.T) {
-	tmpDir, err := os.MkdirTemp("", "telegraf-lustre-jobstats")
-	require.NoError(t, err)
-	defer os.RemoveAll(tmpDir)
+	tmpDir := t.TempDir()
 
 	rootdir := tmpDir + "/telegraf"
 	tempdir := rootdir + "/proc/fs/lustre/"
@@ -348,7 +340,7 @@ func TestLustre2GeneratesJobstatsMetrics(t *testing.T) {
 	jobNames := []string{"cluster-testjob1", "testjob2"}
 
 	mdtdir := tempdir + "/mdt/"
-	err = os.MkdirAll(mdtdir+"/"+ostName, 0750)
+	err := os.MkdirAll(mdtdir+"/"+ostName, 0750)
 	require.NoError(t, err)
 
 	obddir := tempdir + "/obdfilter/"
@@ -499,16 +491,14 @@ func TestLustre2CanParseConfiguration(t *testing.T) {
 }
 
 func TestLustre2GeneratesBrwstatsMetrics(t *testing.T) {
-	tmpdir, err := os.MkdirTemp("", "telegraf-lustre-brwstats")
-	require.NoError(t, err)
-	defer os.RemoveAll(tmpdir)
+	tmpdir := t.TempDir()
 
 	rootdir := tmpdir + "/telegraf"
 	tempdir := rootdir + "/proc/fs/lustre"
 	ostname := "OST0001"
 
 	osddir := tempdir + "/osd-ldiskfs/"
-	err = os.MkdirAll(osddir+"/"+ostname, 0750)
+	err := os.MkdirAll(osddir+"/"+ostname, 0750)
 	require.NoError(t, err)
 
 	err = os.WriteFile(osddir+"/"+ostname+"/brw_stats", []byte(brwstatsProcContents), 0640)
@@ -574,9 +564,7 @@ func TestLustre2GeneratesBrwstatsMetrics(t *testing.T) {
 }
 
 func TestLustre2GeneratesEvictionMetrics(t *testing.T) {
-	rootdir, err := os.MkdirTemp("", "telegraf-lustre-evictions")
-	require.NoError(t, err)
-	defer os.RemoveAll(rootdir)
+	rootdir := t.TempDir()
 
 	// setup files in mock sysfs
 	type fileEntry struct {
@@ -600,7 +588,7 @@ func TestLustre2GeneratesEvictionMetrics(t *testing.T) {
 	// gather metrics
 	m := &Lustre2{rootdir: rootdir}
 	var acc testutil.Accumulator
-	err = m.Gather(&acc)
+	err := m.Gather(&acc)
 	require.NoError(t, err)
 
 	// compare with expectations

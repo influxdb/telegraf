@@ -36,9 +36,7 @@ func TestNoFilesFound(t *testing.T) {
 
 func TestDefaultsUsed(t *testing.T) {
 	defer restoreDflts(dfltFiles, dfltDirs)
-	tmpdir, err := os.MkdirTemp("", "tmp1")
-	require.NoError(t, err)
-	defer os.Remove(tmpdir)
+	tmpdir := t.TempDir()
 
 	tmpFile, err := os.CreateTemp(tmpdir, "ip_conntrack_count")
 	require.NoError(t, err)
@@ -61,9 +59,7 @@ func TestDefaultsUsed(t *testing.T) {
 
 func TestConfigsUsed(t *testing.T) {
 	defer restoreDflts(dfltFiles, dfltDirs)
-	tmpdir, err := os.MkdirTemp("", "tmp1")
-	require.NoError(t, err)
-	defer os.Remove(tmpdir)
+	tmpdir := t.TempDir()
 
 	cntFile, err := os.CreateTemp(tmpdir, "nf_conntrack_count")
 	require.NoError(t, err)

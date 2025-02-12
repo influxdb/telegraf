@@ -879,7 +879,7 @@ func Test_gatherRasMetrics(t *testing.T) {
 func Test_rasReader(t *testing.T) {
 	file := rasReaderImpl{}
 	// Create unique temporary file
-	fileobj, err := os.CreateTemp("", "qat")
+	fileobj, err := os.CreateTemp(t.TempDir(), "qat")
 	require.NoError(t, err)
 
 	t.Run("tests with existing file", func(t *testing.T) {

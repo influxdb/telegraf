@@ -852,6 +852,9 @@ func createSocketForTest(t *testing.T, dirPath string) (string, net.Listener) {
 	var pathToSocket string
 
 	if len(dirPath) == 0 {
+		// The Maximum length of the socket path is 104/108 characters, path created with t.TempDir() is too long for some cases
+		// (it combines test name with subtest name and some random numbers in the path)
+		//nolint:usetesting // "os.MkdirTemp() could be replaced by t.TempDir() in createSocketForTest"
 		dirPath, err = os.MkdirTemp("", "dpdk-test-socket")
 		require.NoError(t, err)
 		pathToSocket = filepath.Join(dirPath, dpdkSocketTemplateName)

@@ -736,10 +736,10 @@ func TestServerHeaders(t *testing.T) {
 func TestUnixSocket(t *testing.T) {
 	listener, err := newTestHTTPListenerV2()
 	require.NoError(t, err)
-	file, err := os.CreateTemp("", "*.socket")
+	file, err := os.CreateTemp(t.TempDir(), "*.socket")
 	require.NoError(t, err)
 	require.NoError(t, file.Close())
-	defer os.Remove(file.Name())
+
 	socketName := file.Name()
 	if runtime.GOOS == "windows" {
 		listener.ServiceAddress = "unix:///" + socketName

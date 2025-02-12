@@ -53,7 +53,7 @@ commands:
           steps:
             - run: echo 'export RACE="$RACE -ldflags=-extldflags=-Wl,-ld_classic"' >> $BASH_ENV
       - run: |
-          GOARCH=<< parameters.arch >> ./<< parameters.gotestsum >> -- ${RACE} -short ./...
+          GOARCH=<< parameters.arch >> ./<< parameters.gotestsum >> --format standard-verbose -- ${RACE} -short ./...
   package-build:
     parameters:
       type:

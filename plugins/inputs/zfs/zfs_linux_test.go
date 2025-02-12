@@ -220,12 +220,9 @@ scatter_sg_table_retry          4    99221
 `
 
 func TestZfsPoolMetrics(t *testing.T) {
-	tmpDir, err := os.MkdirTemp("", "telegraf-zfs-pool")
-	require.NoError(t, err)
-	defer os.RemoveAll(tmpDir)
-
+	tmpDir := t.TempDir()
 	testKstatPath := tmpDir + "/telegraf/proc/spl/kstat/zfs"
-	err = os.MkdirAll(testKstatPath, 0750)
+	err := os.MkdirAll(testKstatPath, 0750)
 	require.NoError(t, err)
 
 	err = os.MkdirAll(testKstatPath+"/HOME", 0750)
@@ -279,12 +276,10 @@ func TestZfsPoolMetrics(t *testing.T) {
 }
 
 func TestZfsGeneratesMetrics(t *testing.T) {
-	tmpDir, err := os.MkdirTemp("", "telegraf-zfs-generates")
-	require.NoError(t, err)
-	defer os.RemoveAll(tmpDir)
+	tmpDir := t.TempDir()
 
 	testKstatPath := tmpDir + "/telegraf/proc/spl/kstat/zfs"
-	err = os.MkdirAll(testKstatPath, 0750)
+	err := os.MkdirAll(testKstatPath, 0750)
 	require.NoError(t, err)
 
 	err = os.MkdirAll(testKstatPath, 0750)
