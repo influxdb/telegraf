@@ -130,7 +130,7 @@ type Statsd struct {
 	distributions []cacheddistributions
 
 	// Protocol listeners
-	UDPlistener *net.UDPConn
+	UDPConn     *net.UDPConn
 	TCPlistener *net.TCPListener
 
 	// track current connections so we can close them in Stop()
@@ -296,7 +296,7 @@ func (s *Statsd) Start(ac telegraf.Accumulator) error {
 		}
 
 		s.Log.Infof("UDP listening on %q", conn.LocalAddr().String())
-		s.UDPlistener = conn
+		s.UDPConn = conn
 
 		s.wg.Add(1)
 		go func() {
@@ -450,8 +450,8 @@ func (s *Statsd) Stop() {
 	s.Log.Infof("Stopping the statsd service")
 	close(s.done)
 	if s.isUDP() {
-		if s.UDPlistener != nil {
-			s.UDPlistener.Close()
+		if s.UDPConn != nil {
+			s.UDPConn.Close()
 		}
 	} else {
 		if s.TCPlistener != nil {
@@ -530,7 +530,7 @@ func (s *Statsd) tcpListen(listener *net.TCPListener) error {
 // udpListen starts listening for UDP packets on the configured port.
 func (s *Statsd) udpListen(conn *net.UDPConn) error {
 	if s.ReadBufferSize > 0 {
-		if err := s.UDPlistener.SetReadBuffer(s.ReadBufferSize); err != nil {
+		if err := s.UDPConn.SetReadBuffer(s.ReadBufferSize); err != nil {
 			return err
 		}
 	}

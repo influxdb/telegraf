@@ -2168,7 +2168,7 @@ func TestUdpFillQueue(t *testing.T) {
 	var acc testutil.Accumulator
 	require.NoError(t, plugin.Start(&acc))
 
-	conn, err := net.Dial("udp", plugin.UDPlistener.LocalAddr().String())
+	conn, err := net.Dial("udp", plugin.UDPConn.LocalAddr().String())
 	require.NoError(t, err)
 	numberToSend := plugin.AllowedPendingMessages
 	for i := 0; i < numberToSend; i++ {
