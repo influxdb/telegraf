@@ -25,7 +25,8 @@ See the [CONFIGURATION.md][CONFIGURATION.md] for more details.
   sources = ["tcp://example.org:443", "https://influxdata.com:443",
             "smtp://mail.localhost:25", "udp://127.0.0.1:4433",
             "/etc/ssl/certs/ssl-cert-snakeoil.pem",
-            "/etc/mycerts/*.mydomain.org.pem", "file:///path/to/*.pem"]
+            "/etc/mycerts/*.mydomain.org.pem", "file:///path/to/*.pem",
+            "/etc/mycerts/keystore.jks"]
 
   ## Timeout for SSL connection
   # timeout = "5s"
@@ -41,6 +42,9 @@ See the [CONFIGURATION.md][CONFIGURATION.md] for more details.
 
   ## Pad certificate serial number with zeroes to 128-bits.
   # pad_serial_with_zeroes = false
+
+  ## Password to be used with PKCS#12 or JKS files
+  # password = "telegraf"
 
   ## Optional TLS Config
   # tls_ca = "/etc/telegraf/ca.pem"

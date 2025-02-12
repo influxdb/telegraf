@@ -29,12 +29,131 @@ import (
 	"github.com/influxdata/telegraf/metric"
 	common_tls "github.com/influxdata/telegraf/plugins/common/tls"
 	"github.com/influxdata/telegraf/testutil"
+
+	keystore "github.com/pavlo-v-chernykh/keystore-go/v4"
+	pkcs12 "software.sslmate.com/src/go-pkcs12"
 )
 
 var pki = testutil.NewPKI("../../../testutil/pki")
 
 // Make sure X509Cert implements telegraf.Input
 var _ telegraf.Input = &X509Cert{}
+
+// generateTestKeystores creates temporary JKS & PKCS#12 keystores for testing
+func generateTestKeystores(t *testing.T) (pkcs12Path, jksPath string) {
+	t.Helper()
+
+	// Generate a test certificate
+	certPEM, keyPEM, certDER := generateSelfSignedCert(t)
+
+	pkcs12Path = createTestPKCS12(t, certPEM, keyPEM)
+	jksPath = createTestJKS(t, certDER)
+
+	return pkcs12Path, jksPath
+}
+
+// generateSelfSignedCert generates a dummy self-signed certificate
+func generateSelfSignedCert(t *testing.T) ([]byte, []byte, []byte) {
+	privKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	template := x509.Certificate{
+		SerialNumber: big.NewInt(1),
+		Subject: pkix.Name{
+			CommonName:   "Test Certificate",
+			Organization: []string{"Test Org"},
+		},
+		NotBefore:             time.Now(),
+		NotAfter:              time.Now().Add(365 * 24 * time.Hour),
+		KeyUsage:              x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
+		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+		BasicConstraintsValid: true,
+	}
+
+	certDER, err := x509.CreateCertificate(rand.Reader, &template, &template, &privKey.PublicKey, privKey)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	certPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: certDER})
+	keyPEM := pem.EncodeToMemory(&pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(privKey)})
+
+	return certPEM, keyPEM, certDER
+}
+
+// createTestPKCS12 creates a temporary PKCS#12 keystore
+func createTestPKCS12(t *testing.T, certPEM, keyPEM []byte) string {
+	block, _ := pem.Decode(certPEM)
+	if block == nil {
+		t.Fatal("failed to parse certificate PEM")
+	}
+
+	cert, err := x509.ParseCertificate(block.Bytes)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	block, _ = pem.Decode(keyPEM)
+	if block == nil {
+		t.Fatal("failed to parse private key PEM")
+	}
+
+	privKey, err := x509.ParsePKCS1PrivateKey(block.Bytes)
+	if err != nil {
+		t.Fatal("failed to parse RSA private key")
+	}
+
+	pfxData, err := pkcs12.Modern.Encode(privKey, cert, make([]*x509.Certificate, 0), "test-password")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	tmpFile, err := os.CreateTemp("", "test-keystore-*.p12")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer tmpFile.Close()
+
+	_, err = tmpFile.Write(pfxData)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	return tmpFile.Name()
+}
+
+// createTestJKS creates a temporary JKS keystore
+func createTestJKS(t *testing.T, certDER []byte) string {
+	tmpFile, err := os.CreateTemp("", "test-keystore-*.jks")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer tmpFile.Close()
+
+	jks := keystore.New()
+	if err := jks.SetTrustedCertificateEntry("test-alias", keystore.TrustedCertificateEntry{
+		Certificate: keystore.Certificate{
+			Type:    "X.509",
+			Content: certDER,
+		},
+	}); err != nil {
+		t.Fatalf("failed to set trusted certificate entry: %v", err)
+	}
+
+	output, err := os.Create(tmpFile.Name())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer output.Close()
+
+	if err := jks.Store(output, []byte("test-password")); err != nil {
+		t.Fatal(err)
+	}
+
+	return tmpFile.Name()
+}
 
 func TestGatherRemoteIntegration(t *testing.T) {
 	t.Skip("Skipping network-dependent test due to race condition when test-all")
@@ -140,6 +259,8 @@ func TestGatherRemoteIntegration(t *testing.T) {
 func TestGatherLocal(t *testing.T) {
 	wrongCert := fmt.Sprintf("-----BEGIN CERTIFICATE-----\n%s\n-----END CERTIFICATE-----\n", base64.StdEncoding.EncodeToString([]byte("test")))
 
+	pkcs12Path, jksPath := generateTestKeystores(t)
+
 	tests := []struct {
 		name    string
 		mode    os.FileMode
@@ -160,32 +281,48 @@ func TestGatherLocal(t *testing.T) {
 		{name: "correct multiple certificates and extra trailing space", mode: 0640, content: pki.ReadServerCert() + pki.ReadServerCert() + " "},
 		{name: "correct multiple certificates and extra leading space", mode: 0640, content: " " + pki.ReadServerCert() + pki.ReadServerCert()},
 		{name: "correct multiple certificates and extra middle space", mode: 0640, content: pki.ReadServerCert() + " " + pki.ReadServerCert()},
+		{name: "valid PKCS12 keystore", mode: 0640, content: pkcs12Path},
+		{name: "valid JKS keystore", mode: 0640, content: jksPath},
+		{name: "missing password PKCS12", mode: 0640, content: pkcs12Path, error: true},
+		{name: "missing password JKS", mode: 0640, content: jksPath, error: true},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			f, err := os.CreateTemp("", "x509_cert")
-			require.NoError(t, err)
+			var tempFile string
+			if test.content != pkcs12Path && test.content != jksPath {
+				f, err := os.CreateTemp("", "x509_cert")
+				require.NoError(t, err)
 
-			_, err = f.WriteString(test.content)
-			require.NoError(t, err)
+				_, err = f.WriteString(test.content)
+				require.NoError(t, err)
 
-			if runtime.GOOS != "windows" {
-				require.NoError(t, f.Chmod(test.mode))
+				if runtime.GOOS != "windows" {
+					require.NoError(t, f.Chmod(test.mode))
+				}
+
+				require.NoError(t, f.Close())
+
+				defer os.Remove(f.Name())
+				tempFile = f.Name()
+			} else {
+				tempFile = test.content // Use generated keystore file path
 			}
-
-			require.NoError(t, f.Close())
-
-			defer os.Remove(f.Name())
 
 			sc := X509Cert{
-				Sources: []string{f.Name()},
-				Log:     testutil.Logger{},
+				Sources:  []string{tempFile},
+				Log:      testutil.Logger{},
+				Password: "test-password",
 			}
+
+			if test.name == "missing password PKCS12" || test.name == "missing password JKS" {
+				sc.Password = ""
+			}
+
 			require.NoError(t, sc.Init())
 
 			acc := testutil.Accumulator{}
-			err = sc.Gather(&acc)
+			err := sc.Gather(&acc)
 
 			if (len(acc.Errors) > 0) != test.error {
 				t.Errorf("%s", err)

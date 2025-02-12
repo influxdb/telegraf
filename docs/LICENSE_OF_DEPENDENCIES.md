@@ -317,6 +317,7 @@ following works:
 - github.com/opentracing/opentracing-go [Apache License 2.0](https://github.com/opentracing/opentracing-go/blob/master/LICENSE)
 - github.com/p4lang/p4runtime [Apache License 2.0](https://github.com/p4lang/p4runtime/blob/main/LICENSE)
 - github.com/paulmach/orb [MIT License](https://github.com/paulmach/orb/blob/master/LICENSE.md)
+- github.com/pavlo-v-chernykh/keystore-go [MIT License](https://github.com/pavlo-v-chernykh/keystore-go/blob/main/LICENSE)
 - github.com/pborman/ansi [BSD 3-Clause "New" or "Revised" License](https://github.com/pborman/ansi/blob/master/LICENSE)
 - github.com/pcolladosoto/goslurm [MIT License](https://github.com/pcolladosoto/goslurm/blob/main/LICENSE)
 - github.com/peterbourgon/unixtransport [Apache License 2.0](https://github.com/peterbourgon/unixtransport/blob/main/LICENSE)
@@ -467,6 +468,7 @@ following works:
 - sigs.k8s.io/json [Apache License 2.0](https://github.com/kubernetes/client-go/blob/master/LICENSE)
 - sigs.k8s.io/structured-merge-diff [Apache License 2.0](https://github.com/kubernetes/client-go/blob/master/LICENSE)
 - sigs.k8s.io/yaml [Apache License 2.0](https://github.com/kubernetes/client-go/blob/master/LICENSE)
+- software.sslmate.com/src/go-pkcs12 [BSD 3-Clause "New" or "Revised" License](https://github.com/SSLMate/go-pkcs12/blob/master/LICENSE)
 
 ## Telegraf used and modified code from these projects
 
