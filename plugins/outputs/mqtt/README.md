@@ -200,6 +200,7 @@ while `homie_node_id` will provide a template for the `node-id` part of the
 topic. Both options can contain [Go templates][GoTemplates] similar to `topic`
 with `{{ .PluginName }}` referencing the metric name and `{{ .Tag "key"}}`
 referencing the tag with the name `key`.
+[Sprig](http://masterminds.github.io/sprig/) helper functions are available.
 
 For example writing the metrics
 

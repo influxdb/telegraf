@@ -8,6 +8,8 @@ import (
 	"strings"
 	"text/template"
 
+	"github.com/Masterminds/sprig/v3"
+
 	"github.com/influxdata/telegraf"
 	"github.com/influxdata/telegraf/internal"
 )
@@ -102,7 +104,7 @@ type HomieGenerator struct {
 }
 
 func NewHomieGenerator(tmpl string) (*HomieGenerator, error) {
-	tt, err := template.New("topic_name").Parse(tmpl)
+	tt, err := template.New("topic_name").Funcs(sprig.TxtFuncMap()).Parse(tmpl)
 	if err != nil {
 		return nil, err
 	}
