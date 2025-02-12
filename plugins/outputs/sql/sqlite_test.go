@@ -25,6 +25,7 @@ func TestSqlite(t *testing.T) {
 	p.Log = testutil.Logger{}
 	p.Driver = "sqlite"
 	p.DataSourceName = address
+	require.NoError(t, p.Init())
 
 	require.NoError(t, p.Connect())
 	defer p.Close()
