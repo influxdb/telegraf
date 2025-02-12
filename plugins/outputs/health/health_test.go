@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/influxdata/telegraf"
+	"github.com/influxdata/telegraf/config"
 	"github.com/influxdata/telegraf/plugins/outputs/health"
 	"github.com/influxdata/telegraf/testutil"
 )
@@ -17,8 +18,9 @@ var pki = testutil.NewPKI("../../../testutil/pki")
 
 func TestHealth(t *testing.T) {
 	type Options struct {
-		Compares []*health.Compares `toml:"compares"`
-		Contains []*health.Contains `toml:"contains"`
+		Compares           []*health.Compares           `toml:"compares"`
+		Contains           []*health.Contains           `toml:"contains"`
+		TimeBetweenMetrics []*health.TimeBetweenMetrics `toml:"time_between_metrics"`
 	}
 
 	now := time.Now()
@@ -100,6 +102,82 @@ func TestHealth(t *testing.T) {
 			},
 			expectedCode: 503,
 		},
+		{
+			name: "time check passes without metrics",
+			options: Options{
+				TimeBetweenMetrics: []*health.TimeBetweenMetrics{
+					{
+						Field:                 "time_idle",
+						MaxTimeBetweenMetrics: config.Duration(10.0 * time.Second),
+					},
+				},
+			},
+			metrics:      []telegraf.Metric{},
+			expectedCode: 200,
+		},
+		{
+			name: "time check passes with metrics",
+			options: Options{
+				TimeBetweenMetrics: []*health.TimeBetweenMetrics{
+					{
+						Field:                 "time_idle",
+						MaxTimeBetweenMetrics: config.Duration(10.0 * time.Second),
+					},
+				},
+			},
+			metrics: []telegraf.Metric{
+				testutil.MustMetric(
+					"cpu",
+					map[string]string{},
+					map[string]interface{}{
+						"time_idle": 42,
+					},
+					now),
+			},
+			expectedCode: 200,
+		},
+		{
+			name: "time check fails with past messages",
+			options: Options{
+				TimeBetweenMetrics: []*health.TimeBetweenMetrics{
+					{
+						Field:                 "time_idle",
+						MaxTimeBetweenMetrics: config.Duration(10.0 * time.Second),
+					},
+				},
+			},
+			metrics: []telegraf.Metric{
+				testutil.MustMetric(
+					"cpu",
+					map[string]string{},
+					map[string]interface{}{
+						"time_idle": 42,
+					},
+					time.Time{}.AddDate(2000, 0, 0)),
+			},
+			expectedCode: 503,
+		},
+		{
+			name: "time check pass with recent messages",
+			options: Options{
+				TimeBetweenMetrics: []*health.TimeBetweenMetrics{
+					{
+						Field:                 "time_idle",
+						MaxTimeBetweenMetrics: config.Duration(120.0 * time.Second),
+					},
+				},
+			},
+			metrics: []telegraf.Metric{
+				testutil.MustMetric(
+					"cpu",
+					map[string]string{},
+					map[string]interface{}{
+						"time_idle": 42,
+					},
+					now),
+			},
+			expectedCode: 200,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -107,6 +185,7 @@ func TestHealth(t *testing.T) {
 			output.ServiceAddress = "tcp://127.0.0.1:0"
 			output.Compares = tt.options.Compares
 			output.Contains = tt.options.Contains
+			output.TimeBetweenMetrics = tt.options.TimeBetweenMetrics
 			output.Log = testutil.Logger{}
 
 			err := output.Init()

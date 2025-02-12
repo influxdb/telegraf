@@ -65,6 +65,10 @@ See the [CONFIGURATION.md][CONFIGURATION.md] for more details.
   ##
   ## [[outputs.health.contains]]
   ##   field = "buffer_size"
+  ##
+  ## [[outputs.health.time_between_metrics]]
+  ##  field = "buffer_size"
+  ##  max_time_between_metrics = "1m"
 ```
 
 ### compares
@@ -81,3 +85,9 @@ The `contains` check can be used to require a field key to exist on at least
 one metric.
 
 If the field is found on any metric the check passes.
+
+### time_between_metrics
+
+The `time_between_metrics` check can be used to require a certain period between metrics with the provided fields.
+The check will be healthy until the first metric that matches is received, and will later fail if the time passed
+since the last message received is greated than `max_time_between_metrics`.
