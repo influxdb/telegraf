@@ -39,6 +39,9 @@ type Shim struct {
 	Processor telegraf.StreamingProcessor
 	Output    telegraf.Output
 
+	BatchSize    int
+	BatchTimeout time.Duration
+
 	log telegraf.Logger
 
 	// streams
@@ -56,11 +59,13 @@ type Shim struct {
 // New creates a new shim interface
 func New() *Shim {
 	return &Shim{
-		metricCh: make(chan telegraf.Metric, 1),
-		stdin:    os.Stdin,
-		stdout:   os.Stdout,
-		stderr:   os.Stderr,
-		log:      logger.New("", "", ""),
+		BatchSize:    1,
+		BatchTimeout: 10 * time.Second,
+		metricCh:     make(chan telegraf.Metric, 1),
+		stdin:        os.Stdin,
+		stdout:       os.Stdout,
+		stderr:       os.Stderr,
+		log:          logger.New("", "", ""),
 	}
 }
 
