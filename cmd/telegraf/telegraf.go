@@ -430,6 +430,11 @@ func (t *Telegraf) runAgent(ctx context.Context, reloadConfig bool) error {
 			msg := fmt.Sprintf("Insufficient lockable memory %dkb when %dkb is required.", available, required)
 			msg += " Please increase the limit for Telegraf in your Operating System!"
 			log.Print("W! " + color.RedString(msg))
+		} else {
+			log.Printf(
+				"D! Found %d secrets requiring %dkb of lockable memory (limit: %dkb)",
+				c.NumberSecrets, required/1024, available/1024,
+			)
 		}
 	}
 	ag := agent.NewAgent(c)
