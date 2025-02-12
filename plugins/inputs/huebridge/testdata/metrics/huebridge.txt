@@ -1,0 +1,14 @@
+huebridge_light,bridge_id=0123456789ABCDEF,device=Name#3,room=Name#15 on=0i 1737181537879611000
+huebridge_light,bridge_id=0123456789ABCDEF,device=Name#8,room=Name#14 on=0i 1737181537879628000
+huebridge_light,bridge_id=0123456789ABCDEF,device=Name#12,room=Name#16 on=0i 1737181537879632000
+huebridge_light,bridge_id=0123456789ABCDEF,device=Name#6,room=Name#13 on=0i 1737181537879634000
+huebridge_light,bridge_id=0123456789ABCDEF,device=Name#1,room=Name#13 on=0i 1737181537879635000
+huebridge_light,bridge_id=0123456789ABCDEF,device=Name#2,room=Name#13 on=0i 1737181537879637000
+huebridge_light,bridge_id=0123456789ABCDEF,device=Name#5,room=Name#15 on=0i 1737181537879639000
+huebridge_light,bridge_id=0123456789ABCDEF,device=Name#9,room=Name#13 on=0i 1737181537879640000
+huebridge_light,bridge_id=0123456789ABCDEF,device=Name#11,room=Name#15 on=0i 1737181537879642000
+huebridge_light,bridge_id=0123456789ABCDEF,device=Name#4,room=Name#14 on=0i 1737181537879646000
+huebridge_temperature,bridge_id=0123456789ABCDEF,device=Name#7,enabled=true,room=Name#15 temperature=17.6299991607666 1737181537879828000
+huebridge_light_level,bridge_id=0123456789ABCDEF,device=Name#7,enabled=true,room=Name#15 light_level=18948i,light_level_lux=78.46934003526889 1737181537880034000
+huebridge_motion_sensor,bridge_id=0123456789ABCDEF,device=Name#7,enabled=true,room=Name#15 motion=0i 1737181537880213000
+huebridge_device_power,bridge_id=0123456789ABCDEF,device=Name#7,room=Name#15 battery_level=100i 1737181537880360000
