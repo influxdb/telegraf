@@ -64,11 +64,11 @@ See the [CONFIGURATION.md][CONFIGURATION.md] for more details.
   ## result in a large number of series, especially with short-lived processes,
   ## creating high cardinality at the output.
   ## Available options are:
-  ##   cmdline   -- full commandline
-  ##   pid       -- ID of the process
-  ##   ppid      -- ID of the process' parent
-  ##   status    -- state of the process
-  ##   user      -- username owning the process
+  ##   cmdline     -- full commandline
+  ##   pid         -- ID of the process
+  ##   ppid        -- ID of the process' parent
+  ##   status      -- state of the process
+  ##   user        -- username owning the process
   ## socket only options:
   ##   protocol  -- protocol type of the process socket
   ##   state     -- state of the process socket
@@ -77,6 +77,8 @@ See the [CONFIGURATION.md][CONFIGURATION.md] for more details.
   ##   dest      -- destination address of the process socket (non-unix sockets)
   ##   dest_port -- destination port of the process socket (non-unix sockets)
   ##   name      -- name of the process socket (unix sockets only)
+  ## tag only available for procstat_lookup
+  ##   level       -- level of the process filtering
   # tag_with = []
 
   ## Properties to collect
@@ -176,6 +178,8 @@ Below are an example set of tags and fields:
     - cgroup_full (when cgroup or systemd_unit is used with glob)
     - supervisor_unit (when defined)
     - win_service (when defined)
+    - parent_pid for child processes
+    - child_level for child processes
   - fields:
     - child_major_faults (int)
     - child_minor_faults (int)

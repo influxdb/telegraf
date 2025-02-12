@@ -76,6 +76,7 @@ type pidsTags struct {
 type processGroup struct {
 	processes []*gopsprocess.Process
 	tags      map[string]string
+	level     int
 }
 
 func (*Procstat) SampleConfig() string {
@@ -98,7 +99,7 @@ func (p *Procstat) Init() error {
 	p.cfg.tagging = make(map[string]bool, len(p.TagWith))
 	for _, tag := range p.TagWith {
 		switch tag {
-		case "cmdline", "pid", "ppid", "status", "user":
+		case "cmdline", "pid", "ppid", "status", "user", "child_level", "parent_pid", "level":
 		case "protocol", "state", "src", "src_port", "dest", "dest_port", "name": // socket only
 			if !slices.Contains(p.Properties, "sockets") {
 				return fmt.Errorf("socket tagging option %q specified without sockets enabled", tag)
@@ -394,16 +395,34 @@ func (p *Procstat) gatherNew(acc telegraf.Accumulator) error {
 					acc.AddMetric(m)
 				}
 			}
+			if p.cfg.tagging["level"] {
+				// Add lookup statistics-metric
+				acc.AddFields(
+					"procstat_lookup",
+					map[string]interface{}{
+						"pid_count":   len(g.processes),
+						"running":     len(running),
+						"result_code": 0,
+						"level":       g.level,
+					},
+					map[string]string{
+						"filter": f.Name,
+						"result": "success",
+					},
+					now,
+				)
+			}
 		}
 
+		tags := map[string]interface{}{
+			"pid_count":   count,
+			"running":     len(running),
+			"result_code": 0,
+		}
 		// Add lookup statistics-metric
 		acc.AddFields(
 			"procstat_lookup",
-			map[string]interface{}{
-				"pid_count":   count,
-				"running":     len(running),
-				"result_code": 0,
-			},
+			tags,
 			map[string]string{
 				"filter": f.Name,
 				"result": "success",
@@ -494,7 +513,7 @@ func (p *Procstat) findSupervisorUnits() ([]pidsTags, error) {
 		if err != nil {
 			return nil, fmt.Errorf("getting children for %d failed: %w", processID, err)
 		}
-		tags := map[string]string{"pattern": p.Pattern, "parent_pid": p.Pattern}
+		tags := map[string]string{"pattern": p.Pattern, "parent_pid": p.Pattern, "child_level": p.Pattern}
 
 		// Handle situations where the PID does not exist
 		if len(pids) == 0 {
