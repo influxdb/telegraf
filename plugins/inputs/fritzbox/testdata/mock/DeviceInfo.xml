@@ -1,0 +1,19 @@
+<?xml version="1.0"?>
+<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/" s:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/">
+<s:Body>
+<u:GetInfoResponse xmlns:u="urn:dslforum-org:service:DeviceInfo:1">
+<NewManufacturerName>AVM</NewManufacturerName>
+<NewManufacturerOUI>00000E</NewManufacturerOUI>
+<NewModelName>Mock 1234</NewModelName>
+<NewDescription>Mock 1234 Release 1.02.03</NewDescription>
+<NewProductClass>MOCK1234</NewProductClass>
+<NewSerialNumber>123456789</NewSerialNumber>
+<NewSoftwareVersion>1.02.03</NewSoftwareVersion>
+<NewHardwareVersion>Mock 1234</NewHardwareVersion>
+<NewSpecVersion>1.0</NewSpecVersion>
+<NewProvisioningCode>000.000.000.000</NewProvisioningCode>
+<NewUpTime>2058438</NewUpTime>
+<NewDeviceLog/>
+</u:GetInfoResponse>
+</s:Body>
+</s:Envelope>

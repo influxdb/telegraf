@@ -1,0 +1,15 @@
+<?xml version="1.0"?>
+<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/" s:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/">
+<s:Body>
+<u:GetCommonLinkPropertiesResponse xmlns:u="urn:dslforum-org:service:WANCommonInterfaceConfig:1">
+<NewWANAccessType>DSL</NewWANAccessType>
+<NewLayer1UpstreamMaxBitRate>48816000</NewLayer1UpstreamMaxBitRate>
+<NewLayer1DownstreamMaxBitRate>253247000</NewLayer1DownstreamMaxBitRate>
+<NewPhysicalLinkStatus>Up</NewPhysicalLinkStatus>
+<NewX_AVM-DE_DownstreamCurrentUtilization>281672,1069998,122887,154143,335464,376641,201036,1046752,1304268,117397,42277,54058,41911,193162,372545,232857,661911,884903,35486,43050</NewX_AVM-DE_DownstreamCurrentUtilization>
+<NewX_AVM-DE_UpstreamCurrentUtilization>100417,76139,389328,217575,68110,49200,248209,122899,83175,466221,511831,491191,372128,192963,269890,222214,41261,56576,328630,388027</NewX_AVM-DE_UpstreamCurrentUtilization>
+<NewX_AVM-DE_DownstreamCurrentMaxSpeed>1304268</NewX_AVM-DE_DownstreamCurrentMaxSpeed>
+<NewX_AVM-DE_UpstreamCurrentMaxSpeed>511831</NewX_AVM-DE_UpstreamCurrentMaxSpeed>
+</u:GetCommonLinkPropertiesResponse>
+</s:Body>
+</s:Envelope>

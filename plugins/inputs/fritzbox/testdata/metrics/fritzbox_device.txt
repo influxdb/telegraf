@@ -1,0 +1,1 @@
+fritzbox_device,service=DeviceInfo1,source=127.0.0.1 hardware_version="Mock 1234",model_name="Mock 1234",serial_number="123456789",software_version="1.02.03",uptime=2058438u 1737088489284767000

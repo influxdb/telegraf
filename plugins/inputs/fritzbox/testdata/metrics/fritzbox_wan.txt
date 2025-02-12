@@ -1,0 +1,1 @@
+fritzbox_wan,service=WANCommonInterfaceConfig1,source=127.0.0.1 downstream_current_max_speed=1304268u,layer1_downstream_max_bit_rate=253247000u,layer1_upstream_max_bit_rate=48816000u,total_bytes_received=554484531337u,total_bytes_sent=129497283207u,upstream_current_max_speed=511831u 1737088572669757000

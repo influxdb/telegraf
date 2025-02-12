@@ -371,6 +371,7 @@ following works:
 - github.com/stoewer/go-strcase [MIT License](https://github.com/stoewer/go-strcase/blob/master/LICENSE)
 - github.com/stretchr/objx [MIT License](https://github.com/stretchr/objx/blob/master/LICENSE)
 - github.com/stretchr/testify [MIT License](https://github.com/stretchr/testify/blob/master/LICENSE)
+- github.com/tdrn-org/go-tr064 [Apache License 2.0](https://github.com/tdrn-org/go-tr064/blob/main/LICENSE)
 - github.com/testcontainers/testcontainers-go [MIT License](https://github.com/testcontainers/testcontainers-go/blob/main/LICENSE)
 - github.com/thomasklein94/packer-plugin-libvirt [Mozilla Public License 2.0](https://github.com/thomasklein94/packer-plugin-libvirt/blob/main/LICENSE)
 - github.com/tidwall/gjson [MIT License](https://github.com/tidwall/gjson/blob/master/LICENSE)

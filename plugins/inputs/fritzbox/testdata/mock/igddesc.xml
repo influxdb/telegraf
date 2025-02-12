@@ -1,0 +1,13 @@
+<root xmlns="urn:dslforum-org:device-1-0">
+    <device>
+        <serviceList>
+            <service>
+                <serviceType>urn:schemas-upnp-org:service:WANCommonInterfaceConfig:1</serviceType>
+                <serviceId>urn:upnp-org:serviceId:WANCommonIFC1</serviceId>
+                <controlURL>/WANCommonIFC1</controlURL>
+                <SCPDURL>/dummySCPD.xml</SCPDURL>
+            </service>
+        </serviceList>
+        <deviceList/>
+    </device>
+</root>

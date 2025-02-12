@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/" s:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/">
+<s:Body>
+<u:GetAddonInfosResponse xmlns:u="urn:schemas-upnp-org:service:WANCommonInterfaceConfig:1">
+<NewByteSendRate>178</NewByteSendRate>
+<NewByteReceiveRate>10893</NewByteReceiveRate>
+<NewPacketSendRate>0</NewPacketSendRate>
+<NewPacketReceiveRate>0</NewPacketReceiveRate>
+<NewTotalBytesSent>648264327</NewTotalBytesSent>
+<NewTotalBytesReceived>433750153</NewTotalBytesReceived>
+<NewAutoDisconnectTime>0</NewAutoDisconnectTime>
+<NewIdleDisconnectTime>1</NewIdleDisconnectTime>
+<NewDNSServer1>0.0.0.0</NewDNSServer1>
+<NewDNSServer2>0.0.0.0</NewDNSServer2>
+<NewVoipDNSServer1>0.0.0.0</NewVoipDNSServer1>
+<NewVoipDNSServer2>0.0.0.0</NewVoipDNSServer2>
+<NewUpnpControlEnabled>0</NewUpnpControlEnabled>
+<NewRoutedBridgedModeBoth>1</NewRoutedBridgedModeBoth>
+<NewX_AVM_DE_TotalBytesSent64>129497283207</NewX_AVM_DE_TotalBytesSent64>
+<NewX_AVM_DE_TotalBytesReceived64>554484531337</NewX_AVM_DE_TotalBytesReceived64>
+<NewX_AVM_DE_WANAccessType>DSL</NewX_AVM_DE_WANAccessType>
+</u:GetAddonInfosResponse>
+</s:Body>
+</s:Envelope>

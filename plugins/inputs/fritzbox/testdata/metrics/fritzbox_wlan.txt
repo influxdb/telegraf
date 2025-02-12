@@ -1,0 +1,1 @@
+fritzbox_wlan,band=2400,channel=13,service=WLANConfiguration1,source=127.0.0.1,ssid=MOCK1234,status=Up total_associations=11u 1737063660847310000

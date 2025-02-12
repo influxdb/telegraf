@@ -1,0 +1,1 @@
+fritzbox_ppp,service=WANPPPConnection1,source=127.0.0.1 downstream_max_bit_rate=68038668u,upstream_max_bit_rate=44213433u,uptime=369434u 1737088658570388000
