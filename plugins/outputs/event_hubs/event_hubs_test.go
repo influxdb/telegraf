@@ -2,161 +2,293 @@ package event_hubs
 
 import (
 	"context"
-	"fmt"
-	"math/rand"
+	"log"
 	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
-	eventhub "github.com/Azure/azure-event-hubs-go/v3"
-	"github.com/stretchr/testify/mock"
+	"github.com/docker/docker/api/types/container"
+	"github.com/docker/go-connections/nat"
 	"github.com/stretchr/testify/require"
+	"github.com/testcontainers/testcontainers-go"
+	"github.com/testcontainers/testcontainers-go/modules/azurite"
+	"github.com/testcontainers/testcontainers-go/wait"
 
+	"github.com/influxdata/telegraf"
 	"github.com/influxdata/telegraf/config"
+	"github.com/influxdata/telegraf/metric"
 	"github.com/influxdata/telegraf/plugins/serializers/json"
 	"github.com/influxdata/telegraf/testutil"
 )
 
-/*
-** Wrapper interface mock for eventhub.Hub
- */
-
-type mockEventHub struct {
-	mock.Mock
-}
-
-func (eh *mockEventHub) GetHub(s string) error {
-	args := eh.Called(s)
-	return args.Error(0)
-}
-
-func (eh *mockEventHub) Close(ctx context.Context) error {
-	args := eh.Called(ctx)
-	return args.Error(0)
-}
-
-func (eh *mockEventHub) SendBatch(ctx context.Context, iterator eventhub.BatchIterator, opts ...eventhub.BatchOption) error {
-	args := eh.Called(ctx, iterator, opts)
-	return args.Error(0)
-}
-
-/* End wrapper interface */
-
-func TestInitAndWrite(t *testing.T) {
-	serializer := &json.Serializer{}
-	require.NoError(t, serializer.Init())
-
-	mockHub := &mockEventHub{}
-	e := &EventHubs{
-		Hub:              mockHub,
-		ConnectionString: "mock",
-		Timeout:          config.Duration(time.Second * 5),
-		MaxMessageSize:   1000000,
-		serializer:       serializer,
-	}
-
-	mockHub.On("GetHub", mock.Anything).Return(nil).Once()
-	require.NoError(t, e.Init())
-	mockHub.AssertExpectations(t)
-
-	metrics := testutil.MockMetrics()
-
-	mockHub.On("SendBatch", mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
-	require.NoError(t, e.Write(metrics))
-	mockHub.AssertExpectations(t)
-}
-
-/*
-** Integration test (requires an Event Hubs instance)
- */
-
-func TestInitAndWriteIntegration(t *testing.T) {
+func TestEmulatorIntegration(t *testing.T) {
 	if testing.Short() {
 		t.Skip("Skipping integration test in short mode")
 	}
 
-	if os.Getenv("EVENTHUB_CONNECTION_STRING") == "" {
-		t.Skip("Missing environment variable EVENTHUB_CONNECTION_STRING")
+	// Require the developers to explicitly accept the EULA of the emulator
+	if os.Getenv("AZURE_EVENT_HUBS_EMULATOR_ACCEPT_EULA") != "yes" {
+		t.Skip(`
+			Skipping due to unexcepted EULA. To run this test, please check the EULA of the emulator
+			at https://github.com/Azure/azure-event-hubs-emulator-installer/blob/main/EMULATOR_EULA.md
+			and accept it by setting the environment variable AZURE_EVENT_HUBS_EMULATOR_ACCEPT_EULA
+			to 'yes'.
+		`)
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
-	defer cancel()
-
-	// Create a new, empty Event Hub
-	// NB: for this to work, the connection string needs to grant "Manage" permissions on the root namespace
-	mHub, err := eventhub.NewHubManagerFromConnectionString(os.Getenv("EVENTHUB_CONNECTION_STRING"))
-	require.NoError(t, err)
-
-	r := rand.New(rand.NewSource(time.Now().UnixNano()))
-	name := fmt.Sprintf("testmetrics%05d", r.Intn(10000))
-
-	entity, err := mHub.Put(ctx, name, eventhub.HubWithPartitionCount(1))
-	require.NoError(t, err)
-
-	// Delete the test hub
+	// Setup the Azure Event Hub emulator environment
+	// See https://learn.microsoft.com/en-us/azure/event-hubs/test-locally-with-event-hub-emulator
+	ctx := context.Background()
+	azuriteContainer, err := azurite.Run(ctx, "mcr.microsoft.com/azure-storage/azurite:3.28.0")
+	require.NoError(t, err, "failed to start Azurite container")
 	defer func() {
-		err := mHub.Delete(ctx, entity.Name)
-		require.NoError(t, err)
+		if err := testcontainers.TerminateContainer(azuriteContainer); err != nil {
+			log.Printf("failed to terminate container: %s", err)
+		}
 	}()
 
-	testHubCS := os.Getenv("EVENTHUB_CONNECTION_STRING") + ";EntityPath=" + entity.Name
+	blobPort, err := azuriteContainer.MappedPort(ctx, azurite.BlobPort)
+	require.NoError(t, err)
 
-	// Configure the plugin to target the newly created hub
+	metadataPort, err := azuriteContainer.MappedPort(ctx, azurite.TablePort)
+	require.NoError(t, err)
+
+	cfgfile, err := filepath.Abs(filepath.Join("testdata", "Config.json"))
+	require.NoError(t, err, "getting absolute path for config")
+	emulator := testutil.Container{
+		Image: "mcr.microsoft.com/azure-messaging/eventhubs-emulator:latest",
+		Env: map[string]string{
+			"BLOB_SERVER":     "host.docker.internal:" + blobPort.Port(),
+			"METADATA_SERVER": "host.docker.internal:" + metadataPort.Port(),
+			"ACCEPT_EULA":     "Y",
+		},
+		Files: map[string]string{
+			"/Eventhubs_Emulator/ConfigFiles/Config.json": cfgfile,
+		},
+		HostAccessPorts: []int{blobPort.Int(), metadataPort.Int()},
+		HostConfigModifier: func(hc *container.HostConfig) {
+			hc.ExtraHosts = append(hc.ExtraHosts, "host.docker.internal:host-gateway")
+		},
+		ExposedPorts: []string{"5672"},
+		WaitingFor:   wait.ForListeningPort(nat.Port("5672")),
+	}
+	require.NoError(t, emulator.Start(), "failed to start Azure Event Hub emulator container")
+	defer emulator.Terminate()
+
+	conn := "Endpoint=sb://" + emulator.Address + ":" + emulator.Ports["5672"] + ";"
+	conn += "SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=SAS_KEY_VALUE;UseDevelopmentEmulator=true;EntityPath=test"
+
+	// Setup plugin and connect
 	serializer := &json.Serializer{}
 	require.NoError(t, serializer.Init())
-	e := &EventHubs{
-		Hub:              &eventHub{},
-		ConnectionString: testHubCS,
-		Timeout:          config.Duration(time.Second * 5),
-		serializer:       serializer,
+
+	plugin := &EventHubs{
+		ConnectionString: conn,
+		Timeout:          config.Duration(3 * time.Second),
+		Log:              testutil.Logger{},
+	}
+	plugin.SetSerializer(serializer)
+	require.NoError(t, plugin.Init())
+	require.NoError(t, plugin.Connect())
+	defer plugin.Close()
+
+	// Make sure we are connected
+	require.Eventually(t, func() bool {
+		return plugin.Write(testutil.MockMetrics()) == nil
+	}, 3*time.Second, 500*time.Millisecond)
+
+	input := []telegraf.Metric{
+		metric.New(
+			"test",
+			map[string]string{
+				"source":   "foo",
+				"division": "A",
+				"type":     "temperature",
+			},
+			map[string]interface{}{
+				"value": 23,
+			},
+			time.Unix(0, 0),
+		),
+		metric.New(
+			"test",
+			map[string]string{
+				"source":   "foo",
+				"division": "A",
+				"type":     "humidity",
+			},
+			map[string]interface{}{
+				"value": 59,
+			},
+			time.Unix(0, 0),
+		),
+		metric.New(
+			"test",
+			map[string]string{
+				"source":   "bar",
+				"division": "B",
+				"type":     "temperature",
+			},
+			map[string]interface{}{
+				"value": 42,
+			},
+			time.Unix(0, 0),
+		),
+		metric.New(
+			"test",
+			map[string]string{
+				"source":   "bar",
+				"division": "B",
+				"type":     "humidity",
+			},
+			map[string]interface{}{
+				"value": 87,
+			},
+			time.Unix(0, 0),
+		),
 	}
 
-	// Verify that we can connect to Event Hubs
-	require.NoError(t, e.Init())
+	require.NoError(t, plugin.Write(input))
+}
 
-	// Verify that we can successfully write data to Event Hubs
-	metrics := testutil.MockMetrics()
-	require.NoError(t, e.Write(metrics))
-
-	/*
-	** Verify we can read data back from the test hub
-	 */
-
-	exit := make(chan string)
-
-	// Create a hub client for receiving
-	hub, err := eventhub.NewHubFromConnectionString(testHubCS)
-	require.NoError(t, err)
-
-	// The handler function will pass received messages via the channel
-	handler := func(_ context.Context, event *eventhub.Event) error {
-		exit <- string(event.Data)
-		return nil
+func TestReconnectIntegration(t *testing.T) {
+	if testing.Short() {
+		t.Skip("Skipping integration test in short mode")
 	}
 
-	// Set up the receivers
-	runtimeInfo, err := hub.GetRuntimeInformation(ctx)
-	require.NoError(t, err)
-
-	for _, partitionID := range runtimeInfo.PartitionIDs {
-		_, err := hub.Receive(ctx, partitionID, handler, eventhub.ReceiveWithStartingOffset("-1"))
-		require.NoError(t, err)
+	// Require the developers to explicitly accept the EULA of the emulator
+	if os.Getenv("AZURE_EVENT_HUBS_EMULATOR_ACCEPT_EULA") != "yes" {
+		t.Skip(`
+			Skipping due to unexcepted EULA. To run this test, please check the EULA of the emulator
+			at https://github.com/Azure/azure-event-hubs-emulator-installer/blob/main/EMULATOR_EULA.md
+			and accept it by setting the environment variable AZURE_EVENT_HUBS_EMULATOR_ACCEPT_EULA
+			to 'yes'.
+		`)
 	}
 
-	// Wait to receive the same number of messages sent, with timeout
-	received := 0
-wait:
-	for _, metric := range metrics {
-		select {
-		case m := <-exit:
-			t.Logf("Received for %s: %s", metric.Name(), m)
-			received = received + 1
-		case <-time.After(10 * time.Second):
-			t.Logf("Timeout")
-			break wait
+	// Setup the Azure Event Hub emulator environment
+	// See https://learn.microsoft.com/en-us/azure/event-hubs/test-locally-with-event-hub-emulator
+	ctx := context.Background()
+	azuriteContainer, err := azurite.Run(ctx, "mcr.microsoft.com/azure-storage/azurite:3.28.0")
+	require.NoError(t, err, "failed to start Azurite container")
+	defer func() {
+		if err := testcontainers.TerminateContainer(azuriteContainer); err != nil {
+			log.Printf("failed to terminate container: %s", err)
 		}
+	}()
+
+	blobPort, err := azuriteContainer.MappedPort(ctx, azurite.BlobPort)
+	require.NoError(t, err)
+
+	metadataPort, err := azuriteContainer.MappedPort(ctx, azurite.TablePort)
+	require.NoError(t, err)
+
+	cfgfile, err := filepath.Abs(filepath.Join("testdata", "Config.json"))
+	require.NoError(t, err, "getting absolute path for config")
+	emulator := testutil.Container{
+		Image: "mcr.microsoft.com/azure-messaging/eventhubs-emulator:latest",
+		Env: map[string]string{
+			"BLOB_SERVER":     "host.docker.internal:" + blobPort.Port(),
+			"METADATA_SERVER": "host.docker.internal:" + metadataPort.Port(),
+			"ACCEPT_EULA":     "Y",
+		},
+		Files: map[string]string{
+			"/Eventhubs_Emulator/ConfigFiles/Config.json": cfgfile,
+		},
+		HostAccessPorts: []int{blobPort.Int(), metadataPort.Int()},
+		HostConfigModifier: func(hc *container.HostConfig) {
+			hc.ExtraHosts = append(hc.ExtraHosts, "host.docker.internal:host-gateway")
+		},
+		ExposedPorts: []string{"5672"},
+		WaitingFor:   wait.ForListeningPort(nat.Port("5672")),
+	}
+	require.NoError(t, emulator.Start(), "failed to start Azure Event Hub emulator container")
+	defer emulator.Terminate()
+
+	conn := "Endpoint=sb://" + emulator.Address + ":" + emulator.Ports["5672"] + ";"
+	conn += "SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=SAS_KEY_VALUE;UseDevelopmentEmulator=true;EntityPath=test"
+
+	// Setup plugin and connect
+	serializer := &json.Serializer{}
+	require.NoError(t, serializer.Init())
+
+	plugin := &EventHubs{
+		ConnectionString: conn,
+		Timeout:          config.Duration(3 * time.Second),
+		Log:              testutil.Logger{},
+	}
+	plugin.SetSerializer(serializer)
+	require.NoError(t, plugin.Init())
+	require.NoError(t, plugin.Connect())
+	defer plugin.Close()
+
+	// Make sure we are connected
+	require.Eventually(t, func() bool {
+		return plugin.Write(testutil.MockMetrics()) == nil
+	}, 3*time.Second, 500*time.Millisecond)
+
+	input := []telegraf.Metric{
+		metric.New(
+			"test",
+			map[string]string{
+				"source":   "foo",
+				"division": "A",
+				"type":     "temperature",
+			},
+			map[string]interface{}{
+				"value": 23,
+			},
+			time.Unix(0, 0),
+		),
+		metric.New(
+			"test",
+			map[string]string{
+				"source":   "foo",
+				"division": "A",
+				"type":     "humidity",
+			},
+			map[string]interface{}{
+				"value": 59,
+			},
+			time.Unix(0, 0),
+		),
+		metric.New(
+			"test",
+			map[string]string{
+				"source":   "bar",
+				"division": "B",
+				"type":     "temperature",
+			},
+			map[string]interface{}{
+				"value": 42,
+			},
+			time.Unix(0, 0),
+		),
+		metric.New(
+			"test",
+			map[string]string{
+				"source":   "bar",
+				"division": "B",
+				"type":     "humidity",
+			},
+			map[string]interface{}{
+				"value": 87,
+			},
+			time.Unix(0, 0),
+		),
 	}
 
-	// Make sure received == sent
-	require.Len(t, metrics, received)
+	// This write should succeed as we should be able to connect to the
+	// container
+	require.NoError(t, plugin.Write(input))
+
+	// Pause the container to simulate connection loss. Subsequent writes
+	// should fail until the container is resumed
+	require.NoError(t, emulator.Pause())
+	require.ErrorIs(t, plugin.Write(input), context.DeadlineExceeded)
+
+	// Resume the container to check if the plugin reconnects
+	require.NoError(t, emulator.Resume())
+	require.NoError(t, plugin.Write(input))
 }

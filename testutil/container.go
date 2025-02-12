@@ -27,6 +27,7 @@ type Container struct {
 	Entrypoint         []string
 	Env                map[string]string
 	Files              map[string]string
+	HostAccessPorts    []int
 	HostConfigModifier func(*container.HostConfig)
 	ExposedPorts       []string
 	Cmd                []string
@@ -62,6 +63,7 @@ func (c *Container) Start() error {
 			Env:                c.Env,
 			ExposedPorts:       c.ExposedPorts,
 			Files:              files,
+			HostAccessPorts:    c.HostAccessPorts,
 			HostConfigModifier: c.HostConfigModifier,
 			Cmd:                c.Cmd,
 			Image:              c.Image,

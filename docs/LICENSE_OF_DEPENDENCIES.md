@@ -18,6 +18,7 @@ following works:
 - github.com/Azure/azure-sdk-for-go/sdk/azcore [MIT License](https://github.com/Azure/azure-sdk-for-go/blob/main/sdk/azcore/LICENSE.txt)
 - github.com/Azure/azure-sdk-for-go/sdk/azidentity [MIT License](https://github.com/Azure/azure-sdk-for-go/blob/main/sdk/azidentity/LICENSE.txt)
 - github.com/Azure/azure-sdk-for-go/sdk/internal [MIT License](https://github.com/Azure/azure-sdk-for-go/blob/main/sdk/internal/LICENSE.txt)
+- github.com/Azure/azure-sdk-for-go/sdk/messaging/azeventhubs [MIT License](https://github.com/Azure/azure-sdk-for-go/blob/main/sdk/messaging/azeventhubs/LICENSE.txt)
 - github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/monitor/armmonitor [MIT License](https://github.com/Azure/azure-sdk-for-go/blob/main/sdk/resourcemanager/monitor/armmonitor/LICENSE.txt)
 - github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/resources/armresources [MIT License](https://github.com/Azure/azure-sdk-for-go/blob/main/sdk/resourcemanager/resources/armresources/LICENSE.txt)
 - github.com/Azure/azure-sdk-for-go/sdk/storage/azblob [MIT License](https://github.com/Azure/azure-sdk-for-go/blob/main/sdk/storage/azblob/LICENSE.txt)

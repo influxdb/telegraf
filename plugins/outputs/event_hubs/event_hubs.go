@@ -4,89 +4,57 @@ package event_hubs
 import (
 	"context"
 	_ "embed"
+	"errors"
+	"fmt"
 	"time"
 
-	eventhub "github.com/Azure/azure-event-hubs-go/v3"
+	"github.com/Azure/azure-sdk-for-go/sdk/messaging/azeventhubs"
 
 	"github.com/influxdata/telegraf"
 	"github.com/influxdata/telegraf/config"
+	"github.com/influxdata/telegraf/internal"
 	"github.com/influxdata/telegraf/plugins/outputs"
 )
 
 //go:embed sample.conf
 var sampleConfig string
 
-/*
-** Wrapper interface for eventhub.Hub
- */
-
-type EventHubInterface interface {
-	GetHub(s string) error
-	Close(ctx context.Context) error
-	SendBatch(ctx context.Context, iterator eventhub.BatchIterator, opts ...eventhub.BatchOption) error
-}
-
-type eventHub struct {
-	hub *eventhub.Hub
-}
-
-func (eh *eventHub) GetHub(s string) error {
-	hub, err := eventhub.NewHubFromConnectionString(s)
-
-	if err != nil {
-		return err
-	}
-
-	eh.hub = hub
-
-	return nil
-}
-
-func (eh *eventHub) Close(ctx context.Context) error {
-	return eh.hub.Close(ctx)
-}
-
-func (eh *eventHub) SendBatch(ctx context.Context, iterator eventhub.BatchIterator, opts ...eventhub.BatchOption) error {
-	return eh.hub.SendBatch(ctx, iterator, opts...)
-}
-
-/* End wrapper interface */
-
 type EventHubs struct {
-	Log              telegraf.Logger `toml:"-"`
 	ConnectionString string          `toml:"connection_string"`
-	Timeout          config.Duration `toml:"timeout"`
 	PartitionKey     string          `toml:"partition_key"`
-	MaxMessageSize   int             `toml:"max_message_size"`
+	MaxMessageSize   config.Size     `toml:"max_message_size"`
+	Timeout          config.Duration `toml:"timeout"`
+	Log              telegraf.Logger `toml:"-"`
 
-	Hub          EventHubInterface
-	batchOptions []eventhub.BatchOption
-	serializer   telegraf.Serializer
+	client     *azeventhubs.ProducerClient
+	options    azeventhubs.EventDataBatchOptions
+	serializer telegraf.Serializer
 }
-
-const (
-	defaultRequestTimeout = time.Second * 30
-)
 
 func (*EventHubs) SampleConfig() string {
 	return sampleConfig
 }
 
 func (e *EventHubs) Init() error {
-	err := e.Hub.GetHub(e.ConnectionString)
-
-	if err != nil {
-		return err
-	}
-
 	if e.MaxMessageSize > 0 {
-		e.batchOptions = append(e.batchOptions, eventhub.BatchWithMaxSizeInBytes(e.MaxMessageSize))
+		e.options.MaxBytes = uint64(e.MaxMessageSize)
 	}
 
 	return nil
 }
 
-func (*EventHubs) Connect() error {
+func (e *EventHubs) Connect() error {
+	cfg := &azeventhubs.ProducerClientOptions{
+		ApplicationID: internal.FormatFullVersion(),
+		RetryOptions:  azeventhubs.RetryOptions{MaxRetries: -1},
+	}
+
+	client, err := azeventhubs.NewProducerClientFromConnectionString(e.ConnectionString, "", cfg)
+	if err != nil {
+		return fmt.Errorf("failed to create client: %w", err)
+	}
+	e.client = client
+
 	return nil
 }
 
@@ -94,13 +62,7 @@ func (e *EventHubs) Close() error {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(e.Timeout))
 	defer cancel()
 
-	err := e.Hub.Close(ctx)
-
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return e.client.Close(ctx)
 }
 
 func (e *EventHubs) SetSerializer(serializer telegraf.Serializer) {
@@ -108,46 +70,96 @@ func (e *EventHubs) SetSerializer(serializer telegraf.Serializer) {
 }
 
 func (e *EventHubs) Write(metrics []telegraf.Metric) error {
-	events := make([]*eventhub.Event, 0, len(metrics))
-	for _, metric := range metrics {
-		payload, err := e.serializer.Serialize(metric)
+	ctx := context.Background()
 
+	batchOptions := e.options
+	batches := make(map[string]*azeventhubs.EventDataBatch)
+	for i := 0; i < len(metrics); i++ {
+		m := metrics[i]
+
+		// Prepare the payload
+		payload, err := e.serializer.Serialize(m)
 		if err != nil {
-			e.Log.Debugf("Could not serialize metric: %v", err)
+			e.Log.Errorf("Could not serialize metric: %v", err)
+			e.Log.Tracef("metric: %+v", m)
 			continue
 		}
 
-		event := eventhub.NewEvent(payload)
+		// Get the batcher for the chosen partition
+		partition := "<default>"
+		batchOptions.PartitionKey = nil
 		if e.PartitionKey != "" {
-			if key, ok := metric.GetTag(e.PartitionKey); ok {
-				event.PartitionKey = &key
-			} else if key, ok := metric.GetField(e.PartitionKey); ok {
-				if strKey, ok := key.(string); ok {
-					event.PartitionKey = &strKey
+			if key, ok := m.GetTag(e.PartitionKey); ok {
+				partition = key
+				batchOptions.PartitionKey = &partition
+			} else if key, ok := m.GetField(e.PartitionKey); ok {
+				if k, ok := key.(string); ok {
+					partition = k
+					batchOptions.PartitionKey = &partition
 				}
 			}
 		}
+		if _, found := batches[partition]; !found {
+			batches[partition], err = e.client.NewEventDataBatch(ctx, &batchOptions)
+			if err != nil {
+				return fmt.Errorf("creating batch for partition %q failed: %w", partition, err)
+			}
+		}
 
-		events = append(events, event)
+		// Add the event to the partition and send it if the batch is full
+		err = batches[partition].AddEventData(&azeventhubs.EventData{Body: payload}, nil)
+		if err == nil {
+			continue
+		}
+
+		// If the event doesn't fit into the batch anymore, send the batch
+		if !errors.Is(err, azeventhubs.ErrEventDataTooLarge) {
+			return fmt.Errorf("adding metric to batch for partition %q failed: %w", partition, err)
+		}
+
+		// The event is larger than the maximum allowed size so there
+		// is nothing we can do here but have to drop the metric.
+		if batches[partition].NumEvents() == 0 {
+			e.Log.Errorf("Metric with %d bytes exceeds the maximum allowed size and must be dropped!", len(payload))
+			e.Log.Tracef("metric: %+v", m)
+			continue
+		}
+		if err := e.send(batches[partition]); err != nil {
+			return fmt.Errorf("sending batch for partition %q failed: %w", partition, err)
+		}
+
+		// Create a new metric and reiterate over the current metric to be
+		// added in the next iteration of the for loop.
+		batches[partition], err = e.client.NewEventDataBatch(ctx, &e.options)
+		if err != nil {
+			return fmt.Errorf("creating batch for partition %q failed: %w", partition, err)
+		}
+		i--
 	}
 
+	// Send the remaining batches that never exceeded the batch size
+	for partition, batch := range batches {
+		if batch.NumBytes() == 0 {
+			continue
+		}
+		if err := e.send(batch); err != nil {
+			return fmt.Errorf("sending batch for partition %q failed: %w", partition, err)
+		}
+	}
+	return nil
+}
+
+func (e *EventHubs) send(batch *azeventhubs.EventDataBatch) error {
 	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(e.Timeout))
 	defer cancel()
 
-	err := e.Hub.SendBatch(ctx, eventhub.NewEventBatchIterator(events...), e.batchOptions...)
-
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return e.client.SendEventDataBatch(ctx, batch, nil)
 }
 
 func init() {
 	outputs.Add("event_hubs", func() telegraf.Output {
 		return &EventHubs{
-			Hub:     &eventHub{},
-			Timeout: config.Duration(defaultRequestTimeout),
+			Timeout: config.Duration(30 * time.Second),
 		}
 	})
 }

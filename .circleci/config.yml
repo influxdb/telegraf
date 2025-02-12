@@ -166,7 +166,11 @@ jobs:
       - check-changed-files-or-halt
       - run: 'sh ./scripts/installgo_linux.sh'
       - run: 'make deps'
-      - run: 'make test-integration'
+      - run:
+          name: "Run integration tests"
+          command: make test-integration
+          environment:
+            AZURE_EVENT_HUBS_EMULATOR_ACCEPT_EULA: yes
   test-go-mac:
     executor: mac
     steps:
